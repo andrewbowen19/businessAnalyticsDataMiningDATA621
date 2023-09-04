@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r eho=FALSE, message=FALSE}
 library(glue)
 library(tidyverse)
+# library(car)
 ```
 
 ```{r data-read-in}
@@ -42,6 +43,28 @@ hist(df$TARGET_WINS)
 boxplot(df$TARGET_WINS)
 ```
 
+Let's look at raw correlations between our other included variables and `TARGET_WINS`
+```{r basic-correlations}
+non_target_cols <- subset(df, select=-TARGET_WINS)
+cor(non_target_cols, df$TARGET_WINS)
+```
+
+
+```{r scatter-plots}
+lm_all <- lm(TARGET_WINS~TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR, df)
+```
+
+```{r}
+plot(lm_all)
+```
+```{r}
+hist(lm_all$residuals)
+```
+
+We can use the `powerTransform` method from the `car` library in order to 
+```{r}
+powerTransform(lm_all)
+```
 
 
 
