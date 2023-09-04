@@ -1,0 +1,48 @@
+---
+title: 'DATA 608: Homework 1 (Baseball Regression)'
+author: "Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen"
+date: "2023-09-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r eho=FALSE, message=FALSE}
+library(glue)
+library(tidyverse)
+```
+
+```{r data-read-in}
+df <- read.csv("../data/moneyball-training-data.csv")
+head(df, 5)
+```
+## Data Exploration
+```{r}
+summary(df)
+```
+
+
+First, let's print out some summary statistics. We're primarily interested in the `TARGET_WINS` feature, so we'll look at that first
+```{r}
+mean_wins <- mean(df$TARGET_WINS)
+median_wins <- median(df$TARGET_WINS)
+sd_wins <- sd(df$TARGET_WINS)
+
+# Print summary stats
+print(glue("The mean number of wins in a season is {mean_wins}"))
+print(glue("The median number of wins in a season is {median_wins}"))
+print(glue("The standard deviation for number of wins in a season is {sd_wins}"))
+```
+
+Let's also make a boxplot and histogram of the `TARGET_WINS` variable
+```{r}
+hist(df$TARGET_WINS)
+boxplot(df$TARGET_WINS)
+```
+
+
+
+
+
