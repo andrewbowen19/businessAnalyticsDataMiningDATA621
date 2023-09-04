@@ -52,8 +52,11 @@ cor(non_target_cols, df$TARGET_WINS)
 
 ```{r scatter-plots}
 lm_all <- lm(TARGET_WINS~TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR, df)
-```
+summary(lm_all)
+``` 
 
+
+We can make some plots of our basic model using the `plot` function on our model variable
 ```{r}
 plot(lm_all)
 ```
