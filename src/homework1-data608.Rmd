@@ -1,6 +1,6 @@
 ---
 title: 'DATA 608: Homework 1 (Baseball Regression)'
-author: "Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen"
+author: "Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen, Charles Ugiagbe"
 date: "2023-09-04"
 output: html_document
 ---
@@ -12,7 +12,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r eho=FALSE, message=FALSE}
 library(glue)
 library(tidyverse)
-# library(car)
 ```
 
 ```{r data-read-in}
@@ -37,7 +36,7 @@ print(glue("The median number of wins in a season is {median_wins}"))
 print(glue("The standard deviation for number of wins in a season is {sd_wins}"))
 ```
 
-Let's also make a boxplot and histogram of the `TARGET_WINS` variable
+Let's also make a boxplot and histogram of the `TARGET_WINS` variable. This should give us a sense of the distribution.
 ```{r}
 hist(df$TARGET_WINS)
 boxplot(df$TARGET_WINS)
@@ -53,7 +52,7 @@ cor(non_target_cols, df$TARGET_WINS)
 ```{r scatter-plots}
 lm_all <- lm(TARGET_WINS~TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR, df)
 summary(lm_all)
-``` 
+```
 
 
 We can make some plots of our basic model using the `plot` function on our model variable
