@@ -51,7 +51,8 @@ ggplot(df, aes(x=TARGET_WINS)) + geom_boxplot()
 ```
 
 
-Let's look at raw correlations between our other included variables and `TARGET_WINS`
+Let's look at raw correlations between our other included variables and a team's win total for a season: 
+
 ```{r basic-correlations, echo=FALSE, message=FALSE}
 train <- subset(df, select=-c(INDEX))
 cor(train, df$TARGET_WINS)
@@ -79,6 +80,8 @@ plot(lm_all)
 
 
 ## Model Evaluation
+We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproduceability. 
+
 ```{r echo=FALSE}
 eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-evaluation-data.csv"
 
@@ -91,6 +94,7 @@ predict(lm_all, test)
 ```
 
 # Appendix: Report Code
+Below is the code for this report to generate the models and charts above
 
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```
