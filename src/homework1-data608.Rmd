@@ -48,7 +48,7 @@ non_target_cols <- subset(df, select=-TARGET_WINS)
 cor(non_target_cols, df$TARGET_WINS)
 ```
 
-
+Let's make a basic model with some offensive inputs (hits, 2B, 3B, Home Runs)
 ```{r scatter-plots}
 lm_all <- lm(TARGET_WINS~TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR, df)
 summary(lm_all)
