@@ -2,30 +2,31 @@
 title: 'DATA 608: Homework 1 (Baseball Regression)'
 author: "Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen, Charles Ugiagbe"
 date: "2023-09-04"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r eho=FALSE, message=FALSE}
+```{r echo=FALSE, message=FALSE}
 library(glue)
 library(tidyverse)
+library(car)
+```
+First, let's read in the provided dataset
+```{r data-read-in, echo=FALSE, message=FALSE}
+df <- read.csv("https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-training-data.csv")
+df <- data.frame(df)
 ```
 
-```{r data-read-in}
-df <- read.csv("../data/moneyball-training-data.csv")
-head(df, 5)
-```
+
 ## Data Exploration
-```{r}
-summary(df)
-```
-
 
 First, let's print out some summary statistics. We're primarily interested in the `TARGET_WINS` feature, so we'll look at that first
-```{r}
+```{r echo=FALSE, message=FALSE}
 mean_wins <- mean(df$TARGET_WINS)
 median_wins <- median(df$TARGET_WINS)
 sd_wins <- sd(df$TARGET_WINS)
@@ -36,38 +37,61 @@ print(glue("The median number of wins in a season is {median_wins}"))
 print(glue("The standard deviation for number of wins in a season is {sd_wins}"))
 ```
 
-Let's also make a boxplot and histogram of the `TARGET_WINS` variable. This should give us a sense of the distribution.
-```{r}
-hist(df$TARGET_WINS)
-boxplot(df$TARGET_WINS)
+Let's also make a boxplot and histogram of the `TARGET_WINS` variable. This should give us a sense of the distribution of wins for teams/seasons in our population
+
+```{r wins-hist, echo=FALSE, message=FALSE}
+ggplot(df, aes(x=TARGET_WINS)) + geom_histogram()
 ```
 
+Overall, the number of wins in a season for a given baseball team looks fairly normally distributed. We can also plot this distribution via a boxplot, which helps to highlight outliers.
+
+
+```{r echo=FALSE}
+ggplot(df, aes(x=TARGET_WINS)) + geom_boxplot()
+```
+
+
 Let's look at raw correlations between our other included variables and `TARGET_WINS`
-```{r basic-correlations}
-non_target_cols <- subset(df, select=-TARGET_WINS)
-cor(non_target_cols, df$TARGET_WINS)
+```{r basic-correlations, echo=FALSE, message=FALSE}
+train <- subset(df, select=-c(INDEX))
+cor(train, df$TARGET_WINS)
 ```
 
 Let's make a basic model with some offensive inputs (hits, 2B, 3B, Home Runs)
-```{r scatter-plots}
-lm_all <- lm(TARGET_WINS~TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR, df)
-summary(lm_all)
+```{r scatter-plots, echo=FALSE, message=FALSE}
+lm_all <- lm(TARGET_WINS~., train)
+coef(lm_all)
 ```
 
 
-We can make some plots of our basic model using the `plot` function on our model variable
-```{r}
+We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable
+
+
+
+```{r echo=FALSE, message=FALSE}
 plot(lm_all)
 ```
-```{r}
-hist(lm_all$residuals)
+
+
+
+
+
+
+
+## Model Evaluation
+```{r echo=FALSE}
+eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-evaluation-data.csv"
+
+test <- read.csv(eval_data_url)
 ```
 
-We can use the `powerTransform` method from the `car` library in order to 
+
 ```{r}
-powerTransform(lm_all)
+predict(lm_all, test)
 ```
 
+# Appendix: Report Code
 
-
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
 
