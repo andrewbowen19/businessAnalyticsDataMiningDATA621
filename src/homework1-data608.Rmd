@@ -61,7 +61,7 @@ cor(train, df$TARGET_WINS)
 Let's make a basic model with some offensive inputs (hits, 2B, 3B, Home Runs)
 ```{r scatter-plots, echo=FALSE, message=FALSE}
 lm_all <- lm(TARGET_WINS~., train)
-coef(lm_all)
+summary(lm_all)
 ```
 
 
@@ -74,7 +74,37 @@ plot(lm_all)
 ```
 
 
+Now we can make a model with inputs that we know from baseball.
 
+- Total hits (`TEAM_BATTING_H`)
+- Total walks gained (`TEAM_BATTING_BB`)
+- Total hits allowed (`TEAM_PITCHING_H`)
+- Total walks allowed (`TEAM_PITCHING_BB`)
+
+The thinking being here that good teams generally tend to get on base more frequently (`TEAM_BATTING_HITS` and `TEAM_BATTING_BB`) while allowing *fewer* runners on base (Negative predictor variables `TEAM_PITCHING_H` and `TEAM_PITCHING_BB`)
+```{r lm-select, echo=FALSE, message=FALSE}
+
+# Create model with select inputs (walks and hits allowed/gained)
+lm_select <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_BB, train)
+
+```
+
+
+
+```{r plot-lm-select, echo=FALSE, message=FALSE}
+plot(lm_select)
+```
+
+
+It's interesting to not that with selected variables (walks and hits gained/allowed per team) that our adjusted $R^2$ actually went *down*, indicating the amount of variability in `TARGET_WINS` explained by our more selectvie walks/hits model is *less* than the model including all variables.
+
+
+```{r plot-hits-wins, echo=FALSE, message=FALSE}
+# Plotting total wins  versus a teams hits
+ggplot(train, aes(x=TEAM_BATTING_H, y=TARGET_WINS)) + 
+  geom_point() +
+  stat_smooth(method = "lm")
+```
 
 
 
@@ -89,9 +119,7 @@ test <- read.csv(eval_data_url)
 ```
 
 
-```{r}
-predict(lm_all, test)
-```
+
 
 # Appendix: Report Code
 Below is the code for this report to generate the models and charts above
