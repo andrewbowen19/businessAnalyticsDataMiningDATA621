@@ -58,25 +58,7 @@ train <- subset(df, select=-c(INDEX))
 cor(train, df$TARGET_WINS)
 ```
 
-Let's make a basic model with some offensive inputs (hits, 2B, 3B, Home Runs)
-```{r scatter-plots, echo=FALSE, message=FALSE}
-lm_all <- lm(TARGET_WINS~., train)
-summary(lm_all)
-```
-
-
-We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable
-
-
-
-
-Let's look at raw correlations between our other included variables and `TARGET_WINS`
-```{r basic-correlations, echo=FALSE, message=FALSE}
-train <- subset(df, select=-c(INDEX))
-cor(train, df$TARGET_WINS)
-```
-
-Let's make a basic model with some offensive inputs (hits, 2B, 3B, Home Runs)
+Let's make a basic model with all inputs
 ```{r scatter-plots, echo=FALSE, message=FALSE}
 lm_all <- lm(TARGET_WINS~., train)
 coef(lm_all)
