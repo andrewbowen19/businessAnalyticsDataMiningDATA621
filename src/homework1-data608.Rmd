@@ -69,9 +69,29 @@ We can make some plots to help test our assumptions of our basic model using the
 
 
 
+
+Let's look at raw correlations between our other included variables and `TARGET_WINS`
+```{r basic-correlations, echo=FALSE, message=FALSE}
+train <- subset(df, select=-c(INDEX))
+cor(train, df$TARGET_WINS)
+```
+
+Let's make a basic model with some offensive inputs (hits, 2B, 3B, Home Runs)
+```{r scatter-plots, echo=FALSE, message=FALSE}
+lm_all <- lm(TARGET_WINS~., train)
+coef(lm_all)
+```
+
+
+We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable
+
+
+
+
 ```{r echo=FALSE, message=FALSE}
 plot(lm_all)
 ```
+
 
 
 Now we can make a model with inputs that we know from baseball.
@@ -118,6 +138,26 @@ plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PIT
 
 
 
+
+
+
+
+## Model Evaluation
+```{r echo=FALSE}
+eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-evaluation-data.csv"
+
+test <- read.csv(eval_data_url)
+```
+
+
+```{r}
+predict(lm_all, test)
+```
+
+# Appendix: Report Code
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
 
 
 
