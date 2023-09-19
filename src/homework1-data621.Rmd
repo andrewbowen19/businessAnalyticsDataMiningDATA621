@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Setup:
 
-```{r echo=FALSE, message=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(glue)
 library(tidyverse)
 library(car)
@@ -36,18 +36,18 @@ median_wins <- median(df$TARGET_WINS)
 sd_wins <- sd(df$TARGET_WINS)
 
 # Print summary stats
-print(glue("The mean number of wins in a season is {mean_wins}"))
-print(glue("The median number of wins in a season is {median_wins}"))
-print(glue("The standard deviation for number of wins in a season is {sd_wins}"))
+print(glue("The mean number of wins in a season is {mean_wins}."))
+print(glue("The median number of wins in a season is {median_wins}."))
+print(glue("The standard deviation for number of wins in a season is {sd_wins}."))
 ```
 
-Let's also make a boxplot and histogram of the `TARGET_WINS` variable. This should give us a sense of the distribution of wins for teams/seasons in our population.
+Let's also make a histogram of the `TARGET_WINS` variable. This should give us a sense of the distribution of wins for teams/seasons in our population.
 
 ```{r wins-hist, echo=FALSE, message=FALSE}
 ggplot(df, aes(x=TARGET_WINS)) + geom_histogram()
 ```
 
-Overall, the number of wins in a season for a given baseball team looks fairly normally distributed. We can also plot this distribution via a boxplot, which helps to highlight outliers.
+Overall, the number of wins in a season for a given baseball team looks fairly normally distributed. Looking at a boxplot helps to highlight the outliers.
 
 ```{r echo=FALSE}
 ggplot(df, aes(x=TARGET_WINS)) + geom_boxplot()
@@ -64,13 +64,31 @@ Let's make a basic model with all inputs:
 
 ```{r scatter-plots, echo=FALSE, message=FALSE}
 lm_all <- lm(TARGET_WINS~., train)
-coef(lm_all)
+summary(lm_all)
 ```
+
+We can see that the $R^2$ value of a model that includes all the variables is not particularly high.
 
 We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable:
 
 ```{r echo=FALSE, message=FALSE}
 plot(lm_all)
+```
+
+Removing the variables that are least significant to the all-variable model one by one via backward selection, we can produce a reduced, better model:
+
+```{r backward_selection, echo=FALSE, message=FALSE, warning=FALSE}
+# This model will need to be run again once we deal with imputing the missing values for certain variables. 
+lm_reduced <- update(lm_all, . ~ . - TEAM_BATTING_SO)
+lm_reduced <- update(lm_reduced, . ~ . - TEAM_BASERUN_CS)
+lm_reduced <- update(lm_reduced, . ~ . - TEAM_BATTING_HR)
+lm_reduced <- update(lm_reduced, . ~ . - TEAM_BATTING_2B)
+lm_reduced <- update(lm_reduced, . ~ . - TEAM_PITCHING_H)
+lm_reduced <- update(lm_reduced, . ~ . - TEAM_BATTING_BB)
+lm_reduced <- update(lm_reduced, . ~ . - TEAM_BASERUN_SB)
+lm_reduced <- update(lm_reduced, . ~ . - TEAM_BATTING_3B)
+summary(lm_reduced)
+
 ```
 
 Now we can make a model with inputs that we know from baseball.
@@ -114,7 +132,8 @@ plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PIT
 
 ```
 
-## Model Evaluation
+## Model Evaluation: 
+
 We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproduceability. 
 
 ```{r echo=FALSE}
