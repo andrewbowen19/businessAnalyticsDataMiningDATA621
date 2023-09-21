@@ -63,6 +63,7 @@ cor(train, df$TARGET_WINS)
 Let's review relationships between batting independent variables
 
 ```{r batting_rel,echo=FALSE,message=FALSE}
+train_cleaned <- train |> rename_all(~stringr::str_replace(.,"^TEAM_",""))
 subset_batting <- na.omit(train_cleaned |> select(contains('Batting')))
 ResourceSelection::kdepairs(subset_batting)
 ```
