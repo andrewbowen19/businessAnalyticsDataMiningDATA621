@@ -18,6 +18,7 @@ library(glue)
 library(tidyverse)
 library(car)
 library(ResourceSelection)
+library(VIM)
 ```
 
 First, let's read in the provided dataset.
@@ -116,16 +117,21 @@ for (i in 1:(length(variables))) {
 }
 ```
 
-`TEAM_BASERUN_SB` and `TEAM_BASERUN_CS` seem to be skewed to the right so we should probably impute the missing values using the median value for these variables. `TEAM_BATTING_HBP`, `TEAM_PITCHING_SO`, and `TEAM_FIELDING_DP` seem basically normally distributed so we can use the mean here, although `TEAM_BATTING_HBP` has 2,085 NA values out of 2,276 observations so it may make sense to leave this variable out of our model entirely. `TEAM_BATTING_SO` is bimodally distributed. 
+`TEAM_BASERUN_SB` and `TEAM_BASERUN_CS` seem to be skewed to the right so we should probably impute the missing values using the median value for these variables. `TEAM_BATTING_HBP`, `TEAM_PITCHING_SO`, and `TEAM_FIELDING_DP` seem basically normally distributed so we can use the mean here, although `TEAM_BATTING_HBP` has 2,085 NA values out of 2,276 observations so it may make sense to leave this variable out of our model entirely. `TEAM_BATTING_SO` is bimodally distributed, so we have decided to use KNN imputation, which does not rely on the shape of the distribution, for this variable.
 
 ```{r impute-vars, echo=FALSE}
 train_imputed <- train |>
   mutate(TEAM_BASERUN_SB = replace(TEAM_BASERUN_SB, is.na(TEAM_BASERUN_SB), median(TEAM_BASERUN_SB, na.rm=T)),
          TEAM_BASERUN_CS = replace(TEAM_BASERUN_CS, is.na(TEAM_BASERUN_CS), median(TEAM_BASERUN_CS, na.rm=T)),
-         TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO, na.rm=T)),,
-         TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP, na.rm=T)),
-         TEAM_BATTING_SO = replace(TEAM_BATTING_SO, is.na(TEAM_BATTING_SO), mean(TEAM_BATTING_SO, na.rm=T))) |>
+         TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO, na.rm=T)),
+         TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP, na.rm=T))) |>
   select(-TEAM_BATTING_HBP)
+
+train_imputed <- train_imputed |>
+    VIM::kNN(variable = "TEAM_BATTING_SO", k = 15, numFun = weighted.mean,
+             weightDist = TRUE) |>
+    select(-TEAM_BATTING_SO_imp)
+
 ```
 
 Let's look at raw correlations between our other included variables and a team's win total for a season: 
