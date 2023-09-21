@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(glue)
 library(tidyverse)
 library(car)
+library(ResourceSelection)
 ```
 
 First, let's read in the provided dataset.
@@ -126,6 +127,21 @@ Let's look at raw correlations between our other included variables and a team's
 ```{r basic-correlations, echo=FALSE, message=FALSE}
 cor(train_imputed, df$TARGET_WINS)
 ```
+Let's review relationships between batting independent variables
+
+```{r batting_rel,echo=FALSE,message=FALSE}
+subset_batting <- na.omit(train_cleaned |> select(contains('Batting')))
+ResourceSelection::kdepairs(subset_batting)
+```
+Most of the batting variables appear to be somewhat approximately normal although there are some cases of right skew. Overall, there aren't any very strong correlations between these statistics at least from a preliminary visual inspection.
+
+Let's review relationships between other independent variables
+
+```{r pitching_rel,echo=FALSE,message=FALSE}
+subset_pitching <- na.omit(train_cleaned |> select(!contains('batting')))
+ResourceSelection::kdepairs(subset_pitching)
+```
+There isn't very strong correlation between the other independent variables similar to the batting statistics although there are more examples of skewed data with these inputs.
 
 Let's make a basic model with all inputs:
 
@@ -134,7 +150,24 @@ lm_all <- lm(TARGET_WINS~., train)
 summary(lm_all)
 ```
 
-We can see that the $R^2$ value of a model that includes all the variables is not particularly high.
+We can see that the $R^2$ value of a model that includes all the variables is not particularly high. Given the fact that the F-score has a very low p-value and there aren't many significant independent variables it is fairly obvious that there are potential multicollinearity issues within this model.
+
+
+Reviewing the variance inflation factors
+
+```{r}
+vif(lm_all)
+```
+This model is suffering from considerable impact from the number of collinear predictors as multiple columns are off the charts given that a score of 5 tends to be far too much collinearity in a least squares regression model.
+
+Let's review the dependent and collinear independent variables
+
+```{r collinear_cols}
+collinear_cols <- na.omit(train_cleaned |> select(TARGET_WINS,BATTING_H,BATTING_HR,BATTING_BB,BATTING_SO,PITCHING_H,PITCHING_HR,PITCHING_BB,PITCHING_SO))
+kdepairs(collinear_cols)
+
+```
+Interestingly enough the correlation between these predictors from a preliminary visual review does not seem to identify a substantial amount of collinearity outside of `TEAM_PITCHED_HR` and `TEAM_BATTING_HR`. A few of the other variables potentially have non-linear relationships between them although `TEAM_PITCHING_SO` appears to have several large outliers that might be impacting the model.
 
 We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable:
 
@@ -156,6 +189,13 @@ lm_reduced <- update(lm_reduced, . ~ . - TEAM_BASERUN_SB)
 lm_reduced <- update(lm_reduced, . ~ . - TEAM_BATTING_3B)
 summary(lm_reduced)
 ```
+Let's review VIF in the reduced model
+
+```{r reduced_lm_vif, echo=FALSE,message=FALSE}
+vif(lm_reduced)
+```
+Taking out a number of the independent variables has substantially reduced collinearity within this revised linear model and it is not an issue in this instance of the model.
+
 
 Now we can make a model with inputs that we know from baseball.
 
