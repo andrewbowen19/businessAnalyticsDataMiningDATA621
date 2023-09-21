@@ -107,19 +107,25 @@ par(mai=c(.3,.3,.3,.3))
 variables <- c("TEAM_BATTING_SO", "TEAM_BASERUN_SB", "TEAM_BASERUN_CS", "TEAM_BATTING_HBP", "TEAM_PITCHING_SO", "TEAM_FIELDING_DP")
 
 for (i in 1:(length(variables))) {
-  hist(train[[variables[i]]], main = variables[i], col = "lightblue")
+  if (variables[i] == "TEAM_PITCHING_SO"){
+    hist(train[[variables[i]]], main = variables[i], col = "lightblue", breaks = 100, xlim = c(0,2500))
+  }
+  else {
+    hist(train[[variables[i]]], main = variables[i], col = "lightblue")
+  }
 }
 ```
 
-`TEAM_BASERUN_SB`, `TEAM_BASERUN_CS` and `TEAM_PITCHING_SO` seem to be skewed to the right so we should probably impute the missing values using the median value for these variables. `TEAM_BATTING_HBP` and `TEAM_FIELDING_DP` seem basically normally distributed so we can use the mean here, although `TEAM_BATTING_HBP` has 2,085 NA values out of 2,276 observations so it may make sense to leave this variable out of our model entirely. `TEAM_BATTING_SO` is bimodally distributed. 
+`TEAM_BASERUN_SB` and `TEAM_BASERUN_CS` seem to be skewed to the right so we should probably impute the missing values using the median value for these variables. `TEAM_BATTING_HBP`, `TEAM_PITCHING_SO`, and `TEAM_FIELDING_DP` seem basically normally distributed so we can use the mean here, although `TEAM_BATTING_HBP` has 2,085 NA values out of 2,276 observations so it may make sense to leave this variable out of our model entirely. `TEAM_BATTING_SO` is bimodally distributed. 
 
 ```{r impute-vars, echo=FALSE}
 train_imputed <- train |>
   mutate(TEAM_BASERUN_SB = replace(TEAM_BASERUN_SB, is.na(TEAM_BASERUN_SB), median(TEAM_BASERUN_SB, na.rm=T)),
          TEAM_BASERUN_CS = replace(TEAM_BASERUN_CS, is.na(TEAM_BASERUN_CS), median(TEAM_BASERUN_CS, na.rm=T)),
-         TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO), median(TEAM_PITCHING_SO, na.rm=T)),
+         TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO, na.rm=T)),
          TEAM_BATTING_HBP = replace(TEAM_BATTING_HBP, is.na(TEAM_BATTING_HBP), mean(TEAM_BATTING_HBP, na.rm=T)),
-         TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP, na.rm=T)))
+         TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP, na.rm=T)),
+         TEAM_BATTING_SO = replace(TEAM_BATTING_SO, is.na(TEAM_BATTING_SO), mean(TEAM_BATTING_SO, na.rm=T)))
 ```
 
 Let's look at raw correlations between our other included variables and a team's win total for a season: 
@@ -127,12 +133,14 @@ Let's look at raw correlations between our other included variables and a team's
 ```{r basic-correlations, echo=FALSE, message=FALSE}
 cor(train_imputed, df$TARGET_WINS)
 ```
-Let's review relationships between batting independent variables
+
+Let's review relationships between batting independent variables. 
 
 ```{r batting_rel,echo=FALSE,message=FALSE}
-subset_batting <- na.omit(train_cleaned |> select(contains('Batting')))
+subset_batting <- na.omit(train_imputed |> select(contains('batting')))
 ResourceSelection::kdepairs(subset_batting)
 ```
+
 Most of the batting variables appear to be somewhat approximately normal although there are some cases of right skew. Overall, there aren't any very strong correlations between these statistics at least from a preliminary visual inspection.
 
 Let's review relationships between other independent variables
