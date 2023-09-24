@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r echo=FALSE, message=FALSE}
 library(glue)
 library(tidyverse)
+library(mice)
 library(car)
 ```
 First, let's read in the provided dataset
@@ -56,6 +57,11 @@ Let's look at raw correlations between our other included variables and a team's
 ```{r basic-correlations, echo=FALSE, message=FALSE}
 train <- subset(df, select=-c(INDEX))
 cor(train, df$TARGET_WINS)
+```
+
+We'll also need 
+```{r}
+
 ```
 
 Let's make a basic model with all inputs
@@ -117,10 +123,6 @@ Let's plot our response variable (*Total Wins*) versus each of our predictor var
 plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_BB, data=train)
 
 ```
-
-
-
-
 
 
 
