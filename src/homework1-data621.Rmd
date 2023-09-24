@@ -1,0 +1,269 @@
+---
+title: 'DATA 621: Homework 1 (Baseball Regression)'
+author: "Shoshana Farber, Josh Forster, Glen Davis, Andrew Bowen, Charles Ugiagbe"
+date: "October 1, 2023"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+## Setup:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(glue)
+library(tidyverse)
+library(car)
+library(ResourceSelection)
+library(VIM)
+```
+
+First, let's read in the provided dataset.
+
+```{r data-read-in, echo=FALSE, message=FALSE}
+df <- read.csv("https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-training-data.csv")
+df <- data.frame(df)
+```
+
+## Data Exploration:
+
+```{r dimensions, echo=F}
+dim = dim(df)
+
+print(glue("The dataset consists of {dim[1]} observations of {dim[2]} variables."))
+```
+
+The variables and their definitions can be seen below:
+
+Variable|Definition
+---|---
+`INDEX`|Identification variable
+`TARGET_WINS`|Number of wins
+`TEAM_BATTING_H`|Base hits by batters (1B, 2B, 3B, HR)
+`TEAM_BATTING_2B`|Doubles by batters (2B)
+`TEAM_BATTING_3B`|Triples by batters (3B)
+`TEAM_BATTING_HR`|Homeruns by batters (4B)
+`TEAM_BATTING_BB`|Walks by batters
+`TEAM_BATTING_HBP`|Batters hit by pitch (get a free base)
+`TEAM_BATTING_SO`|Strikeouts by batters
+`TEAM_BASERUN_SB`|Stolen bases
+`TEAM_BASRUN_CS`|Caught stealing
+`TEAM_FIELDING_E`|Errors
+`TEAM_FIELDING_DP`|Double plays
+`TEAM_PITCHING_BB`|Walks allowed
+`TEAM_PITCHING_H`|Hits allowed
+`TEAM_PITCHING_HR`|Homeruns allowed
+`TEAM_PITCHING_SO`|Strikeouts by pitchers
+
+`INDEX` is an identifying feature and should not be included in the linear regression model. 
+
+```{r train-data, echo=FALSE}
+train <- subset(df, select=-c(INDEX))
+```
+
+Next, let's print out some summary statistics. We're primarily interested in the `TARGET_WINS` variable, so we'll look at that first.
+
+```{r echo=FALSE, message=FALSE}
+mean_wins <- mean(train$TARGET_WINS)
+median_wins <- median(train$TARGET_WINS)
+sd_wins <- sd(train$TARGET_WINS)
+
+# Print summary stats
+print(glue("The mean number of wins in a season is {round(mean_wins,2)}."))
+print(glue("The median number of wins in a season is {median_wins}."))
+print(glue("The standard deviation for number of wins in a season is {round(sd_wins,2)}."))
+```
+
+Let's also make a histogram of the `TARGET_WINS` variable. This should give us a sense of the distribution of wins for teams/seasons in our population.
+
+```{r wins-hist, echo=FALSE, message=FALSE, fig.show='hold', fig.align='center', out.width='85%'}
+ggplot(train, aes(x=TARGET_WINS)) + 
+  geom_histogram() +
+  labs(title = "Distribution of Wins (Histogram)", x = "Number of Wins", y = "Count")
+```
+
+Overall, the number of wins in a season for a given baseball team looks fairly normally distributed. Looking at a boxplot helps to highlight the outliers.
+
+```{r box-plot, echo=FALSE, fig.show='hold', fig.align='center', out.width='85%'}
+ggplot(train, aes(x=TARGET_WINS)) + 
+  geom_boxplot(fill="darkgrey") +
+  labs(title = "Distribution of Wins (Boxplot)", x = "Number of Wins", y = "Count")
+```
+
+Let's take a look at the summary statistics for all the variables:
+
+```{r summary-stats, echo=F}
+summary(train)
+```
+
+We can see quite a few NA values for `TEAM_BATTING_SO`, `TEAM_BASERUN_SB`, `TEAM_BASERUN_CS`, `TEAM_BATTING_HBP`, `TEAM_PITCHING_SO`, and `TEAM_FIELDING_DP`. Let's take a look at the distributions of these variables to see how to impute these missing values.  
+
+```{r dist-na-vars, echo=FALSE}
+par(mfrow=c(2,3))
+par(mai=c(.3,.3,.3,.3))
+
+variables <- c("TEAM_BATTING_SO", "TEAM_BASERUN_SB", "TEAM_BASERUN_CS", "TEAM_BATTING_HBP", "TEAM_PITCHING_SO", "TEAM_FIELDING_DP")
+
+for (i in 1:(length(variables))) {
+  if (variables[i] == "TEAM_PITCHING_SO"){
+    hist(train[[variables[i]]], main = variables[i], col = "lightblue", breaks = 100, xlim = c(0,2500))
+  }
+  else {
+    hist(train[[variables[i]]], main = variables[i], col = "lightblue")
+  }
+}
+```
+
+`TEAM_BASERUN_SB` and `TEAM_BASERUN_CS` seem to be skewed to the right so we should probably impute the missing values using the median value for these variables. `TEAM_BATTING_HBP`, `TEAM_PITCHING_SO`, and `TEAM_FIELDING_DP` seem basically normally distributed so we can use the mean here, although `TEAM_BATTING_HBP` has 2,085 NA values out of 2,276 observations so it may make sense to leave this variable out of our model entirely. `TEAM_BATTING_SO` is bimodally distributed, so we have decided to use KNN imputation, which does not rely on the shape of the distribution, for this variable.
+
+```{r impute-vars, echo=FALSE}
+train_imputed <- train |>
+  mutate(TEAM_BASERUN_SB = replace(TEAM_BASERUN_SB, is.na(TEAM_BASERUN_SB), median(TEAM_BASERUN_SB, na.rm=T)),
+         TEAM_BASERUN_CS = replace(TEAM_BASERUN_CS, is.na(TEAM_BASERUN_CS), median(TEAM_BASERUN_CS, na.rm=T)),
+         TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO, na.rm=T)),
+         TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP, na.rm=T))) |>
+  select(-TEAM_BATTING_HBP)
+
+train_imputed <- train_imputed |>
+    VIM::kNN(variable = "TEAM_BATTING_SO", k = 15, numFun = weighted.mean,
+             weightDist = TRUE) |>
+    select(-TEAM_BATTING_SO_imp)
+
+```
+
+Let's look at raw correlations between our other included variables and a team's win total for a season: 
+
+```{r basic-correlations, echo=FALSE, message=FALSE}
+cor(train_imputed, df$TARGET_WINS)
+```
+
+None of the independent variables seem to have such high correlation with `TARGET_WINS`. `TEAM_BATTING_H` is most highly correlated, with a correlation of 0.39. `TEAM_BATTING_H`, `TEAM_BATTING_2B`, `TEAM_BATTING_3B`, `TEAM_BATTING_HR`, `TEAM_BATTING_BB`, `TEAM_BASERUN_SB`, `TEAM_BASERUN_CS`, `TEAM_PITCHING_HR`, and `TEAM_PITCHING_BB` are all positively correlated with `TARGET_WINS` while `TEAM_BATTING_SO`, `TEAM_PITCHING_H`, `TEAM_PITCHING_SO`, `TEAM_FIELDING_E`, and `TEAM_FIELDING_DP` are negatively correlated. 
+
+Let's review relationships between batting independent variables. 
+
+```{r batting_rel, fig.show='hold', fig.align='center', out.width='60%'}
+train_cleaned <- train_imputed |> rename_all(~stringr::str_replace(.,"^TEAM_",""))
+subset_batting <- train_cleaned |> select(contains('batting'))
+kdepairs(subset_batting)
+```
+
+Most of the batting variables appear to be somewhat approximately normal although there are some cases of right skew. Overall, there aren't any very strong correlations between these statistics at least from a preliminary visual inspection. From the distributions of these variables, we can see some that require transforming to normalize them before we use them in our linear model. 
+
+Let's review relationships between other independent variables.
+
+```{r pitching_rel, fig.show='hold', fig.align='center', out.width='80%'}
+subset_pitching <- train_cleaned |> select(!contains('batting'), -TARGET_WINS)
+kdepairs(subset_pitching)
+```
+
+There isn't very strong correlation between the other independent variables similar to the batting statistics although there are more examples of skewed data with these inputs. Once again, we can see that we will need to transform some of these variables. 
+
+## Modeling
+
+First, let's create a basic model with the untransformed variables:
+
+```{r scatter-plots, echo=FALSE, message=FALSE}
+lm_all <- lm(TARGET_WINS~., train_imputed)
+summary(lm_all)
+```
+
+We can see that the $R^2$ value of a model that includes all the variables is not particularly high. 
+
+We can remove some variables that are not significant using backward step-wise elimination. 
+
+```{r update-lm-all, echo=FALSE}
+lm_all_reduced <- step(lm_all, direction="backward")
+summary(lm_all_reduced)
+```
+
+The $R^2$ for this model is not much imporoved. Let's check for multicollinearity between variables. 
+
+Reviewing the variance inflation factors:
+
+```{r}
+vif(lm_all_reduced)
+```
+
+None of the variance inflation factors are more than 5, but `TEAM_BATTING_HR` and `TEAM_BATTING_SO` come close, with vifs of more than 4.5. We can remove these. 
+
+```{r}
+lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_HR - TEAM_BATTING_SO)
+summary(lm_all_reduced)
+```
+
+```{r}
+vif(lm_all_reduced)
+```
+
+We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable:
+
+```{r}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
+plot(lm_all_reduced)
+```
+
+We can see from the diagnostic plots that there is definitely something up with this model. Let's try transforming some of the variables to see if we can come up with a better model. 
+
+Now we can make a model with inputs that we know from baseball.
+
+- Total hits (`TEAM_BATTING_H`)
+- Total walks gained (`TEAM_BATTING_BB`)
+- Total hits allowed (`TEAM_PITCHING_H`)
+- Total walks allowed (`TEAM_PITCHING_BB`)
+
+We chose these variables based on our understanding that good teams generally tend to get on base more frequently (positive predictor variables `TEAM_BATTING_HITS` and `TEAM_BATTING_BB`) while allowing *fewer* runners on base (negative predictor variables `TEAM_PITCHING_H` and `TEAM_PITCHING_BB`).
+
+```{r lm-select, echo=FALSE, message=FALSE}
+# Create model with select inputs (walks and hits allowed/gained)
+lm_select <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_BB, train)
+
+summary(lm_select)
+```
+
+```{r plot-lm-select, echo=FALSE, message=FALSE}
+plot(lm_select)
+```
+
+It's interesting to note that with selected variables (walks and hits gained/allowed per team) that our adjusted $R^2$ actually went *down*, indicating the amount of variability in `TARGET_WINS` explained by our more selective walks/hits model is *less* than the model including all variables.
+
+Looking at our residual plot above, there seems to be a clustering of residuals along the x-axis at $X \approx 80$. This shows a pattern in our residuals.
+
+```{r plot-lm-select-residuals, echo=FALSE, message=FALSE}
+
+# Plot selective model residuals
+plot(lm_select$residuals)
+
+```
+
+Let's plot our response variable (*Total Wins*) versus each of our predictor variables to get a sense of linear relationships.
+
+```{r plot-select-vars, echo=FALSE, message=FALSE}
+# Plot our response variable for each predictor variable to get a sense of
+plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_BB, data=train)
+
+```
+
+## Model Evaluation: 
+
+We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproducability. 
+
+```{r echo=FALSE}
+eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-evaluation-data.csv"
+
+test <- read.csv(eval_data_url)
+```
+
+```{r}
+predict(lm_all, test)
+```
+
+# Appendix: Report Code
+
+Below is the code for this report to generate the models and charts above.
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
