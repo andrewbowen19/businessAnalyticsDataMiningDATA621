@@ -19,6 +19,11 @@ library(tidyverse)
 library(car)
 library(ResourceSelection)
 library(VIM)
+library(pracma)
+library(MASS)
+select <- dplyr::select
+library(knitr)
+
 ```
 
 First, let's read in the provided dataset.
@@ -108,24 +113,24 @@ par(mai=c(.3,.3,.3,.3))
 variables <- c("TEAM_BATTING_SO", "TEAM_BASERUN_SB", "TEAM_BASERUN_CS", "TEAM_BATTING_HBP", "TEAM_PITCHING_SO", "TEAM_FIELDING_DP")
 
 for (i in 1:(length(variables))) {
-  if (variables[i] == "TEAM_PITCHING_SO"){
-    hist(train[[variables[i]]], main = variables[i], col = "lightblue", breaks = 100, xlim = c(0,2500))
-  }
-  else {
     hist(train[[variables[i]]], main = variables[i], col = "lightblue")
-  }
 }
 ```
 
-`TEAM_BASERUN_SB` and `TEAM_BASERUN_CS` seem to be skewed to the right so we should probably impute the missing values using the median value for these variables. `TEAM_BATTING_HBP`, `TEAM_PITCHING_SO`, and `TEAM_FIELDING_DP` seem basically normally distributed so we can use the mean here, although `TEAM_BATTING_HBP` has 2,085 NA values out of 2,276 observations so it may make sense to leave this variable out of our model entirely. `TEAM_BATTING_SO` is bimodally distributed, so we have decided to use KNN imputation, which does not rely on the shape of the distribution, for this variable.
+`TEAM_BASERUN_SB`, `TEAM_PITCHING_SO`, and `TEAM_BASERUN_CS` seem to be skewed to the right so we should probably impute the missing values using the median value for these variables. `TEAM_BATTING_HBP` and `TEAM_FIELDING_DP` seem basically normally distributed so we can use the mean here, although `TEAM_BATTING_HBP` has 2,085 NA values out of 2,276 observations so it may make sense to leave this variable out of our model entirely. `TEAM_BATTING_SO` is bimodally distributed, so we have decided to use KNN imputation, which does not rely on the shape of the distribution, for this variable.
 
 ```{r impute-vars, echo=FALSE}
 train_imputed <- train |>
-  mutate(TEAM_BASERUN_SB = replace(TEAM_BASERUN_SB, is.na(TEAM_BASERUN_SB), median(TEAM_BASERUN_SB, na.rm=T)),
-         TEAM_BASERUN_CS = replace(TEAM_BASERUN_CS, is.na(TEAM_BASERUN_CS), median(TEAM_BASERUN_CS, na.rm=T)),
-         TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO, na.rm=T)),
-         TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP, na.rm=T))) |>
-  select(-TEAM_BATTING_HBP)
+    mutate(TEAM_BASERUN_SB = replace(TEAM_BASERUN_SB, is.na(TEAM_BASERUN_SB),
+                                     median(TEAM_BASERUN_SB, na.rm=T)),
+           TEAM_BASERUN_CS = replace(TEAM_BASERUN_CS, is.na(TEAM_BASERUN_CS),
+                                     median(TEAM_BASERUN_CS, na.rm=T)),
+           TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO),
+                                      median(TEAM_PITCHING_SO, na.rm=T)),
+           TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP),
+                                      mean(TEAM_FIELDING_DP, na.rm=T))) |>
+    select(-TEAM_BATTING_HBP)
+    
 
 train_imputed <- train_imputed |>
     VIM::kNN(variable = "TEAM_BATTING_SO", k = 15, numFun = weighted.mean,
@@ -175,7 +180,7 @@ We can see that the $R^2$ value of a model that includes all the variables is no
 We can remove some variables that are not significant using backward step-wise elimination. 
 
 ```{r update-lm-all, echo=FALSE}
-lm_all_reduced <- step(lm_all, direction="backward")
+lm_all_reduced <- step(lm_all, direction="backward", trace = 0)
 summary(lm_all_reduced)
 ```
 
@@ -187,7 +192,7 @@ Reviewing the variance inflation factors:
 vif(lm_all_reduced)
 ```
 
-None of the variance inflation factors are more than 5, but `TEAM_BATTING_HR` and `TEAM_BATTING_SO` come close, with vifs of more than 4.5. We can remove these. 
+The variance inflation factors for `TEAM_BATTING_HR` and `TEAM_BATTING_SO` are greater than 4. We can remove these. 
 
 ```{r}
 lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_HR - TEAM_BATTING_SO)
@@ -206,7 +211,105 @@ par(mai=c(.3,.3,.3,.3))
 plot(lm_all_reduced)
 ```
 
-We can see from the diagnostic plots that there is definitely something up with this model. Let's try transforming some of the variables to see if we can come up with a better model. 
+We can see from the diagnostic plots that there is definitely something up with this model. Let's try creating a better model by transforming some of the variables.
+
+`TEAM_PITCHING_SO` is a right-skewed variable with very large outliers. Let's compare how four common transformations (log, fourth root, cube root, and square root) would normalize the distribution of this variable (after adding a small constant since the variable includes accurate values of 0).
+
+```{r transformation_model1, echo = FALSE}
+train_imputed_transformed <- train_imputed
+#Add a small constant to TEAM_PITCHING_SO so there are no 0 values.
+train_imputed_transformed$TEAM_PITCHING_SO <- train_imputed_transformed$TEAM_PITCHING_SO + 1
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
+#Compare how easy to understand transformations alter the distribution
+hist(log(train_imputed_transformed$TEAM_PITCHING_SO),
+     main = "Log Transformation", col="lightblue")
+hist(nthroot(train_imputed_transformed$TEAM_PITCHING_SO, 4),
+     main = "Fourth Root Transformation", col="lightblue")
+hist(nthroot(train_imputed_transformed$TEAM_PITCHING_SO, 3),
+     main = "Cube Root Transformation", col="lightblue")
+hist(sqrt(train_imputed_transformed$TEAM_PITCHING_SO),
+     main = "Square Root Transformation", col="lightblue")
+
+```
+
+The square root transformation appears to normalize the data best. Let's confirm the ideal lambda proposed by the boxcox function from the MASS library is similar to to the square root transformation lambda (0.5) we assume will work best for this data. 
+
+```{r transformation_model2, echo = FALSE}
+bc <- boxcox(lm(train_imputed_transformed$TEAM_PITCHING_SO ~ 1),
+             lambda = seq(-2, 2, length.out = 81),
+             plotit = FALSE)
+lambda <- bc$x[which.max(bc$y)]
+lambda
+
+```
+
+The proposed lambda of 0.45 is in fact very close to 0.5, so we will go with the easier to understand square root transformation. We will follow a similar process to find reasonable transformations for several other variables in our model without showing the process repeatedly. 
+
+```{r transformation_model3, echo = FALSE}
+variables <- c("TEAM_BASERUN_SB", "TEAM_BASERUN_CS", "TEAM_PITCHING_SO",
+               "TEAM_BATTING_3B", "TEAM_BATTING_BB", "TEAM_PITCHING_H",
+               "TEAM_PITCHING_BB", "TEAM_FIELDING_E")
+for (i in 1:(length(variables))){
+    #Add a small constant to columns with any 0 values
+    if (sum(train_imputed_transformed[[variables[i]]] == 0) > 0){
+        train_imputed_transformed[[variables[i]]] <-
+            train_imputed_transformed[[variables[i]]] + 1
+    }
+}
+for (i in 1:(length(variables))){
+    if (i == 1){
+        lambdas <- c()
+    }
+    bc <- boxcox(lm(train_imputed_transformed[[variables[i]]] ~ 1),
+                 lambda = seq(-2, 2, length.out = 81),
+                 plotit = FALSE)
+    lambda <- bc$x[which.max(bc$y)]
+    lambdas <- append(lambdas, lambda)
+}
+lambdas <- as.data.frame(cbind(variables, lambdas))
+kable(lambdas, format = "simple")
+par(mfrow=c(3, 3))
+par(mai=c(.3,.3,.3,.3))
+#Compare how easy to understand transformations alter the distribution
+hist(log(train_imputed_transformed$TEAM_BASERUN_SB),
+     main = "Log(TEAM_BASERUN_SB)", col="lightblue")
+hist(nthroot(train_imputed_transformed$TEAM_BASERUN_CS, 4),
+     main = "Fourth Root(TEAM_BASERUN_CS)", col="lightblue")
+hist(sqrt(train_imputed_transformed$TEAM_PITCHING_SO),
+     main = "Square Root(TEAM_PITCHING_SO)", col="lightblue")
+hist(log(train_imputed_transformed$TEAM_BATTING_3B),
+     main = "Log(TEAM_BATTING_3B)", col="lightblue")
+hist(train_imputed_transformed$TEAM_BATTING_BB^2,
+     main = "TEAM_BATTING_BB SQUARED", col="lightblue")
+hist(train_imputed_transformed$TEAM_PITCHING_H^-2,
+     main = "TEAM_PITCHING_H INVERSE SQUARED", col="lightblue")
+hist(nthroot(train_imputed_transformed$TEAM_PITCHING_BB, 3),
+     main = "Cube Root(TEAM_PITCHING_BB)", col="lightblue")
+hist(train_imputed_transformed$TEAM_FIELDING_E^-1,
+     main = "TEAM_FIELDING_E INVERSE", col="lightblue")
+
+```
+
+Adjusting the ideal lambdas proposed for several variables to commonly understand transformations, we see mixed results on normalizing the distributions. However, we will attempt to use all these transformed variables in the model for now.
+
+```{r transformation_model4, echo = FALSE}
+adj <- c(NA, 0.25, 0.5, NA, 2, -2, 0.33, -1)
+lambdas <- cbind(lambdas, adj)
+for (i in 1:(length(variables))){
+    if (is.na(lambdas[[i, 3]])){
+        train_imputed_transformed[[variables[i]]] <-
+            log(train_imputed_transformed[[variables[i]]])
+    }else{
+        train_imputed_transformed[[variables[i]]] <-
+            train_imputed_transformed[[variables[i]]]^lambdas[[i, 3]]
+    }
+}
+
+lm_all_transformed <- lm(TARGET_WINS ~ ., train_imputed_transformed)
+summary(lm_all_transformed)
+
+```
 
 Now we can make a model with inputs that we know from baseball.
 
