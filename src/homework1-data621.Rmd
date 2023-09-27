@@ -368,5 +368,5 @@ predict(lm_all, test)
 
 Below is the code for this report to generate the models and charts above.
 
-```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
-```
+	```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+	```
