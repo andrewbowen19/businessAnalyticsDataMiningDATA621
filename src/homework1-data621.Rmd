@@ -23,7 +23,7 @@ library(pracma)
 library(MASS)
 select <- dplyr::select
 library(knitr)
-
+library(modelr)
 ```
 
 First, let's read in the provided dataset.
@@ -66,8 +66,10 @@ Variable|Definition
 `INDEX` is an identifying feature and should not be included in the linear regression model. 
 
 ```{r train-data, echo=FALSE}
+set.seed(42)
+
 # Adding a 20% holdout of our input data for model evaluation later
-train <- df[sample(1:nrow(df)), ] %>%
+train <- subset(df[sample(1:nrow(df)), ], select=-c(TEAM_BATTING_HBP))%>%
           sample_frac(0.7)
 
 test  <- dplyr::anti_join(df, train, by = 'INDEX')
@@ -364,6 +366,7 @@ We'll need to read in our [evaluation data](https://github.com/andrewbowen19/bus
 eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-evaluation-data.csv"
 
 eval <- read.csv(eval_data_url)
+
 ```
 
 Let's make some predictions on our evaluation data from the models we've made
@@ -378,15 +381,17 @@ predict_all_transformed <- predict(lm_all_transformed, test)
 ```
 
 
-
+Writing a quick RMSE function
 ```{r}
-rmse <- function(c1, c2){
-  sqrt(mean((c1 - c2)^2))
-}
+# rmse <- function(c1, c2){
+#   sqrt(mean((c1 - c2)^2))
+# }
 ```
 
+We can use the [Root-mean Squared Error](https://statisticsbyjim.com/regression/root-mean-square-error-rmse/) (RMSE) (from the `modelr` package) to analyze our models from above. This is one way to measure the performance of a model. In simple terms, a smaller RMSE value indicates better model performance when predicting on new data.
+
 ```{r}
-# Calcualte RMSE
+# Calcualte RMSE and print to screen
 rmse_all <- rmse(predict_all, test$TARGET_WINS)
 rmse_reduced <- rmse(predict_reduced, test$TARGET_WINS)
 rmse_all_transformed <- rmse(predict_all_transformed, test$TARGET_WINS)
@@ -395,6 +400,21 @@ print(rmse_all)
 print(rmse_reduced)
 print(rmse_all_transformed)
 ```
+
+
+Lastly, we can predict on our `eval` data based on the best RMSE value coming from our *reduced* model. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to evaluate the model performance against actual win totals. 
+
+However, we can look at the distribution of predicted wins to make sure our model predicts reasonable values. Knowing what we know about baseball, average teams tend to win $~80$ games in a season (out of 162 total regular season games). 
+
+```{r}
+# Predict and plot on evaluation data (no wins listed)
+predict_reduced_eval <- as.data.frame(predict(lm_all_reduced, eval))
+
+
+ggplot(as.data.frame(predict_reduced_eval), aes(x = predict_reduced_eval)) + geom_histogram(bins=15) + labs(x="Wins", title="Predicted Wins (Reduced Model): Evaluation Data.")
+```
+
+Roughly speaking, these predicted wn totals look roughly normal, and centered around 80 wins, which is expected
 
 # Appendix: Report Code
 
