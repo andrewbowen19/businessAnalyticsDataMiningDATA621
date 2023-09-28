@@ -66,7 +66,13 @@ Variable|Definition
 `INDEX` is an identifying feature and should not be included in the linear regression model. 
 
 ```{r train-data, echo=FALSE}
-train <- subset(df, select=-c(INDEX))
+# Adding a 20% holdout of our input data for model evaluation later
+train <- df[sample(1:nrow(df)), ] %>%
+          sample_frac(0.7)
+
+test  <- dplyr::anti_join(df, train, by = 'INDEX')
+
+train = subset(df, select=-c(INDEX))
 ```
 
 Next, let's print out some summary statistics. We're primarily interested in the `TARGET_WINS` variable, so we'll look at that first.
@@ -184,7 +190,7 @@ lm_all_reduced <- step(lm_all, direction="backward", trace = 0)
 summary(lm_all_reduced)
 ```
 
-The $R^2$ for this model is not much imporoved. Let's check for multicollinearity between variables. 
+The $R^2$ for this model is not much improved. Let's check for multicolinearity between variables. 
 
 Reviewing the variance inflation factors:
 
@@ -350,18 +356,44 @@ plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PIT
 
 ```
 
-## Model Evaluation: 
+## Model Evaluation/Selection 
 
-We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproducability. 
+We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproduceability. 
 
 ```{r echo=FALSE}
 eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-evaluation-data.csv"
 
-test <- read.csv(eval_data_url)
+eval <- read.csv(eval_data_url)
+```
+
+Let's make some predictions on our evaluation data from the models we've made
+
+```{r}
+test <- drop_na(test)
+
+# Predict using the model using all input variables
+predict_all <- predict(lm_all, test)
+predict_reduced <- predict(lm_all_reduced, test)
+predict_all_transformed <- predict(lm_all_transformed, test)
+```
+
+
+
+```{r}
+rmse <- function(c1, c2){
+  sqrt(mean((c1 - c2)^2))
+}
 ```
 
 ```{r}
-predict(lm_all, test)
+# Calcualte RMSE
+rmse_all <- rmse(predict_all, test$TARGET_WINS)
+rmse_reduced <- rmse(predict_reduced, test$TARGET_WINS)
+rmse_all_transformed <- rmse(predict_all_transformed, test$TARGET_WINS)
+
+print(rmse_all)
+print(rmse_reduced)
+print(rmse_all_transformed)
 ```
 
 # Appendix: Report Code
