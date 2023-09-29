@@ -23,7 +23,6 @@ library(pracma)
 library(MASS)
 select <- dplyr::select
 library(knitr)
-
 ```
 
 First, let's read in the provided dataset.
@@ -136,7 +135,6 @@ train_imputed <- train_imputed |>
     VIM::kNN(variable = "TEAM_BATTING_SO", k = 15, numFun = weighted.mean,
              weightDist = TRUE) |>
     select(-TEAM_BATTING_SO_imp)
-
 ```
 
 Let's look at raw correlations between our other included variables and a team's win total for a season: 
@@ -184,7 +182,7 @@ lm_all_reduced <- step(lm_all, direction="backward", trace = 0)
 summary(lm_all_reduced)
 ```
 
-The $R^2$ for this model is not much imporoved. Let's check for multicollinearity between variables. 
+The $R^2$ for this model is not much improved. Let's check for multicollinearity between variables.
 
 Reviewing the variance inflation factors:
 
@@ -192,26 +190,44 @@ Reviewing the variance inflation factors:
 vif(lm_all_reduced)
 ```
 
-The variance inflation factors for `TEAM_BATTING_HR` and `TEAM_BATTING_SO` are greater than 4. We can remove these. 
+The variance inflation factor for `TEAM_BATTING_SO` are greater than 5. We can remove this. 
 
 ```{r}
-lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_HR - TEAM_BATTING_SO)
+lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_SO)
 summary(lm_all_reduced)
 ```
 
+Let's remove `TEAM_PITCHING_H` as it is no longer significant. 
+
 ```{r}
+lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_PITCHING_H)
+summary(lm_all_reduced)
 vif(lm_all_reduced)
 ```
+
+Based on the definitions of `TEAM_BATTING_H`, `TEAM_BATTING_2B`, `TEAM_BATTING_3B`, and `TEAM_BATTING_HR`, there is probably some multicollinearity goung on with these variables.
+
+```{r}
+lm_all_reduced_hits <- update(lm_all_reduced, .~. - TEAM_BATTING_2B - TEAM_BATTING_3B - TEAM_BATTING_HR)
+summary(lm_all_reduced_hits)
+
+lm_all_reduced_spec <- update(lm_all_reduced, .~. - TEAM_BATTING_H)
+summary(lm_all_reduced_spec)
+```
+
+The model using `TEAM_BATTING_HITS` has a higher $R^2$ so it accounts for more variability. 
 
 We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable:
 
 ```{r}
 par(mfrow=c(2,2))
 par(mai=c(.3,.3,.3,.3))
-plot(lm_all_reduced)
+plot(lm_all_reduced_hits)
 ```
 
-We can see from the diagnostic plots that there is definitely something up with this model. Let's try creating a better model by transforming some of the variables.
+The Q-Q plot shows that the residuals of this model are fairly normally distributed. The residuals vs. fitted plot shows a cluster of residuals and a seeming outlying point. The round cluster would suggest that homoscedasticity is satisfied in this model. 
+
+Let's try transforming some of our variables to come up with a more accurate model. 
 
 `TEAM_PITCHING_SO` is a right-skewed variable with very large outliers. Let's compare how four common transformations (log, fourth root, cube root, and square root) would normalize the distribution of this variable (after adding a small constant since the variable includes accurate values of 0).
 
@@ -241,7 +257,6 @@ bc <- boxcox(lm(train_imputed_transformed$TEAM_PITCHING_SO ~ 1),
              plotit = FALSE)
 lambda <- bc$x[which.max(bc$y)]
 lambda
-
 ```
 
 The proposed lambda of 0.45 is in fact very close to 0.5, so we will go with the easier to understand square root transformation. We will follow a similar process to find reasonable transformations for several other variables in our model without showing the process repeatedly. 
@@ -308,8 +323,45 @@ for (i in 1:(length(variables))){
 
 lm_all_transformed <- lm(TARGET_WINS ~ ., train_imputed_transformed)
 summary(lm_all_transformed)
-
 ```
+
+Let's use backward elimination to improve this model. 
+
+```{r}
+lm_trans_reduced <- step(lm_all_transformed, direction = "backward", trace = 0)
+summary(lm_trans_reduced)
+vif(lm_trans_reduced)
+lm_trans_reduced <- update(lm_trans_reduced, .~. - TEAM_BATTING_SO)
+vif(lm_trans_reduced)
+summary(lm_trans_reduced)
+```
+
+Based on the definitions of `TEAM_BATTING_H`, `TEAM_BATTING_2B`, `TEAM_BATTING_3B`, and `TEAM_BATTING_HR`, there is probably some multicollinearity goung on with these variables. 
+
+```{r}
+lm_trans_reduced_hits <- update(lm_trans_reduced, .~. - TEAM_BATTING_2B - TEAM_BATTING_3B - TEAM_BATTING_HR)
+summary(lm_trans_reduced_hits)
+
+lm_trans_reduced_spec <- update(lm_trans_reduced, .~. - TEAM_BATTING_H)
+summary(lm_trans_reduced_spec)
+```
+
+Using `TEAM_BATTING_H` seems to make a model that accounts for more variability, as the adjusted $R^2$ value is higher. Let's use backward elimination to remove the insignificant variables.
+
+```{r}
+lm_trans_reduced_hits <- step(lm_trans_reduced_hits, direction = "backward", trace=0)
+summary(lm_trans_reduced_hits)
+```
+
+Let's take a look at the diagnostic plots for the transformed model. 
+
+```{r}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
+plot(lm_trans_reduced_hits)
+```
+
+Once again, the Q-Q plot shows that the residuals are fairly normally distributed. From the plot of Cook's distance, it seems there are less posible leverage points. The residuals vs. fitted plot also seems to indicate that homoscedasticity is satisfied. 
 
 Now we can make a model with inputs that we know from baseball.
 
@@ -328,6 +380,8 @@ summary(lm_select)
 ```
 
 ```{r plot-lm-select, echo=FALSE, message=FALSE}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
 plot(lm_select)
 ```
 
