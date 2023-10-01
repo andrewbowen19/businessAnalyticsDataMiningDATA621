@@ -205,11 +205,7 @@ lm_all_reduced <- step(lm_all, direction="backward", trace = 0)
 summary(lm_all_reduced)
 ```
 
-<<<<<<< HEAD
-The $R^2$ for this model is not much improved. Let's check for multicolinearity between variables. 
-=======
 The $R^2$ for this model is not much improved. Let's check for multicollinearity between variables. 
->>>>>>> 3c1945e84a413cd7dc9c646dea0d7806941a8cdf
 
 Reviewing the variance inflation factors:
 
@@ -398,11 +394,6 @@ par(mai=c(.3,.3,.3,.3))
 plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_BB, data=train)
 ```
 
-<<<<<<< HEAD
-## Model Evaluation/Selection 
-
-We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproduceability. 
-=======
 **Discussion Missing**
 
 ## Model Evaluation/Selection:
@@ -417,66 +408,43 @@ eval <- read.csv(eval_data_url)
 
 Now we can make some predictions on the test holdout data and compare results from our models before we select the best model to use on the evaluation data. 
 
-
 ```{r}
 test <- drop_na(test)
 
 # Predict using the model using all input variables
 predict_all <- predict(lm_all, test)
 predict_reduced <- predict(lm_all_reduced, test)
-
-predict_all_transformed <- predict(lm_trans, test)
+predict_transformed_reduced <- predict(lm_trans_reduced, test)
 ```
 
+We can use Root-mean Squared Error (RMSE) to analyze our models from above. This is one way to measure the performance of a model. In simple terms, a smaller RMSE value indicates better model performance when predicting on new data.
 
-Writing a quick RMSE function
 ```{r}
 rmse <- function(c1, c2){
-  sqrt(mean((c1 - c2)^2))
+    sqrt(mean((c1 - c2)^2))
 }
-```
-
-We can use the [Root-mean Squared Error](https://statisticsbyjim.com/regression/root-mean-square-error-rmse/) (RMSE) (from the `modelr` package) to analyze our models from above. This is one way to measure the performance of a model. In simple terms, a smaller RMSE value indicates better model performance when predicting on new data.
-
-```{r}
-# Calcualte RMSE and print to screen
-rmse_all <- modelr::rmse(lm_all, test)
-rmse_reduced <- modelr::rmse(lm_all_reduced, test)
-rmse_all_transformed <- modelr::rmse(lm_trans, test)
+#Calculate RMSE and print to screen
+rmse_all <- rmse(predict_all, test$TARGET_WINS)
+rmse_reduced <- rmse(predict_reduced, test$TARGET_WINS)
+rmse_transformed_reduced <- rmse(predict_transformed_reduced, test$TARGET_WINS)
 
 print(rmse_all)
 print(rmse_reduced)
-print(rmse_all_transformed)
+print(rmse_transformed_reduced)
 ```
 
-
-Lastly, we can predict on our `eval` data based on the best RMSE value coming from our *reduced* model. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to evaluate the model performance against actual win totals. 
-
-
 The model with the lowest RMSE is our all variable model without transformations, so we will make predictions on the evaluation data using this model. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to evaluate the model performance against actual win totals. 
-
 
 However, we can look at the distribution of predicted wins to make sure our model predicts reasonable values. Knowing what we know about baseball, average teams tend to win $~80$ games in a season (out of 162 total regular season games). 
 
 ```{r}
 # Predict and plot on evaluation data (no wins listed)
-prediction_reduced <- predict(lm_all_reduced, eval)
-predict_reduced_eval <- as.data.frame(prediction_reduced)
-
-# Plot reduced model evaluation
-ggplot(predict_reduced_eval,
-       aes(x = prediction_reduced)) +
-       geom_histogram(bins=15) +
-       labs(x="Wins", 
-            title="Predicted Wins (Reduced Model): Evaluation Data.")
-```
-
-Roughly speaking, these predicted win totals look roughly normal, and centered around 80 wins, which is expected
-```{r}
 predict_all_eval <- as.data.frame(predict(lm_all, eval))
 
 ggplot(as.data.frame(predict_all_eval), aes(x = predict(lm_all, eval))) + geom_histogram(bins=15) + labs(x="Wins", title="Predicted Wins (All Variables Untransformed Model): Evaluation Data.")
 ```
+
+Roughly speaking, these predicted win totals look roughly normal and centered around 80 wins, which is expected.
 
 ## Conclusions:
 
@@ -486,5 +454,5 @@ ggplot(as.data.frame(predict_all_eval), aes(x = predict(lm_all, eval))) + geom_h
 
 Below is the code for this report to generate the models and charts above.
 
-```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
-```
+	```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+	```
