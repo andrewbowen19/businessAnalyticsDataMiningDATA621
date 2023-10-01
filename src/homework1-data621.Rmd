@@ -106,7 +106,18 @@ ggplot(train, aes(x=TARGET_WINS)) +
   labs(title = "Distribution of Wins (Boxplot)", x = "Number of Wins", y = "Count")
 ```
 
-Let's take a look at the summary statistics for all the variables:
+We could describe the average team's season using the mean for all variables below:
+
+```{r summary-stats0, echo=F}
+cMeans <- as.data.frame(round(colMeans(train, na.rm = TRUE), 1))
+colnames(cMeans) <- NULL
+kable(cMeans, format = "simple")
+
+```
+
+## Data Preparation:
+
+Let's take a closer look at all the summary statistics for these variables and identify any data completeness issues:
 
 ```{r summary-stats, echo=F}
 summary(train)
@@ -155,6 +166,8 @@ cor(train_imputed, df$TARGET_WINS)
 
 None of the independent variables seem to have such high correlation with `TARGET_WINS`. `TEAM_BATTING_H` is most highly correlated, with a correlation of 0.39. `TEAM_BATTING_H`, `TEAM_BATTING_2B`, `TEAM_BATTING_3B`, `TEAM_BATTING_HR`, `TEAM_BATTING_BB`, `TEAM_BASERUN_SB`, `TEAM_BASERUN_CS`, `TEAM_PITCHING_HR`, and `TEAM_PITCHING_BB` are all positively correlated with `TARGET_WINS` while `TEAM_BATTING_SO`, `TEAM_PITCHING_H`, `TEAM_PITCHING_SO`, `TEAM_FIELDING_E`, and `TEAM_FIELDING_DP` are negatively correlated. 
 
+Some of these correlations are surprising, as we would have expected `TEAM_BASERUN_CS`, `TEAM_PITCHING_HR`, and `TEAM_PITCHING_BB` to be negatively correlated with `TARGET_WINS`, and we would have expected `TEAM_PITCHING_SO` and `TEAM_FIELDING_DP` to be positively correlated with `TARGET_WINS`. We won't exclude them from our models based solely on this surprise, however. 
+
 Let's review relationships between batting independent variables. 
 
 ```{r batting_rel, fig.show='hold', fig.align='center', out.width='60%'}
@@ -174,9 +187,9 @@ kdepairs(subset_pitching)
 
 There isn't very strong correlation between the other independent variables similar to the batting statistics although there are more examples of skewed data with these inputs. Once again, we can see that we will need to transform some of these variables. 
 
-## Modeling
+## Model Development:
 
-First, let's create a basic model with the untransformed variables:
+First, let's create a basic model with all untransformed variables:
 
 ```{r scatter-plots, echo=FALSE, message=FALSE}
 lm_all <- lm(TARGET_WINS~., train_imputed)
@@ -192,7 +205,11 @@ lm_all_reduced <- step(lm_all, direction="backward", trace = 0)
 summary(lm_all_reduced)
 ```
 
+<<<<<<< HEAD
 The $R^2$ for this model is not much improved. Let's check for multicolinearity between variables. 
+=======
+The $R^2$ for this model is not much improved. Let's check for multicollinearity between variables. 
+>>>>>>> 3c1945e84a413cd7dc9c646dea0d7806941a8cdf
 
 Reviewing the variance inflation factors:
 
@@ -200,33 +217,50 @@ Reviewing the variance inflation factors:
 vif(lm_all_reduced)
 ```
 
-The variance inflation factors for `TEAM_BATTING_HR` and `TEAM_BATTING_SO` are greater than 4. We can remove these. 
+The variance inflation factor for `TEAM_BATTING_SO` is greater than 5. We can remove this.
 
 ```{r}
-lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_HR - TEAM_BATTING_SO)
+lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_SO)
 summary(lm_all_reduced)
 ```
 
+Let's remove `TEAM_PITCHING_H` as it is no longer significant. 
+
 ```{r}
+lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_PITCHING_H)
+summary(lm_all_reduced)
 vif(lm_all_reduced)
 ```
+
+Based on the definitions of `TEAM_BATTING_H`, `TEAM_BATTING_2B`, `TEAM_BATTING_3B`, and `TEAM_BATTING_HR`, there is probably some multicollinearity going on with these variables. Let's compare a model that uses just the total hits against a model using each individual type of hit.
+
+```{r}
+lm_all_reduced_hits <- update(lm_all_reduced, .~. - TEAM_BATTING_2B - TEAM_BATTING_3B - TEAM_BATTING_HR)
+summary(lm_all_reduced_hits)
+lm_all_reduced_others <- update(lm_all_reduced, .~. - TEAM_BATTING_H)
+summary(lm_all_reduced_others)
+```
+
+The model using `TEAM_BATTING_HITS` has a higher $R^2$ so it accounts for more variability. Let's use this variable in our model. 
 
 We can make some plots to help test our assumptions of our basic model using the `plot` function on our model variable:
 
 ```{r}
 par(mfrow=c(2,2))
 par(mai=c(.3,.3,.3,.3))
-plot(lm_all_reduced)
+plot(lm_all_reduced_hits)
 ```
 
-We can see from the diagnostic plots that there is definitely something up with this model. Let's try creating a better model by transforming some of the variables.
+The Q-Q plot shows that the residuals of this model are fairly normally distributed. The residuals vs. fitted plot shows a cluster of residuals and a seeming outlying point. There is no general pattern seen here and the cluster of points seems to indicate that homoscedasticity is satisfied for this model. 
+
+Let's try transforming some of our variables to come up with a more accurate model. 
 
 `TEAM_PITCHING_SO` is a right-skewed variable with very large outliers. Let's compare how four common transformations (log, fourth root, cube root, and square root) would normalize the distribution of this variable (after adding a small constant since the variable includes accurate values of 0).
 
 ```{r transformation_model1, echo = FALSE}
 train_imputed_transformed <- train_imputed
 #Add a small constant to TEAM_PITCHING_SO so there are no 0 values.
-train_imputed_transformed$TEAM_PITCHING_SO <- train_imputed_transformed$TEAM_PITCHING_SO + 1
+train_imputed_transformed$TEAM_PITCHING_SO <- train_imputed_transformed$TEAM_PITCHING_SO + 0.001
 par(mfrow=c(2,2))
 par(mai=c(.3,.3,.3,.3))
 #Compare how easy to understand transformations alter the distribution
@@ -238,7 +272,6 @@ hist(nthroot(train_imputed_transformed$TEAM_PITCHING_SO, 3),
      main = "Cube Root Transformation", col="lightblue")
 hist(sqrt(train_imputed_transformed$TEAM_PITCHING_SO),
      main = "Square Root Transformation", col="lightblue")
-
 ```
 
 The square root transformation appears to normalize the data best. Let's confirm the ideal lambda proposed by the boxcox function from the MASS library is similar to to the square root transformation lambda (0.5) we assume will work best for this data. 
@@ -249,7 +282,6 @@ bc <- boxcox(lm(train_imputed_transformed$TEAM_PITCHING_SO ~ 1),
              plotit = FALSE)
 lambda <- bc$x[which.max(bc$y)]
 lambda
-
 ```
 
 The proposed lambda of 0.45 is in fact very close to 0.5, so we will go with the easier to understand square root transformation. We will follow a similar process to find reasonable transformations for several other variables in our model without showing the process repeatedly. 
@@ -262,7 +294,7 @@ for (i in 1:(length(variables))){
     #Add a small constant to columns with any 0 values
     if (sum(train_imputed_transformed[[variables[i]]] == 0) > 0){
         train_imputed_transformed[[variables[i]]] <-
-            train_imputed_transformed[[variables[i]]] + 1
+            train_imputed_transformed[[variables[i]]] + 0.001
     }
 }
 for (i in 1:(length(variables))){
@@ -276,6 +308,8 @@ for (i in 1:(length(variables))){
     lambdas <- append(lambdas, lambda)
 }
 lambdas <- as.data.frame(cbind(variables, lambdas))
+adj <- c("log", "fourth root", "square root", "log", "square", "square inverse", "cube root", "inverse")
+lambdas <- cbind(lambdas, adj)
 kable(lambdas, format = "simple")
 par(mfrow=c(3, 3))
 par(mai=c(.3,.3,.3,.3))
@@ -299,25 +333,31 @@ hist(train_imputed_transformed$TEAM_FIELDING_E^-1,
 
 ```
 
-Adjusting the ideal lambdas proposed for several variables to commonly understand transformations, we see mixed results on normalizing the distributions. However, we will attempt to use all these transformed variables in the model for now.
+Adjusting the ideal lambdas proposed for several variables to commonly understood transformations, we see mixed results on normalizing the distributions. Let's use the same variables from our final untransformed model above to see if we can improve the model using transformations.
 
-```{r transformation_model4, echo = FALSE}
-adj <- c(NA, 0.25, 0.5, NA, 2, -2, 0.33, -1)
-lambdas <- cbind(lambdas, adj)
-for (i in 1:(length(variables))){
-    if (is.na(lambdas[[i, 3]])){
-        train_imputed_transformed[[variables[i]]] <-
-            log(train_imputed_transformed[[variables[i]]])
-    }else{
-        train_imputed_transformed[[variables[i]]] <-
-            train_imputed_transformed[[variables[i]]]^lambdas[[i, 3]]
-    }
-}
-
-lm_all_transformed <- lm(TARGET_WINS ~ ., train_imputed_transformed)
-summary(lm_all_transformed)
-
+```{r}
+lm_trans <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + I(TEAM_BATTING_BB**2) + log(TEAM_BASERUN_SB + .0001) + I(TEAM_PITCHING_SO**.5) + I(TEAM_FIELDING_E**-1) + TEAM_FIELDING_DP, train_imputed)
+summary(lm_trans)
 ```
+
+Note: There are instances of `TEAM_BASERUN_SB` where the value is zero. Because of this, a log transformation creates an error. To account for this we increment by a small number (0.0001) so that the log transformation can be applied. 
+
+The transformed `TEAM_PITCHING_SO` is no longer significant, let's remove it. 
+
+```{r}
+lm_trans_reduced <- update(lm_trans, .~. - I(TEAM_PITCHING_SO**.5), train_imputed)
+summary(lm_trans_reduced)
+```
+
+The adjusted $R^2$ is slightly less for this model than for the untransformed one. Let's take a look at the diagnostic plots for this transformed model. 
+
+```{r}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
+plot(lm_trans_reduced)
+```
+
+Once again, the Q-Q plot shows that the residuals are fairly normally distributed. From the plot of Cook's distance, it seems there are fewer possible leverage points. The residuals vs. fitted plot also seems to indicate that homoscedasticity is satisfied. 
 
 Now we can make a model with inputs that we know from baseball.
 
@@ -336,6 +376,8 @@ summary(lm_select)
 ```
 
 ```{r plot-lm-select, echo=FALSE, message=FALSE}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
 plot(lm_select)
 ```
 
@@ -344,32 +386,37 @@ It's interesting to note that with selected variables (walks and hits gained/all
 Looking at our residual plot above, there seems to be a clustering of residuals along the x-axis at $X \approx 80$. This shows a pattern in our residuals.
 
 ```{r plot-lm-select-residuals, echo=FALSE, message=FALSE}
-
 # Plot selective model residuals
 plot(lm_select$residuals)
-
 ```
 
 Let's plot our response variable (*Total Wins*) versus each of our predictor variables to get a sense of linear relationships.
 
 ```{r plot-select-vars, echo=FALSE, message=FALSE}
-# Plot our response variable for each predictor variable to get a sense of
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
 plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_BB, data=train)
-
 ```
 
+<<<<<<< HEAD
 ## Model Evaluation/Selection 
 
 We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproduceability. 
+=======
+**Discussion Missing**
+
+## Model Evaluation/Selection:
+
+First we read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv).
 
 ```{r echo=FALSE}
 eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/moneyball-evaluation-data.csv"
 
 eval <- read.csv(eval_data_url)
-
 ```
 
-Let's make some predictions on our evaluation data from the models we've made
+Now we can make some predictions on the test holdout data and compare results from our models before we select the best model to use on the evaluation data. 
+
 
 ```{r}
 test <- drop_na(test)
@@ -377,24 +424,25 @@ test <- drop_na(test)
 # Predict using the model using all input variables
 predict_all <- predict(lm_all, test)
 predict_reduced <- predict(lm_all_reduced, test)
-predict_all_transformed <- predict(lm_all_transformed, test)
+
+predict_all_transformed <- predict(lm_trans, test)
 ```
 
 
 Writing a quick RMSE function
 ```{r}
-# rmse <- function(c1, c2){
-#   sqrt(mean((c1 - c2)^2))
-# }
+rmse <- function(c1, c2){
+  sqrt(mean((c1 - c2)^2))
+}
 ```
 
 We can use the [Root-mean Squared Error](https://statisticsbyjim.com/regression/root-mean-square-error-rmse/) (RMSE) (from the `modelr` package) to analyze our models from above. This is one way to measure the performance of a model. In simple terms, a smaller RMSE value indicates better model performance when predicting on new data.
 
 ```{r}
 # Calcualte RMSE and print to screen
-rmse_all <- rmse(predict_all, test$TARGET_WINS)
-rmse_reduced <- rmse(predict_reduced, test$TARGET_WINS)
-rmse_all_transformed <- rmse(predict_all_transformed, test$TARGET_WINS)
+rmse_all <- modelr::rmse(lm_all, test)
+rmse_reduced <- modelr::rmse(lm_all_reduced, test)
+rmse_all_transformed <- modelr::rmse(lm_trans, test)
 
 print(rmse_all)
 print(rmse_reduced)
@@ -404,21 +452,39 @@ print(rmse_all_transformed)
 
 Lastly, we can predict on our `eval` data based on the best RMSE value coming from our *reduced* model. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to evaluate the model performance against actual win totals. 
 
+
+The model with the lowest RMSE is our all variable model without transformations, so we will make predictions on the evaluation data using this model. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to evaluate the model performance against actual win totals. 
+
+
 However, we can look at the distribution of predicted wins to make sure our model predicts reasonable values. Knowing what we know about baseball, average teams tend to win $~80$ games in a season (out of 162 total regular season games). 
 
 ```{r}
 # Predict and plot on evaluation data (no wins listed)
-predict_reduced_eval <- as.data.frame(predict(lm_all_reduced, eval))
+prediction_reduced <- predict(lm_all_reduced, eval)
+predict_reduced_eval <- as.data.frame(prediction_reduced)
 
-
-ggplot(as.data.frame(predict_reduced_eval), aes(x = predict_reduced_eval)) + geom_histogram(bins=15) + labs(x="Wins", title="Predicted Wins (Reduced Model): Evaluation Data.")
+# Plot reduced model evaluation
+ggplot(predict_reduced_eval,
+       aes(x = prediction_reduced)) +
+       geom_histogram(bins=15) +
+       labs(x="Wins", 
+            title="Predicted Wins (Reduced Model): Evaluation Data.")
 ```
 
-Roughly speaking, these predicted wn totals look roughly normal, and centered around 80 wins, which is expected
+Roughly speaking, these predicted win totals look roughly normal, and centered around 80 wins, which is expected
+```{r}
+predict_all_eval <- as.data.frame(predict(lm_all, eval))
+
+ggplot(as.data.frame(predict_all_eval), aes(x = predict(lm_all, eval))) + geom_histogram(bins=15) + labs(x="Wins", title="Predicted Wins (All Variables Untransformed Model): Evaluation Data.")
+```
+
+## Conclusions:
+
+**Discussion Missing**
 
 # Appendix: Report Code
 
 Below is the code for this report to generate the models and charts above.
 
-	```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
-	```
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
