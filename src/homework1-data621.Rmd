@@ -393,17 +393,23 @@ plot(lm_select$residuals)
 Let's plot our response variable (*Total Wins*) versus each of our predictor variables to get a sense of linear relationships.
 
 ```{r plot-select-vars, echo=FALSE, message=FALSE}
-par(mfrow=c(2,2))
-par(mai=c(.3,.3,.3,.3))
-plot(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_BB, data=train)
+# par(mfrow=c(2,2))
+# par(mai=c(.3,.3,.3,.3))
+# plot(TARGET_WINS ~ TEAM_BATTING_H +
+#                    TEAM_BATTING_BB +
+#                    TEAM_PITCHING_H +
+#                    TEAM_PITCHING_BB,
+#                    data=train)
+ggplot(train, aes(x=TEAM_BATTING_H, y=TARGET_WINS)) + geom_point() + labs(x="Hits", y="Wins")
+ggplot(train, aes(x=TEAM_BATTING_BB, y=TARGET_WINS)) + geom_point() + labs(x="Walks", y="Wins")
+ggplot(train, aes(x=TEAM_PITCHING_H, y=TARGET_WINS)) + geom_point() + labs(x="Hits Allowed", y="Wins")
+ggplot(train, aes(x=TEAM_PITCHING_BB, y=TARGET_WINS)) + geom_point()  + labs(x="Walks Allowed", y="Wins")
+
+
 ```
 
-<<<<<<< HEAD
-## Model Evaluation/Selection 
 
-We'll need to read in our [evaluation data](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/blob/main/data/moneyball-evaluation-data.csv), which is hosted on GitHub for reproduceability. 
-=======
-**Discussion Missing**
+Overall, we're seeing some loosely linear relationships between our input variables and wins. For example, offensive hits has a plausibly linear relationship to wins, whereas hits allowed (`TEAM_PITCHING_H`) does not have as clear of a linear relationship.
 
 ## Model Evaluation/Selection:
 
@@ -428,13 +434,6 @@ predict_reduced <- predict(lm_all_reduced, test)
 predict_all_transformed <- predict(lm_trans, test)
 ```
 
-
-Writing a quick RMSE function
-```{r}
-rmse <- function(c1, c2){
-  sqrt(mean((c1 - c2)^2))
-}
-```
 
 We can use the [Root-mean Squared Error](https://statisticsbyjim.com/regression/root-mean-square-error-rmse/) (RMSE) (from the `modelr` package) to analyze our models from above. This is one way to measure the performance of a model. In simple terms, a smaller RMSE value indicates better model performance when predicting on new data.
 
@@ -465,7 +464,7 @@ predict_reduced_eval <- as.data.frame(prediction_reduced)
 
 # Plot reduced model evaluation
 ggplot(predict_reduced_eval,
-       aes(x = prediction_reduced)) +
+       aes(x=prediction_reduced)) +
        geom_histogram(bins=15) +
        labs(x="Wins", 
             title="Predicted Wins (Reduced Model): Evaluation Data.")
@@ -480,7 +479,13 @@ ggplot(as.data.frame(predict_all_eval), aes(x = predict(lm_all, eval))) + geom_h
 
 ## Conclusions:
 
-**Discussion Missing**
+Overall, we saw comparable RMSE values between our models, indicating similar performance. In a business context, we'd likely select our base model, as it shows the lowest RMSE:
+
+- $M_{all} = 10.2899$
+- $M_{reduced} = 10.56701$
+- $M_{transformed} = 10.60202$
+
+The simple model including all variables would be the easiest to explain to non-technical business stakeholders, who may not need to know the ins and outs of our regression model, and are primarily concerned with outcomes.
 
 # Appendix: Report Code
 
