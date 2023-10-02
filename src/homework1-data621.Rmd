@@ -73,8 +73,9 @@ train <- subset(df[sample(1:nrow(df)), ], select=-c(TEAM_BATTING_HBP))%>%
           sample_frac(0.7)
 
 test  <- dplyr::anti_join(df, train, by = 'INDEX')
+test <- subset(test, select=-c(INDEX))
 
-train = subset(df, select=-c(INDEX))
+train <- subset(df, select=-c(INDEX))
 ```
 
 Next, let's print out some summary statistics. We're primarily interested in the `TARGET_WINS` variable, so we'll look at that first.
@@ -421,17 +422,43 @@ eval_data_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyt
 eval <- read.csv(eval_data_url)
 ```
 
-Now we can make some predictions on the test holdout data and compare results from our models before we select the best model to use on the evaluation data. 
-
+Now we can make some predictions on the test holdout data and compare results from our models before we select the best model to use on the evaluation data. First we compare the distributions of the test data to confirm we can use the same imputation methods we used to fill missing values for variables in the train data.
 
 ```{r}
-test <- drop_na(test)
+par(mfrow=c(2,3))
+par(mai=c(.3,.3,.3,.3))
+variables <- c("TEAM_BATTING_SO", "TEAM_BASERUN_SB", "TEAM_BASERUN_CS", 
+               "TEAM_PITCHING_SO", "TEAM_FIELDING_DP")
+for (i in 1:(length(variables))) {
+    hist(test[[variables[i]]], main = variables[i], col = "lightblue")
+}
+```
+
+The test data distributions are similar to the distributions observed in the train data for these variables, so the same imputation methods can be used for each of them.
+
+```{r}
+test <- test |>
+    select(-TEAM_BATTING_HBP) |>
+    mutate(TEAM_BASERUN_SB = replace(TEAM_BASERUN_SB, is.na(TEAM_BASERUN_SB),
+                                     median(TEAM_BASERUN_SB, na.rm=T)),
+           TEAM_BASERUN_CS = replace(TEAM_BASERUN_CS, is.na(TEAM_BASERUN_CS),
+                                     median(TEAM_BASERUN_CS, na.rm=T)),
+           TEAM_PITCHING_SO = replace(TEAM_PITCHING_SO, is.na(TEAM_PITCHING_SO),
+                                      median(TEAM_PITCHING_SO, na.rm=T)),
+           TEAM_FIELDING_DP = replace(TEAM_FIELDING_DP, is.na(TEAM_FIELDING_DP),
+                                      mean(TEAM_FIELDING_DP, na.rm=T)))
+
+test <- test |>
+    VIM::kNN(variable = "TEAM_BATTING_SO", k = 15, numFun = weighted.mean,
+             weightDist = TRUE) |>
+    select(-TEAM_BATTING_SO_imp)
 
 # Predict using the model using all input variables
 predict_all <- predict(lm_all, test)
 predict_reduced <- predict(lm_all_reduced, test)
+predict_select <- predict(lm_select, test)
+predict_trans_reduced <- predict(lm_trans_reduced, test)
 
-predict_all_transformed <- predict(lm_trans, test)
 ```
 
 
@@ -441,11 +468,13 @@ We can use the [Root-mean Squared Error](https://statisticsbyjim.com/regression/
 # Calcualte RMSE and print to screen
 rmse_all <- modelr::rmse(lm_all, test)
 rmse_reduced <- modelr::rmse(lm_all_reduced, test)
-rmse_all_transformed <- modelr::rmse(lm_trans, test)
+rmse_select <- modelr::rmse(lm_select, test)
+rmse_trans_reduced <- modelr::rmse(lm_trans_reduced, test)
 
 print(rmse_all)
 print(rmse_reduced)
-print(rmse_all_transformed)
+print(rmse_select)
+print(rmse_trans_reduced)
 ```
 
 
@@ -481,9 +510,10 @@ ggplot(as.data.frame(predict_all_eval), aes(x = predict(lm_all, eval))) + geom_h
 
 Overall, we saw comparable RMSE values between our models, indicating similar performance. In a business context, we'd likely select our base model, as it shows the lowest RMSE:
 
-- $M_{all} = 10.2899$
-- $M_{reduced} = 10.56701$
-- $M_{transformed} = 10.60202$
+- $M_{all} = 13.13569$
+- $M_{reduced} = 13.16778$
+- $M_{select} = 13.7739$
+- $M_{transformed} = 13.40541$
 
 The simple model including all variables would be the easiest to explain to non-technical business stakeholders, who may not need to know the ins and outs of our regression model, and are primarily concerned with outcomes.
 
