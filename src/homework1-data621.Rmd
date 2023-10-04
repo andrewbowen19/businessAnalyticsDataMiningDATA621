@@ -572,10 +572,10 @@ Overall, we saw somewhat comparable RMSE values between our models, indicating s
 
 The RMSE for each models are:
 
-- $M_{all} = 13.13569$
 - $M_{reduced} = 13.16778$
-- $M_{select} = 13.7739$
+- $M_{offensive} = 13.17077$
 - $M_{transformed} = 13.40541$
+- $M_{select} = 13.7739$
 
 
 # Appendix: Report Code
