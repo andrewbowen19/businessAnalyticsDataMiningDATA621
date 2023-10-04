@@ -199,6 +199,13 @@ summary(lm_all)
 
 We can see that the $R^2$ value of a model that includes all the variables is not particularly high. 
 
+Multicollinearity Issues
+
+```{r}
+vif(lm_all)
+```
+Despite the simplicity of the approach used by including all of the variables provided there are several variables which indicate multicollinearity thereby impacting the reliability of the variance and coefficients in the model. `TEAM_BATTING_HR` and `TEAM_PITCHING_HR` are the most correlated with other variables which is interesting that the correlation plots did not more clearly emphasize that fact from an initial spot check.
+
 We can remove some variables that are not significant using backward step-wise elimination. 
 
 ```{r update-lm-all, echo=FALSE}
@@ -207,10 +214,16 @@ summary(lm_all_reduced)
 ```
 
 <<<<<<< HEAD
-The $R^2$ for this model is not much improved. Let's check for multicolinearity between variables. 
+The $R^2$ for this model is not much improved.  The coefficients for most of the variables around batting are positively associated with target wins which makes some sense as more hits/stolen bases should correspond with more runs and ultimately translate into wins. `TEAM_BATTING_2B` has a negative coefficient which is not expected at all as what differentiates doubles compared to other hits from the dependent variable. The individual T-test from our sample would also seem to indicate that it is only slightly significant. `TEAM_BATTING_SO` is expected to have a negative relationship with wins and the negative coefficient is aligned with the initial expectations. The predictors around pitching do not have very strong coefficients although they are significant to the model and the coefficients align with expectations that allowing hits inversely impacts winning, while striking out opposing players is beneficial to winning. Lastly, the fielding independent variables that remain (`TEAM_FIELDING_E` and `TEAM_FIELDING_DP`) appear to be consistent with expectations. Double plays may have one of the strongest impacts given it's coefficient although there is more sample variability compared to the other predictors and more NA values present in this predictor.
+
+
+
+
+Let's check for multicolinearity between variables. 
 =======
-The $R^2$ for this model is not much improved. Let's check for multicollinearity between variables. 
->>>>>>> 3c1945e84a413cd7dc9c646dea0d7806941a8cdf
+
+
+>>>>>>>
 
 Reviewing the variance inflation factors:
 
@@ -218,12 +231,14 @@ Reviewing the variance inflation factors:
 vif(lm_all_reduced)
 ```
 
-The variance inflation factor for `TEAM_BATTING_SO` is greater than 5. We can remove this.
+The variance inflation factor for `TEAM_BATTING_SO` is greater than 5. We can remove this predictor.
 
 ```{r}
 lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_SO)
 summary(lm_all_reduced)
 ```
+The coefficients were not impacted that substantially once this modification was made. The only caveat to that prior statement is that `TEAM_BATTING_2B` remains negatively associated with target wins but it's significance to the model has drastically improved with the exclusion of the collinear variable. It is not intuitive why ``TEAM_BATTING_SO` would impact `TEAM_BATTING_2B` as their correlation was only 0.185. `TEAM_PITCHING_SO` also became slightly less significant to to the model
+
 
 Let's remove `TEAM_PITCHING_H` as it is no longer significant. 
 
@@ -241,6 +256,19 @@ summary(lm_all_reduced_hits)
 lm_all_reduced_others <- update(lm_all_reduced, .~. - TEAM_BATTING_H)
 summary(lm_all_reduced_others)
 ```
+Comparing Partial F-Tests/ANOVA of reduced models
+
+```{r}
+anova(lm_all_reduced_others,lm_all_reduced)
+```
+
+The results of the partial F-test indicate that there is a statistically significant difference between keeping the original reduced model with the subsequent revision to exclude the other hit predictors in the model.
+
+```{r}
+anova(lm_all_reduced_hits,lm_all_reduced)
+```
+
+Similarly, the partial F-test would indicate that reducing the hits variable is not necessary despite the potential reduced collinearity.
 
 The model using `TEAM_BATTING_HITS` has a higher $R^2$ so it accounts for more variability. Let's use this variable in our model. 
 
