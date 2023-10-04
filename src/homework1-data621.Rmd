@@ -213,17 +213,9 @@ lm_all_reduced <- step(lm_all, direction="backward", trace = 0)
 summary(lm_all_reduced)
 ```
 
-<<<<<<< HEAD
 The $R^2$ for this model is not much improved.  The coefficients for most of the variables around batting are positively associated with target wins which makes some sense as more hits/stolen bases should correspond with more runs and ultimately translate into wins. `TEAM_BATTING_2B` has a negative coefficient which is not expected at all as what differentiates doubles compared to other hits from the dependent variable. The individual T-test from our sample would also seem to indicate that it is only slightly significant. `TEAM_BATTING_SO` is expected to have a negative relationship with wins and the negative coefficient is aligned with the initial expectations. The predictors around pitching do not have very strong coefficients although they are significant to the model and the coefficients align with expectations that allowing hits inversely impacts winning, while striking out opposing players is beneficial to winning. Lastly, the fielding independent variables that remain (`TEAM_FIELDING_E` and `TEAM_FIELDING_DP`) appear to be consistent with expectations. Double plays may have one of the strongest impacts given it's coefficient although there is more sample variability compared to the other predictors and more NA values present in this predictor.
 
-
-
-
 Let's check for multicolinearity between variables. 
-=======
-
-
->>>>>>>
 
 Reviewing the variance inflation factors:
 
