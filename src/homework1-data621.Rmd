@@ -166,7 +166,7 @@ cor(train_imputed, df$TARGET_WINS)
 
 None of the independent variables seem to have such high correlation with `TARGET_WINS`. `TEAM_BATTING_H` is most highly correlated, with a correlation of 0.39. `TEAM_BATTING_H`, `TEAM_BATTING_2B`, `TEAM_BATTING_3B`, `TEAM_BATTING_HR`, `TEAM_BATTING_BB`, `TEAM_BASERUN_SB`, `TEAM_BASERUN_CS`, `TEAM_PITCHING_HR`, and `TEAM_PITCHING_BB` are all positively correlated with `TARGET_WINS` while `TEAM_BATTING_SO`, `TEAM_PITCHING_H`, `TEAM_PITCHING_SO`, `TEAM_FIELDING_E`, and `TEAM_FIELDING_DP` are negatively correlated. 
 
-Some of these correlations are surprising, as we would have expected `TEAM_BASERUN_CS`, `TEAM_PITCHING_HR`, and `TEAM_PITCHING_BB` to be negatively correlated with `TARGET_WINS`, and we would have expected `TEAM_PITCHING_SO` and `TEAM_FIELDING_DP` to be positively correlated with `TARGET_WINS`. We won't exclude them from our models based solely on this surprise, however. 
+Some of these correlations are surprising, as we would have expected `TEAM_BASERUN_CS`, `TEAM_PITCHING_HR`, and `TEAM_PITCHING_BB` to be negatively correlated with `TARGET_WINS`, and we would have expected `TEAM_PITCHING_SO` and `TEAM_FIELDING_DP` to be positively correlated with `TARGET_WINS`. We won't exclude them from our models based solely on the unexpected relationships themselves. 
 
 Let's review relationships between batting independent variables. 
 
@@ -196,14 +196,12 @@ lm_all <- lm(TARGET_WINS~., train_imputed)
 summary(lm_all)
 ```
 
-We can see that the $R^2$ value of a model that includes all the variables is not particularly high. 
-
-Multicollinearity Issues
+Despite the simplicity of the approach used by including all of the variables provided, there are several variables which indicate multicollinearity thereby impacting the reliability of the variance and coefficients in the model.
 
 ```{r}
 vif(lm_all)
 ```
-Despite the simplicity of the approach used by including all of the variables provided there are several variables which indicate multicollinearity thereby impacting the reliability of the variance and coefficients in the model. `TEAM_BATTING_HR` and `TEAM_PITCHING_HR` are the most correlated with other variables which is interesting that the correlation plots did not more clearly emphasize that fact from an initial spot check.
+ `TEAM_BATTING_HR` and `TEAM_PITCHING_HR` are the most correlated with other variables which is interesting that the correlation plots did not more clearly emphasize that fact from an initial spot check.
 
 We can remove some variables that are not significant using backward step-wise elimination. 
 
@@ -212,7 +210,7 @@ lm_all_reduced <- step(lm_all, direction="backward", trace = 0)
 summary(lm_all_reduced)
 ```
 
-The $R^2$ for this model is not much improved.  The coefficients for most of the variables around batting are positively associated with target wins which makes some sense as more hits/stolen bases should correspond with more runs and ultimately translate into wins. `TEAM_BATTING_2B` has a negative coefficient which is not expected at all as what differentiates doubles compared to other hits from the dependent variable. The individual T-test from our sample would also seem to indicate that it is only slightly significant. `TEAM_BATTING_SO` is expected to have a negative relationship with wins and the negative coefficient is aligned with the initial expectations. The predictors around pitching do not have very strong coefficients although they are significant to the model and the coefficients align with expectations that allowing hits inversely impacts winning, while striking out opposing players is beneficial to winning. Lastly, the fielding independent variables that remain (`TEAM_FIELDING_E` and `TEAM_FIELDING_DP`) appear to be consistent with expectations. Double plays may have one of the strongest impacts given it's coefficient although there is more sample variability compared to the other predictors and more NA values present in this predictor.
+Removing predictors that were not statistically significant slightly increased $R^2$ for this model.  The coefficients for most of the variables around batting are positively associated with target wins which makes some sense as more hits/stolen bases should correspond with more runs and ultimately translate into wins. `TEAM_BATTING_2B` has a negative coefficient which is not expected at all as what differentiates doubles compared to other hits from the dependent variable. The individual T-test from our sample would also seem to indicate that it is only slightly significant. `TEAM_BATTING_SO` is expected to have a negative relationship with wins and it's coefficient is aligned with the initial expectations. The predictors around pitching do not have very strong coefficients although they are significant to the model and the coefficients align with expectations that allowing hits inversely impacts winning, while striking out opposing players is beneficial as well. Lastly, the fielding variables that remain (`TEAM_FIELDING_E` and `TEAM_FIELDING_DP`) appear to be consistent with expectations. Double plays may have one of the strongest impacts given it's coefficient although there is more sample variability compared to the other predictors.
 
 Let's check for multicolinearity between variables. 
 
@@ -228,7 +226,7 @@ The variance inflation factor for `TEAM_BATTING_SO` is greater than 5. We can re
 lm_all_reduced <- update(lm_all_reduced, .~. - TEAM_BATTING_SO)
 summary(lm_all_reduced)
 ```
-The coefficients were not impacted that substantially once this modification was made. The only caveat to that prior statement is that `TEAM_BATTING_2B` remains negatively associated with target wins but it's significance to the model has drastically improved with the exclusion of the collinear variable. It is not intuitive why ``TEAM_BATTING_SO` would impact `TEAM_BATTING_2B` as their correlation was only 0.185. `TEAM_PITCHING_SO` also became slightly less significant to to the model
+The coefficients were not impacted that substantially once this modification was made. The only caveat to that prior statement is that `TEAM_BATTING_2B` remains negatively associated with target wins but it's significance to the model has drastically improved with the exclusion of the collinear variable. It is not intuitive why ``TEAM_BATTING_SO` would impact `TEAM_BATTING_2B` as their correlation was only 0.185. `TEAM_PITCHING_SO` also became slightly less significant to the model
 
 
 Let's remove `TEAM_PITCHING_H` as it is no longer significant. 
@@ -255,7 +253,7 @@ Comparing Partial F-Tests/ANOVA of reduced models
 anova(lm_all_reduced_others,lm_all_reduced)
 ```
 
-The results of the partial F-test indicate that there is a statistically significant difference between keeping the original reduced model with the subsequent revision to exclude the other hit predictors in the model.
+The results of the partial F-test indicate that there is a statistically significant difference between the full model and the reduced one and it does not seem necessary to exclude the other hit predictors in the model.
 
 ```{r}
 anova(lm_all_reduced_hits,lm_all_reduced)
@@ -296,7 +294,7 @@ hist(sqrt(train_imputed_transformed$TEAM_PITCHING_SO),
      main = "Square Root Transformation", col="lightblue")
 ```
 
-The square root transformation appears to normalize the data best. Let's confirm the ideal lambda proposed by the boxcox function from the MASS library is similar to to the square root transformation lambda (0.5) we assume will work best for this data. 
+The square root transformation appears to normalize the data best. Let's confirm the ideal lambda proposed by the boxcox function from the MASS library is similar to the square root transformation lambda (0.5) we assume will work best for this data. 
 
 ```{r transformation_model2, echo = FALSE}
 bc <- boxcox(lm(train_imputed_transformed$TEAM_PITCHING_SO ~ 1),
@@ -433,14 +431,14 @@ ggplot(train, aes(x=TEAM_PITCHING_BB, y=TARGET_WINS)) + geom_point()  + labs(x="
 
 Overall, we're seeing some loosely linear relationships between our input variables and wins. For example, offensive hits has a plausibly linear relationship to wins, whereas hits allowed (`TEAM_PITCHING_H`) does not have as clear of a linear relationship.
 
-One alternative theory that uses some of the same logic as before is to maximize run producing offense (`TEAM_BATTING_H`,`TEAM_BATTING_3B`+`TEAM_BATTING_2B`+`TEAM_BATTING_HR`) as these hits imply that the batters are getting more bases which should imply that any runners are more likely to score. Another way to supercharge the offense is by advancing the runners when they get on base (`TEAM_BASERUN_SB`) which in theory should put us in a position to earn more runs. In terms of defense, the key area we will focus on is limiting mistakes (`TEAM_FIELDING_E`) and when batters get on cleaning up our mess in an efficient way (`TEAM_FIELDING_DP`). On paper the lean towards more offense with crisp error free defense is a recipe for success. 
+One alternative theory that uses some of the same logic as before is to maximize run producing offense (`TEAM_BATTING_H`,`TEAM_BATTING_3B`+`TEAM_BATTING_2B`+`TEAM_BATTING_HR`) as these hits imply that the batters are getting more bases which should result in runners on base being more likely to score. Another way to supercharge the offense is by advancing the runners when they get on base (`TEAM_BASERUN_SB`), which in theory should put us in a position to earn more runs. In terms of defense, the key area we will focus on is limiting mistakes (`TEAM_FIELDING_E`) and when batters get on, cleaning up our mess in an efficient way (`TEAM_FIELDING_DP`). On paper the lean towards more offense with crisp error free defense is a recipe for success. 
 
 ```{r lm-offensive, echo=FALSE,message=FALSE}
 lm_off <- lm(TARGET_WINS ~ TEAM_BATTING_H+TEAM_BATTING_2B+TEAM_BATTING_3B+TEAM_BATTING_HR +TEAM_BASERUN_SB +TEAM_FIELDING_DP+TEAM_FIELDING_E, train_imputed)
 
 summary(lm_off)
 ```
-One modification that was made due to the number of null values in fielding predictors is that we used the imputed data set to run the regression analysis to limit the records that would be excluded from the model. Overall we can see a competitive model that has a much higher $R^2$ than some of the other variants and could potentially be closer to performing like the backward selection. `TEAM_BATTING_2B` has a negative coefficient which doesn't make so much sense but perhaps the distribution of this values and the lack of significant could mean this could be excluded; however, we will keep it in the model given that it would seem to have predictive value.
+One modification that was made due to the number of null values in fielding predictors is that we used the imputed data set to run the regression analysis to limit the records that would be excluded from the model. Overall we can see a competitive one and appears to be similar enough to the automated backward selection despite have less independent variables. `TEAM_BATTING_2B` has a negative coefficient consistent with other models which doesn't make so much sense, but perhaps the distribution of these values and the higher p-value could mean this could be excluded; however, we will keep it in the model given that it would seem to have predictive value on paper and meets the statistical baselines.
 
 Let's confirm there isn't any collinearity issues with this model variant:
 
@@ -514,7 +512,7 @@ predict_trans_reduced <- predict(lm_trans_reduced, test)
 We can use the [Root-mean Squared Error](https://statisticsbyjim.com/regression/root-mean-square-error-rmse/) (RMSE) (from the `modelr` package) to analyze our models from above. This is one way to measure the performance of a model. In simple terms, a smaller RMSE value indicates better model performance when predicting on new data.
 
 ```{r}
-# Calcualte RMSE and print to screen
+# Calculate RMSE and print to screen
 rmse_all <- modelr::rmse(lm_all, test)
 rmse_reduced <- modelr::rmse(lm_all_reduced, test)
 rmse_select <- modelr::rmse(lm_select, test)
@@ -528,11 +526,10 @@ print(glue('RMSE lm_off: {rmse_off}'))
 print(glue('RMSE lm_transreduced {rmse_trans_reduced}'))
 ```
 
-
 Lastly, we can predict on our `eval` data based on the best RMSE value coming from our *reduced* model. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to evaluate the model performance against actual win totals. 
 
 
-The model with the lowest RMSE is our all variable model without transformations, but given the collinearity concerns it probably isn't fair to use this version as a means of prediction, so we will also use offensive and mistake free defensive one for evaluation. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to identify the model performance against actual win totals. 
+The model with the lowest RMSE is our all variable model without transformations, but given the collinearity concerns it probably isn't fair to use this version as a means of prediction, so we will also use offensive and mistake free defensive one for evaluation as well. Since we don't have `TARGET_WINS` in our evaluation data, we won't be able to identify the model performance against actual win totals. 
 
 
 However, we can look at the distribution of predicted wins to make sure our model predicts reasonable values. Knowing what we know about baseball, average teams tend to win $~80$ games in a season (out of 162 total regular season games). 
@@ -560,7 +557,7 @@ ggplot(predict_off_eval,
 
 ## Conclusions:
 
-Overall, we saw somewhat comparable RMSE values between our models, indicating similar performance from the initial evaluation dataset using this metric. In terms of getting approval for the decisions made from our manager we would likely select the reduced model as it evaluated the variations that were possible and from a statistical perspective used AIC as a means for it's decision making. That might not be convincing enough for some managers but we would explain that the combinations of some of the predictors was able to minimize our loss function. If our manager wanted us to prioritize our judgement/intuition over the statistics to more closely justify the predictors in the model then we would use the offensive model in any future forecasting needed.
+Overall, we saw somewhat comparable RMSE values between our models, indicating similar performance from the initial evaluation dataset using this metric. In terms of getting approval for the decisions made from our manager we would likely select the reduced model as it evaluated the variations that were possible and from a statistical perspective used AIC, Akaike information criterion, as a means for it's decision making. That might not be convincing enough for some managers but we would explain that the combinations of some of the predictors was able to minimize our loss function and the statistic, AIC, is meant to balance the benefits of linear combinations and model complexity. If our manager wanted us to prioritize our judgement/intuition over the statistics to more closely justify the predictors in the model then we would use the offensive model in any future forecasting needed.
 
 The RMSE for each models are:
 
