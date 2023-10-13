@@ -19,70 +19,83 @@ class_df <- as.data.frame(read.csv('https://raw.githubusercontent.com/andrewbowe
 head(class_df)
 ```
 
-Overview
+## Overview:
+
 In this homework assignment, you will work through various classification metrics. You will be asked to create functions in R to carry out the various calculations. You will also investigate some functions in packages that will let you obtain the equivalent results. Finally, you will create graphical output that also can be used to evaluate the output of classification models, such as binary logistic regression.
 
+## Supplemental Material:
 
-Supplemental Material
- Applied Predictive Modeling, Ch. 11 (provided as a PDF file).
- Web tutorials: http://www.saedsayad.com/model_evaluation_c.htm
-Deliverables (100 Points)
+* Applied Predictive Modeling, Ch. 11 (provided as a PDF file).
 
- Upon following the instructions below, use your created R functions and the other packages to generate the classification metrics for the provided data set. A write-up of your solutions submitted in PDF format.
+* Web tutorials: http://www.saedsayad.com/model_evaluation_c.htm
 
-Instructions
+## Deliverables (100 Points):
+
+* Upon following the instructions below, use your created R functions and the other packages to generate the classification metrics for the provided data set. A write-up of your solutions submitted in PDF format.
+
+## Instructions:
+
 Complete each of the following steps as instructed:
+
 1. Download the classification output data set (attached in Blackboard to the assignment).
+
 2. The data set has three key columns we will use:
- class: the actual class for the observation
- scored.class: the predicted class for the observation (based on a threshold of 0.5)
- scored.probability: the predicted probability of success for the observation
+
+    a. class: the actual class for the observation
+
+    b. scored.class: the predicted class for the observation (based on a threshold of $0.5$)
+
+    c. scored.probability: the predicted probability of success for the observation
+
 Use the table() function to get the raw confusion matrix for this scored dataset. Make sure you understand the output. In particular, do the rows represent the actual or predicted class? The columns?
 
 ```{r}
-table(class_df)
+keep <- c("class", "scored.class")
+class_subset <- class_df |>
+    select(all_of(keep))
+confusion_matrix <- table(class_subset)
+confusion_matrix
 ```
 
-```{r}
-dim(class_df)
-```
-
+The row labels in the confusion matrix represent the actual class, while the column labels represent the predicted class.
 
 3. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the accuracy of the predictions.
+
+$$Accuracy = \frac{TP + TN}{TP + FP + TN + FN}$$
 
 ```{r}
 accuracy.func <- function(input_df) {
     accuracy <- input_df |> dplyr::mutate(correct=ifelse(class==scored.class,1,0)) |> summarise(total_correct = sum(correct),accuracy=total_correct/n()) |> select(c(accuracy))
 }
 
-acc_val <- accuracy.func(class_df)
+acc_val <- accuracy.func(class_subset)
+print(round(acc_val, 2))
 ```
-
-𝐴𝑐𝑐𝑢𝑟𝑎𝑐𝑦 = 𝑇𝑃 + 𝑇𝑁
-𝑇𝑃 + 𝐹𝑃 + 𝑇𝑁 + 𝐹𝑁
 4. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the classification error rate of the predictions.
-𝐶𝑙𝑎𝑠𝑠𝑖𝑓𝑖𝑐𝑎𝑡𝑖𝑜𝑛 𝐸𝑟𝑟𝑜𝑟 𝑅𝑎𝑡𝑒 = 𝐹𝑃 + 𝐹𝑁
-𝑇𝑃 + 𝐹𝑃 + 𝑇𝑁 + 𝐹𝑁
+
+$$Classification\ Error\ Rate = \frac{FP + FN}{TP + FP + TN + FN}$$
 
 ```{r}
 error.func <- function(input_df) {
     accuracy <- input_df |> dplyr::mutate(incorrect=ifelse(class==scored.class,0,1)) |> summarise(total_incorrect = sum(incorrect),error_rate=total_incorrect/n()) |> select(c(error_rate))
 }
 
-error_val <- error.func(class_df)
+error_val <- error.func(class_subset)
+print(round(error_val, 2))
 ```
 
 
 Verify that you get an accuracy and an error rate that sums to one.
 
 ```{r}
-(acc_val + error_val)
+(as.numeric(acc_val) + as.numeric(error_val))
 ```
 
-Confirmed that the total accuracy and error rates add up to 1.
+Confirmed. The accuracy and error rate values do add up to one.
 
 5. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the precision of the predictions.
-$𝑃𝑟𝑒𝑐𝑖𝑠𝑖𝑜𝑛 = {𝑇𝑃}{𝑇𝑃 + 𝐹𝑃}$
+
+$$Precision = \frac{TP}{TP + FP}$$
 
 ```{r}
 precision.func <- function(input_df) {
@@ -90,11 +103,13 @@ precision.func <- function(input_df) {
         summarise(total_prec = sum(prec),precision_rate=total_prec/n()) |> select(c(precision_rate))
 }
 
-(precision.func(class_df))
+prec_val <- precision.func(class_subset)
+print(round(prec_val, 2))
 ```
 
 6. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the sensitivity of the predictions. Sensitivity is also known as recall.
-𝑆𝑒𝑛𝑠𝑖𝑡𝑖𝑣𝑖𝑡𝑦 = 𝑇𝑃 𝑇𝑃 + 𝐹𝑁
+
+$$Sensitivity = \frac{TP}{TP + FN}$$
 
 ```{r}
 sensitivity.func <- function(input_df) {
@@ -102,43 +117,47 @@ sensitivity.func <- function(input_df) {
         summarise(total_sens = sum(sens),sensitivity_rate=total_sens/n()) |> select(c(sensitivity_rate))
 }
 
-(sensitivity.func(class_df))
+sens_val <- sensitivity.func(class_subset)
+print(round(sens_val, 2))
 ```
 
 7. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the specificity of the predictions.
-𝑆𝑝𝑒𝑐𝑖𝑓𝑖𝑐𝑖𝑡𝑦 = 𝑇𝑁 𝑇𝑁+𝐹𝑃
+
+$$Specificity = \frac{TN}{TN + FP}$$
 
 ```{r}
 specificity.func <- function(input_df) {
-    specificity <- input_df |> dplyr::filter(class==0) |> mutate(sens=ifelse(class==scored.class,1,0)) |> 
-        summarise(total_sens = sum(sens),sensitivity_rate=total_sens/n()) |> select(c(sensitivity_rate))
+    specificity <- input_df |> dplyr::filter(class==0) |> mutate(spec=ifelse(class==scored.class,1,0)) |> 
+        summarise(total_spec = sum(spec),specificity_rate=total_spec/n()) |> select(c(specificity_rate))
 }
 
-(sensitivity.func(class_df))
+spec_val <- specificity.func(class_subset)
+print(round(spec_val, 2))
 ```
 
 8. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the F1 score of the predictions.
 
-𝐹1 𝑆𝑐𝑜𝑟𝑒 = 2 × 𝑃𝑟𝑒𝑐𝑖𝑠𝑖𝑜𝑛 × 𝑆𝑒𝑛𝑠𝑖𝑡𝑖𝑣𝑖𝑡𝑦 𝑃𝑟𝑒𝑐𝑖𝑠𝑖𝑜𝑛 + 𝑆𝑒𝑛𝑠𝑖𝑡𝑖𝑣𝑖𝑡𝑦
+$$F1\ Score = \frac{2 \times Precision \times Sensitivity}{Precision + Sensitivity}$$
 
 ```{r}
 f1.score <- function(input_df) {
     f1<-(2*precision.func(input_df)*sensitivity.func(input_df))/(precision.func(input_df)+sensitivity.func(input_df))
 }
 
-(f1.score(class_df))
+f1_val <- f1.score(class_subset)
+colnames(f1_val) <- "f1_score"
+print(round(f1_val, 2))
 ```
 
-
-9. Before we move on, let’s consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between 0 and 1. (Hint: If 0 < 𝑎 < 1 and 0 < 𝑏 < 1 then 𝑎𝑏 < 𝑎.)
+9. Before we move on, let’s consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between $0$ and $1$. (Hint: If $0 < a < 1$ and $0 < b < 1$ then $ab < a$.)
 
 What would the result of the F1 function be given that the maximum value for precision and sensitivity of 1 if every single value were correctly predicted:
 
-$\frac{ 2 * 1 * 1}{1+1} = \frac{2}{2} = 1$
+$$\frac{ 2 * 1 * 1}{1+1} = \frac{2}{2} = 1$$
 
 Alternatively, the worst case scenario for the metrics from a classification model would if every single prediction was incorrect:
 
-$\frac{ 2 * 0 * 0}{0+0} = \frac{0}{0}$
+$$\frac{ 2 * 0 * 0}{0+0} = \frac{0}{0}$$
 
 Let's show graphically that even if one of the scores was perfect/imperfect the maximum value as assumed before would be 1
 
