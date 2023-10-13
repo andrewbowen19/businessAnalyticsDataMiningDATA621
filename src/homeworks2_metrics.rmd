@@ -175,14 +175,54 @@ ggplot(data = df, aes(x = x, y = y)) +
   labs(x = "x", y = "f(x)",title = "F1 Score between 0 and 1")
 ```
 
-
 10. Write a function that generates an ROC curve from a data set with a true classification column (class in our example) and a probability column (scored.probability in our example). Your function should return a list that includes the plot of the ROC curve and a vector that contains the calculated area under the curve (AUC). Note that I recommend using a sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
 
+```{r}
+keep <- c("class", "scored.probability")
+class_subset <- class_df |>
+    select(all_of(keep))
+roc.func <- function(input_df){
+    plot_points_df <- as.data.frame(matrix(ncol = 3, nrow = 0))
+    cols <- c("threshold", "fpr", "tpr")
+    colnames(plot_points_df) <- cols
+    thresholds <- seq(from = 0, to = 1, by = 0.01)
+    copy <- input_df
+    for (i in 1:length(thresholds)){
+        threshold <- thresholds[i]
+        copy <- copy |>
+            mutate(scored.class = ifelse(scored.probability > threshold, 1, 0))
+        fpr <- 1 - as.numeric(specificity.func(copy))
+        tpr <- as.numeric(sensitivity.func(copy))
+        new_row <- as.data.frame(t(c(threshold, fpr, tpr)))
+        colnames(new_row) <- cols
+        plot_points_df <- rbind(plot_points_df, new_row)
+    }
+    roc_plot <- ggplot(plot_points_df, aes(x = fpr, y = tpr)) + 
+        geom_point() +
+        labs(x = "False Positive Rate (1 - Specifity)",
+             y = "True Positive Rate (Sensitivity)",
+             title = "ROC Curve")
+    auc <- 0
+    plot_points_df <- plot_points_df |>
+        arrange(fpr)
+    for (k in 2:nrow(plot_points_df)){
+        x2 <- plot_points_df[k, 2]
+        x1 <- plot_points_df[k - 1, 2]
+        y2 <- plot_points_df[k, 3]
+        y1 <- plot_points_df[k - 1, 3]
+        trap_area <- (x2 - x1) * ((y2 + y1)/2)
+        auc <- auc + trap_area
+    }
+    roc_plot_and_auc <- list(ROC_Plot = roc_plot, AUC = round(auc, 2))
+    return(roc_plot_and_auc)
+}
+
+roc_plot_and_auc <- roc.func(class_subset)
+roc_plot_and_auc
+```
 
 11. Use your created R functions and the provided classification output data set to produce all of the classification metrics discussed above.
 
-
 12. Investigate the caret package. In particular, consider the functions confusionMatrix, sensitivity, and specificity. Apply the functions to the data set. How do the results compare with your own functions?
-
 
 13. Investigate the pROC package. Use it to generate an ROC curve for the data set. How do the results compare with your own functions?
