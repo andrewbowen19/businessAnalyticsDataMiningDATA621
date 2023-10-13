@@ -1,0 +1,169 @@
+---
+title: 'Data621: HW2'
+author: 'Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen, Charles Ugiagbe'
+date: "2023-10-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+class_df <- as.data.frame(read.csv('https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/hw2_input_classification-output-data.csv'))
+head(class_df)
+```
+
+Overview
+In this homework assignment, you will work through various classification metrics. You will be asked to create functions in R to carry out the various calculations. You will also investigate some functions in packages that will let you obtain the equivalent results. Finally, you will create graphical output that also can be used to evaluate the output of classification models, such as binary logistic regression.
+
+
+Supplemental Material
+ Applied Predictive Modeling, Ch. 11 (provided as a PDF file).
+ Web tutorials: http://www.saedsayad.com/model_evaluation_c.htm
+Deliverables (100 Points)
+
+ Upon following the instructions below, use your created R functions and the other packages to generate the classification metrics for the provided data set. A write-up of your solutions submitted in PDF format.
+
+Instructions
+Complete each of the following steps as instructed:
+1. Download the classification output data set (attached in Blackboard to the assignment).
+2. The data set has three key columns we will use:
+ class: the actual class for the observation
+ scored.class: the predicted class for the observation (based on a threshold of 0.5)
+ scored.probability: the predicted probability of success for the observation
+Use the table() function to get the raw confusion matrix for this scored dataset. Make sure you understand the output. In particular, do the rows represent the actual or predicted class? The columns?
+
+```{r}
+table(class_df)
+```
+
+```{r}
+dim(class_df)
+```
+
+
+3. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the accuracy of the predictions.
+
+```{r}
+accuracy.func <- function(input_df) {
+    accuracy <- input_df |> dplyr::mutate(correct=ifelse(class==scored.class,1,0)) |> summarise(total_correct = sum(correct),accuracy=total_correct/n()) |> select(c(accuracy))
+}
+
+acc_val <- accuracy.func(class_df)
+```
+
+𝐴𝑐𝑐𝑢𝑟𝑎𝑐𝑦 = 𝑇𝑃 + 𝑇𝑁
+𝑇𝑃 + 𝐹𝑃 + 𝑇𝑁 + 𝐹𝑁
+4. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the classification error rate of the predictions.
+𝐶𝑙𝑎𝑠𝑠𝑖𝑓𝑖𝑐𝑎𝑡𝑖𝑜𝑛 𝐸𝑟𝑟𝑜𝑟 𝑅𝑎𝑡𝑒 = 𝐹𝑃 + 𝐹𝑁
+𝑇𝑃 + 𝐹𝑃 + 𝑇𝑁 + 𝐹𝑁
+
+```{r}
+error.func <- function(input_df) {
+    accuracy <- input_df |> dplyr::mutate(incorrect=ifelse(class==scored.class,0,1)) |> summarise(total_incorrect = sum(incorrect),error_rate=total_incorrect/n()) |> select(c(error_rate))
+}
+
+error_val <- error.func(class_df)
+```
+
+
+Verify that you get an accuracy and an error rate that sums to one.
+
+```{r}
+(acc_val + error_val)
+```
+
+Confirmed that the total accuracy and error rates add up to 1.
+
+5. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the precision of the predictions.
+$𝑃𝑟𝑒𝑐𝑖𝑠𝑖𝑜𝑛 = {𝑇𝑃}{𝑇𝑃 + 𝐹𝑃}$
+
+```{r}
+precision.func <- function(input_df) {
+    precision <- input_df |> dplyr::filter(scored.class==1) |> mutate(prec=ifelse(class==scored.class,1,0)) |> 
+        summarise(total_prec = sum(prec),precision_rate=total_prec/n()) |> select(c(precision_rate))
+}
+
+(precision.func(class_df))
+```
+
+6. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the sensitivity of the predictions. Sensitivity is also known as recall.
+𝑆𝑒𝑛𝑠𝑖𝑡𝑖𝑣𝑖𝑡𝑦 = 𝑇𝑃 𝑇𝑃 + 𝐹𝑁
+
+```{r}
+sensitivity.func <- function(input_df) {
+    sensitivity <- input_df |> dplyr::filter(class==1) |> mutate(sens=ifelse(class==scored.class,1,0)) |> 
+        summarise(total_sens = sum(sens),sensitivity_rate=total_sens/n()) |> select(c(sensitivity_rate))
+}
+
+(sensitivity.func(class_df))
+```
+
+7. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the specificity of the predictions.
+𝑆𝑝𝑒𝑐𝑖𝑓𝑖𝑐𝑖𝑡𝑦 = 𝑇𝑁 𝑇𝑁+𝐹𝑃
+
+```{r}
+specificity.func <- function(input_df) {
+    specificity <- input_df |> dplyr::filter(class==0) |> mutate(sens=ifelse(class==scored.class,1,0)) |> 
+        summarise(total_sens = sum(sens),sensitivity_rate=total_sens/n()) |> select(c(sensitivity_rate))
+}
+
+(sensitivity.func(class_df))
+```
+
+8. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the F1 score of the predictions.
+
+𝐹1 𝑆𝑐𝑜𝑟𝑒 = 2 × 𝑃𝑟𝑒𝑐𝑖𝑠𝑖𝑜𝑛 × 𝑆𝑒𝑛𝑠𝑖𝑡𝑖𝑣𝑖𝑡𝑦 𝑃𝑟𝑒𝑐𝑖𝑠𝑖𝑜𝑛 + 𝑆𝑒𝑛𝑠𝑖𝑡𝑖𝑣𝑖𝑡𝑦
+
+```{r}
+f1.score <- function(input_df) {
+    f1<-(2*precision.func(input_df)*sensitivity.func(input_df))/(precision.func(input_df)+sensitivity.func(input_df))
+}
+
+(f1.score(class_df))
+```
+
+
+9. Before we move on, let’s consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between 0 and 1. (Hint: If 0 < 𝑎 < 1 and 0 < 𝑏 < 1 then 𝑎𝑏 < 𝑎.)
+
+What would the result of the F1 function be given that the maximum value for precision and sensitivity of 1 if every single value were correctly predicted:
+
+$\frac{ 2 * 1 * 1}{1+1} = \frac{2}{2} = 1$
+
+Alternatively, the worst case scenario for the metrics from a classification model would if every single prediction was incorrect:
+
+$\frac{ 2 * 0 * 0}{0+0} = \frac{0}{0}$
+
+Let's show graphically that even if one of the scores was perfect/imperfect the maximum value as assumed before would be 1
+
+```{r}
+x <- seq(0, 1, by=0.01)
+
+# Calculate the function values
+y <- (2* x * 1)/(x+1)
+
+# Create a data frame with x and y values
+df <- data.frame(x = x, y = y)
+
+ggplot(data = df, aes(x = x, y = y)) +
+  geom_point() +
+  labs(x = "x", y = "f(x)",title = "F1 Score between 0 and 1")
+```
+
+
+10. Write a function that generates an ROC curve from a data set with a true classification column (class in our example) and a probability column (scored.probability in our example). Your function should return a list that includes the plot of the ROC curve and a vector that contains the calculated area under the curve (AUC). Note that I recommend using a sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
+
+
+11. Use your created R functions and the provided classification output data set to produce all of the classification metrics discussed above.
+
+
+12. Investigate the caret package. In particular, consider the functions confusionMatrix, sensitivity, and specificity. Apply the functions to the data set. How do the results compare with your own functions?
+
+
+13. Investigate the pROC package. Use it to generate an ROC curve for the data set. How do the results compare with your own functions?
