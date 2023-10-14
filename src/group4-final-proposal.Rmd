@@ -1,0 +1,130 @@
+---
+title: "DATA621 Final Project Proposal"
+author: "Andrew Bowen, Glen Davis, Josh Forster, Shoshana Farber, Charles Ugiagbe"
+date: "2023-10-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+## Introduction
+
+
+Our dataset comes from [OpenData's - School Quality Report](https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch) for NYC high schools between 2013 and 2014. There's several predictor variables of interest to us.
+
+```{r libraries, message=FALSE, echo-FALSE}
+library(tidyverse)
+```
+
+### Data Cleaning
+
+
+```{r}
+# Renaming some dataframe variables
+df$math_score_8 <- df$Average.Grade.8.Math.Proficiency
+df$english_score_8 <- df$Average.Grade.8.English.Proficiency
+df$avg_sat_score <- df$Average.SAT.Score
+```
+
+
+
+## EDA
+
+First, let's read in our source CSV file
+```{r data-read-in}
+df <- read.csv("../data/school-quality.csv")
+# head(df, 5)
+```
+
+The NYC School Quality Report from the Department of Education included ratings for schools in the following categories. We'd like to see how effective these ratings are at predicting student success:
+
+- *Quality Review Rating*
+- *Achievement Rating*
+- *Environment Rating*
+- *College and Career Readiness Rating*
+
+Our response variable will be the average student's SAT Score at a given school. SAT Scores are an imperfect metric given their correlation with other socioeconomic factors [Citation here], but for our purposes can serve as an imperfect benchmark.
+
+
+
+```{r}
+# Group schools by ratings
+ratings <- df %>% group_by(Achievement.Rating, Quality.Review.Rating) %>% summarise(count_schools=n())
+ratings
+```
+
+```{r plot-ratings}
+ggplot(ratings, aes(x=Quality.Review.Rating,
+                    y=Achievement.Rating,
+                    fill=count_schools)) + geom_tile()
+```
+
+
+```{r}
+lm_ratings <- lm(avg_sat_score ~ Quality.Review.Rating + 
+  Achievement.Rating +
+  Environment.Rating + 
+  College.and.Career.Readiness.Rating, df)
+summary(lm_ratings)
+```
+
+
+## Modeling
+
+```{r}
+lm_english_math <- lm(Average.SAT.Score~ math_score_8 + english_score_8, df)
+summary(lm_english_math)
+```
+
+
+```{r}
+plot(lm_english_math)
+```
+
+```{r lm-math}
+# Plot Math vs SAT scores
+ggplot(df, aes(x=math_score_8, y=avg_sat_score)) + geom_point() 
+```
+
+
+```{r}
+ggplot(df, aes(x=english_score_8, y=avg_sat_score)) + geom_point() 
+```
+
+As we can see from the above scatter plots, average eigth grade english and math scores have a linear relationship with average SAT scores for NYC high schools. Our `lm_english_math` $R_{adj} = 0.91$ also shows a strong relationship between these variables
+
+```{r}
+# Create simple models based on Math and English Scores
+lm_math <- lm(avg_sat_score ~ math_score_8, df)
+lm_english <- lm(avg_sat_score ~ english_score_8, df)
+```
+
+
+```{r}
+summary(lm_math)
+```
+
+```{r}
+
+summary(lm_english)
+```
+
+
+
+
+## Further Work
+Below are some additional modeling points to consider for the final project
+
+- SAT Scores are not a perfect indicator of future academic [<Citation here>]. Using other response variables could paint a more complete picture on the educational variables that most impact outcomes
+  - Include other educational outcome metrics (job placement rates on graduation, income by school) joined to our data
+  - Fortunately, NYC's DBN (*District-Borough Number*) system allows for easier joining to other education datasets posted on NYC Open Data
+-
+
+
+

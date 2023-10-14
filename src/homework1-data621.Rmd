@@ -430,8 +430,6 @@ ggplot(train, aes(x=TEAM_PITCHING_BB, y=TARGET_WINS)) + geom_point()  + labs(x="
 
 
 Overall, we're seeing some loosely linear relationships between our input variables and wins. For example, offensive hits has a plausibly linear relationship to wins, whereas hits allowed (`TEAM_PITCHING_H`) does not have as clear of a linear relationship.
-<<<<<<< HEAD
-=======
 
 One alternative theory that uses some of the same logic as before is to maximize run producing offense (`TEAM_BATTING_H`,`TEAM_BATTING_3B`+`TEAM_BATTING_2B`+`TEAM_BATTING_HR`) as these hits imply that the batters are getting more bases which should result in runners on base being more likely to score. Another way to supercharge the offense is by advancing the runners when they get on base (`TEAM_BASERUN_SB`), which in theory should put us in a position to earn more runs. In terms of defense, the key area we will focus on is limiting mistakes (`TEAM_FIELDING_E`) and when batters get on, cleaning up our mess in an efficient way (`TEAM_FIELDING_DP`). On paper the lean towards more offense with crisp error free defense is a recipe for success. 
 
@@ -459,7 +457,6 @@ plot(lm_off)
 
 The diagnostic plots don't seem to indicate a violation of the assumptions as the variance across the x-values while mostly concentrated at 80 does not show much heteroskedasticity in the residuals or the transformed standardized ones. There are some leverage points (1342 in particular) in the data set and it can definitely skew the data although some teams could have very strong seasons that aren't invalid or anomalous to be worthy of exclusion.
 
->>>>>>> 7a4bf3696a7dfff5965afb47fac1bbb30eb229c7
 
 ## Model Evaluation/Selection:
 
@@ -560,15 +557,6 @@ ggplot(predict_off_eval,
 
 ## Conclusions:
 
-<<<<<<< HEAD
-Overall, we saw comparable RMSE values between our models, indicating similar performance. In a business context, we'd likely select our base model, as it shows the lowest RMSE:
-
-- $M_{all} = 10.2899$
-- $M_{reduced} = 10.56701$
-- $M_{transformed} = 10.60202$
-
-The simple model including all variables would be the easiest to explain to non-technical business stakeholders, who may not need to know the ins and outs of our regression model, and are primarily concerned with outcomes.
-=======
 Overall, we saw somewhat comparable RMSE values between our models, indicating similar performance from the initial evaluation dataset using this metric. In terms of getting approval for the decisions made from our manager we would likely select the reduced model as it evaluated the variations that were possible and from a statistical perspective used AIC, Akaike information criterion, as a means for it's decision making. That might not be convincing enough for some managers but we would explain that the combinations of some of the predictors was able to minimize our loss function and the statistic, AIC, is meant to balance the benefits of linear combinations and model complexity. If our manager wanted us to prioritize our judgement/intuition over the statistics to more closely justify the predictors in the model then we would use the offensive model in any future forecasting needed.
 
 The RMSE for each models are:
@@ -578,7 +566,6 @@ The RMSE for each models are:
 - $M_{transformed} = 13.40541$
 - $M_{select} = 13.7739$
 
->>>>>>> 7a4bf3696a7dfff5965afb47fac1bbb30eb229c7
 
 # Appendix: Report Code
 
