@@ -52,7 +52,7 @@ The NYC School Quality Report from the Department of Education included ratings 
 Our response variable will be the average student's SAT Score at a given school. SAT Scores are an imperfect metric given their correlation with other socioeconomic factors [Citation here], but for our purposes can serve as an imperfect benchmark.
 
 
-
+First, let's plot the counts of different rating combinations by school. This should give us a sense if schools with one rating for a given bucket tend to have similar ratings for other categories (e.g., schools with high *Quality Review Rating* values tend to have high *Achievement Ratings* as well).
 ```{r}
 # Group schools by ratings
 ratings <- df %>% group_by(Achievement.Rating, Quality.Review.Rating) %>% summarise(count_schools=n())
