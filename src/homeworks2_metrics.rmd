@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(geomtextpath)
 ```
 
 ```{r}
@@ -172,7 +173,8 @@ df <- data.frame(x = x, y = y)
 
 ggplot(data = df, aes(x = x, y = y)) +
   geom_point() +
-  labs(x = "x", y = "f(x)",title = "F1 Score between 0 and 1")
+  labs(x = "x", y = "f(x)",title = "F1 Score between 0 and 1") +
+  theme_light()
 ```
 
 10. Write a function that generates an ROC curve from a data set with a true classification column (class in our example) and a probability column (scored.probability in our example). Your function should return a list that includes the plot of the ROC curve and a vector that contains the calculated area under the curve (AUC). Note that I recommend using a sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
@@ -199,9 +201,13 @@ roc.func <- function(input_df){
     }
     roc_plot <- ggplot(plot_points_df, aes(x = fpr, y = tpr)) + 
         geom_point() +
+        geom_line() +
+        geom_labelabline(intercept = 0, slope = 1, label = "Random Classifier",
+                        linetype = "dashed", color = "red") +
         labs(x = "False Positive Rate (1 - Specifity)",
              y = "True Positive Rate (Sensitivity)",
-             title = "ROC Curve")
+             title = "ROC Curve") +
+        theme_light()
     auc <- 0
     plot_points_df <- plot_points_df |>
         arrange(fpr)
