@@ -1,23 +1,20 @@
 ---
 title: 'Data621: HW2'
-author: 'Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen, Charles Ugiagbe'
+author: "Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen, Charles Ugiagbe"
 date: "2023-10-05"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F)
 ```
 
 
 ```{r}
 library(tidyverse)
 library(geomtextpath)
-```
-
-```{r}
-class_df <- as.data.frame(read.csv('https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/hw2_input_classification-output-data.csv'))
-head(class_df)
 ```
 
 ## Overview:
@@ -40,6 +37,13 @@ Complete each of the following steps as instructed:
 
 1. Download the classification output data set (attached in Blackboard to the assignment).
 
+```{r}
+class_df <- as.data.frame(read.csv('https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/hw2_input_classification-output-data.csv'))
+head(class_df)
+```
+
+The dataset provided includes several attributes to predict whether or not a patient has diabetes. 
+
 2. The data set has three key columns we will use:
 
     a. class: the actual class for the observation
@@ -51,14 +55,17 @@ Complete each of the following steps as instructed:
 Use the table() function to get the raw confusion matrix for this scored dataset. Make sure you understand the output. In particular, do the rows represent the actual or predicted class? The columns?
 
 ```{r}
-keep <- c("class", "scored.class")
+class_df <- class_df |>
+  mutate(class = factor(class, levels=c(1,0)),
+         scored.class = factor(scored.class, levels=c(1,0)))
+keep <- c("scored.class", "class")
 class_subset <- class_df |>
     select(all_of(keep))
 confusion_matrix <- table(class_subset)
 confusion_matrix
 ```
 
-The row labels in the confusion matrix represent the actual class, while the column labels represent the predicted class.
+The row labels in the confusion matrix represent the predicted class, while the column labels represent the actual class. The values in the confusion matrix correspond to the number of observations correctly/incorrectly predicted for this dataframe. There we 27 instances where a patient was accurately diagnosed with diabetes (true positive) and 119 instances where a patient without diabetes was classified as not having diabetes (true negative). There were 30 instances where a patient with diabetes was incorrectly classified as not having diabetes (false negative) and 5 instances of a patient being incorrectly diagnosed with diabetes (false positive). 
 
 3. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the accuracy of the predictions.
 
@@ -72,6 +79,7 @@ accuracy.func <- function(input_df) {
 acc_val <- accuracy.func(class_subset)
 print(round(acc_val, 2))
 ```
+
 4. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the classification error rate of the predictions.
 
 $$Classification\ Error\ Rate = \frac{FP + FN}{TP + FP + TN + FN}$$
@@ -84,7 +92,6 @@ error.func <- function(input_df) {
 error_val <- error.func(class_subset)
 print(round(error_val, 2))
 ```
-
 
 Verify that you get an accuracy and an error rate that sums to one.
 
@@ -152,13 +159,13 @@ print(round(f1_val, 2))
 
 9. Before we move on, let’s consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between $0$ and $1$. (Hint: If $0 < a < 1$ and $0 < b < 1$ then $ab < a$.)
 
-What would the result of the F1 function be given that the maximum value for precision and sensitivity of 1 if every single value were correctly predicted:
+Result of the F1 function given that the maximum value for precision and sensitivity is 1 if every single value were correctly predicted:
 
-$$\frac{ 2 * 1 * 1}{1+1} = \frac{2}{2} = 1$$
+$$\frac{2 * 1 * 1}{1+1} = \frac{2}{2} = 1$$
 
 Alternatively, the worst case scenario for the metrics from a classification model would if every single prediction was incorrect:
 
-$$\frac{ 2 * 0 * 0}{0+0} = \frac{0}{0}$$
+$$\frac{2 * 0 * 0}{0+0} = \frac{0}{0}$$
 
 Let's show graphically that even if one of the scores was perfect/imperfect the maximum value as assumed before would be 1
 
@@ -229,6 +236,73 @@ roc_plot_and_auc
 
 11. Use your created R functions and the provided classification output data set to produce all of the classification metrics discussed above.
 
+```{r}
+metrics_table <- cbind(acc_val, error_val, prec_val, sens_val, spec_val, f1_val) |>
+  pivot_longer(accuracy:f1_score,
+               names_to="metric",
+               values_to="value")
+
+knitr::kable(metrics_table)
+```
+
 12. Investigate the caret package. In particular, consider the functions confusionMatrix, sensitivity, and specificity. Apply the functions to the data set. How do the results compare with your own functions?
 
+```{r}
+# load package
+library(caret)
+
+# confusionMatrix
+(conf_matrix <- confusionMatrix(class_df$scored.class,
+                reference = class_df$class,
+                positive = '1'))
+
+# sensitivity
+caret_sens <- sensitivity(conf_matrix$table)
+
+# specificity
+caret_spec <- specificity(conf_matrix$table)
+
+# compare functions
+caret_calcs <- as.data.frame(cbind(caret_sens, caret_spec)) 
+colnames(caret_calcs) <- c("sens_val", "spec_val")
+caret_calcs |>
+  pivot_longer(cols=c(sens_val, spec_val),
+               names_to = "metric",
+               values_to = "caret value") |>
+  left_join(metrics_table, by="metric") |>
+  knitr::kable(col.names = c("Metric", "Caret Values", "Function Values"))
+```
+
+The values from our functions and the values from the sensitivity and specificity functions are the same. 
+
+Let's check the rest of our functions against the values from the confusionMatrix function. Sensitivity and specificity can also be taken from here. 
+
+```{r}
+caret_acc <- conf_matrix$overall[1]
+caret_err <- 1-caret_acc
+caret_prec <- conf_matrix$byClass[5]
+caret_sens <- conf_matrix$byClass[1]
+caret_spec <- conf_matrix$byClass[2]
+caret_f1 <- conf_matrix$byClass[7]
+
+caret_results <- as.data.frame(cbind(caret_acc, caret_err, caret_prec, caret_sens, caret_spec, caret_f1))
+colnames(caret_results) <- metrics_table$metric
+caret_results |> 
+  pivot_longer(accuracy:f1_score,
+               names_to="metric",
+               values_to="caret_vals") |>
+  right_join(metrics_table) |>
+  knitr::kable(col.names = c("Metric", "Function Values", "Caret Values"))
+```
+
+The values for each of our functions are the same as the values for the built in functions from the caret package. 
+
 13. Investigate the pROC package. Use it to generate an ROC curve for the data set. How do the results compare with your own functions?
+
+```{r}
+library(pROC)
+
+roc(class_df$class,
+    class_df$scored.probability,
+    plot=T)
+```
