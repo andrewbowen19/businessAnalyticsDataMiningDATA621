@@ -156,7 +156,6 @@ train_imputed <- train_imputed |>
     VIM::kNN(variable = "TEAM_BATTING_SO", k = 15, numFun = weighted.mean,
              weightDist = TRUE) |>
     select(-TEAM_BATTING_SO_imp)
-
 ```
 
 Let's look at raw correlations between our other included variables and a team's win total for a season: 
@@ -229,6 +228,8 @@ summary(lm_all_reduced)
 ```
 The coefficients were not impacted that substantially once this modification was made. The only caveat to that prior statement is that `TEAM_BATTING_2B` remains negatively associated with target wins but it's significance to the model has drastically improved with the exclusion of the collinear variable. It is not intuitive why ``TEAM_BATTING_SO` would impact `TEAM_BATTING_2B` as their correlation was only 0.185. `TEAM_PITCHING_SO` also became slightly less significant to the model
 
+
+Let's remove `TEAM_PITCHING_H` as it is no longer significant. 
 
 Let's remove `TEAM_PITCHING_H` as it is no longer significant. 
 
@@ -349,7 +350,6 @@ hist(nthroot(train_imputed_transformed$TEAM_PITCHING_BB, 3),
      main = "Cube Root(TEAM_PITCHING_BB)", col="lightblue")
 hist(train_imputed_transformed$TEAM_FIELDING_E^-1,
      main = "TEAM_FIELDING_E INVERSE", col="lightblue")
-
 ```
 
 Adjusting the ideal lambdas proposed for several variables to commonly understood transformations, we see mixed results on normalizing the distributions. Let's use the same variables from our final untransformed model above to see if we can improve the model using transformations.
