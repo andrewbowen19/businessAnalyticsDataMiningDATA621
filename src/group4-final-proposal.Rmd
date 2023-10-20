@@ -135,11 +135,11 @@ From these simple evaluation metrics, we can see the free-lunch only model perfo
 
 
 ## Further Work
-Below are some additional modeling points to consider for the final project, as well as to augment our dataset
+Below are some additional modeling points to consider for the final project, as well as to augment our dataset for our final project:
 
 - SAT Scores are not a perfect indicator of future academic [<Citation here>]. Using other response variables could paint a more complete picture on the educational variables that most impact outcomes
-  - Include other educational outcome metrics (job placement rates on graduation, income by school) joined to our data
-  - Fortunately, NYC's DBN (*District-Borough Number*) system allows for easier joining to other education datasets posted on NYC Open Data
+- Include other educational outcome metrics (job placement rates on graduation, income by school) joined to our data
+- Fortunately, NYC's DBN (*District-Borough Number*) system allows for easier joining to other education datasets posted on NYC Open Data
 - Use a more recent dataset than 2013-2014. NYC Open Data is an excellent tool for this
 
 
