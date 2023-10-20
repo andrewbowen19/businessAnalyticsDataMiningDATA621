@@ -1,0 +1,146 @@
+---
+title: "DATA621 Final Project Proposal"
+author: "Andrew Bowen, Glen Davis, Josh Forster, Shoshana Farber, Charles Ugiagbe"
+date: "2023-10-14"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, message=FALSE, echo=FALSE}
+library(tidyverse)
+library(modelr)
+library(glue)
+```
+
+
+## Introduction
+
+Our dataset comes from [OpenData's - School Quality Report](https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch) for NYC high schools between 2013 and 2014. Our final project will likely include more up-to-date educational information, and potentially geographic data to augment our analysis.
+
+First, let's read in our source CSV file. This is posted in our [GitHub repository](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/tree/abowen/dev/data) as well in interest of reproduceability.
+```{r data-read-in}
+df <- read.csv("https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/abowen/dev/data/2013_-_2014_School_Quality_Reports_Results_for_High_Schools_20231014.csv")
+```
+
+There's several predictor variables of interest to us. The NYC School Quality Report from the Department of Education included ratings for schools in the following categories. We'd like to see how effective these ratings are at predicting student success:
+
+- *Quality Review Rating*
+- *Achievement Rating*
+- *Environment Rating*
+- *College and Career Readiness Rating*
+
+In addition, it'd be interesting to see if these ratings could be replaced by proxy variables? Doing so could save the Department of Education (DOE) time in not assigning ratings when they could have similar impact by knowing certain values for a school.
+
+Our response variable will be the average student's SAT Score at a given school. SAT Scores are an imperfect metric given their [correlation with other socioeconomic factors](https://www.manhattanreview.com/sat-predictor-college-success/), but for our purposes can serve as an imperfect benchmark to measure academic performance.
+
+**Main research question:** Do these DOE-ratings accurately predict whether a school will foster high academic performance in students, and are there other proxy variables that can be used to more accurately predict academic performance (measured in SAT scores)
+
+
+### Data Cleaning
+```{r}
+# Renaming some dataframe variables
+df$math_score_8 <- df$Average.Grade.8.Math.Proficiency
+df$english_score_8 <- df$Average.Grade.8.English.Proficiency
+df$avg_sat_score <- df$Average.SAT.Score
+```
+
+
+
+## EDA
+
+First, let's plot the counts of different rating combinations by school. This should give us a sense if schools with one rating for a given bucket tend to have similar ratings for other categories (i.e., schools with high *Quality Review Rating* values tend to have high *Achievement Ratings* as well).
+```{r}
+# Group schools by ratings
+ratings <- df %>% group_by(Achievement.Rating, Quality.Review.Rating) %>% summarise(count_schools=n())
+head(ratings, 5)
+```
+
+```{r plot-ratings}
+ggplot(ratings, aes(x=Quality.Review.Rating,
+                    y=Achievement.Rating,
+                    fill=count_schools)) + geom_tile()
+```
+
+
+
+
+## Modeling
+
+First, let's create a basic linear model between our rating variables, and our dependent variable (Average SAT Score of a school)
+```{r}
+lm_ratings <- lm(avg_sat_score ~ Quality.Review.Rating + 
+  Achievement.Rating +
+  Environment.Rating + 
+  College.and.Career.Readiness.Rating, df)
+summary(lm_ratings)
+```
+
+Let's plot our ratings-only model
+
+```{r}
+plot(lm_ratings)
+```
+
+There seems to be some pattern in our residuals vs fitted, as well as some tail behavior in our QQ plot indicating this may not be an ideal fit.
+
+Outside of the DOE ratings, we can create some very basic linear models to help us identify potential predictor variables. Two variables seem like they could potentially be useful, as past academic performance seems like it would correlate tightly with future success: 
+
+- `Average.Grade.8.Math.Proficiency`
+- `Average.Grade.8.English.Proficiency`
+
+```{r}
+lm_english_math <- lm(Average.SAT.Score~ math_score_8 + english_score_8, df)
+summary(lm_english_math)
+```
+
+On the surface, our adjusted $R^2$ for the model based solely on past performance is significantly better than our model using the school's DOE ratings (`lm_ratings`). While it may seem like comparing apples to oranges
+
+
+For instance, we see a jump in $R^2$ as well by using a model solely fit to predict average SAT score from the percentage of students who receive free lunch. 
+```{r lm-free-lunch}
+lm_free_lunch <- lm(avg_sat_score ~ X..Free.Lunch, df)
+summary(lm_free_lunch)
+```
+
+
+We can plot this free lunch model as well:
+
+```{r}
+plot(lm_free_lunch)
+```
+
+This Free Lunch plot isn't ideal, but better behaved than our Rating model plot from above.
+
+Going further in model evaluation, we can use other metrics of interest when evaluating a model: Root mean squared error (RMSE - calculated via the `modelr` package) or AIC, which measures model performance with an added penalty for overly complex models (more input params). 
+```{r model-eval, warning=FALSE}
+# Calculate RMSE and AIC for both models
+rmse_fl <- rmse(lm_free_lunch, df)
+rmse_ratings <- rmse(lm_ratings, df)
+print(glue("Free Lunch Model RMSE: {rmse_fl}")) 
+print(glue("Ratings Model RMSE: {rmse_ratings}")) 
+
+aic_fl <- AIC(lm_free_lunch)
+aic_ratings <- AIC(lm_ratings)
+print(glue("Free Lunch Model AIC: {aic_fl}")) 
+print(glue("Ratings Model AIC: {aic_ratings}")) 
+```
+
+From these simple evaluation metrics, we can see the free-lunch only model performs a bit better, however, we can likely find a more optimized fit across our variable space in the source dataset. 
+
+
+## Further Work
+Below are some additional modeling points to consider for the final project, as well as to augment our dataset for our final project:
+
+- SAT Scores are not a perfect indicator of future academic [<Citation here>]. Using other response variables could paint a more complete picture on the educational variables that most impact outcomes
+- Include other educational outcome metrics (job placement rates on graduation, income by school) joined to our data
+- Fortunately, NYC's DBN (*District-Borough Number*) system allows for easier joining to other education datasets posted on NYC Open Data
+- Use a more recent dataset than 2013-2014. NYC Open Data is an excellent tool for this
+
+
+
