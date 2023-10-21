@@ -19,42 +19,57 @@ library(glue)
 ```
 
 
-## Introduction
+## Introduction:
 
-Our dataset comes from [OpenData's - School Quality Report](https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch) for NYC high schools between 2013 and 2014. Our final project will likely include more up-to-date educational information, and potentially geographic data to augment our analysis.
+Our dataset comes from [OpenData's - School Quality Report](https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch) for NYC high schools between 2013 and 2014. Our final project will potentially include more up-to-date educational information and geographic data to augment our analysis.
 
-First, let's read in our source CSV file. This is posted in our [GitHub repository](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/tree/abowen/dev/data) as well in interest of reproduceability.
+First, let's read in our source CSV file. This is posted in our [GitHub repository](https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/school-quality.csv) in the interest of reproducibility.
+
 ```{r data-read-in}
-df <- read.csv("https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/abowen/dev/data/2013_-_2014_School_Quality_Reports_Results_for_High_Schools_20231014.csv")
+df <- read.csv("https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/school-quality.csv")
 ```
 
-There's several predictor variables of interest to us. The NYC School Quality Report from the Department of Education included ratings for schools in the following categories. We'd like to see how effective these ratings are at predicting student success:
+There are several predictor variables of interest to us. The NYC School Quality Report from the Department of Education included ratings for schools in the following categories. We would like to see how effective these ratings are at predicting student success:
 
 - *Quality Review Rating*
 - *Achievement Rating*
 - *Environment Rating*
 - *College and Career Readiness Rating*
 
-In addition, it'd be interesting to see if these ratings could be replaced by proxy variables? Doing so could save the Department of Education (DOE) time in not assigning ratings when they could have similar impact by knowing certain values for a school.
+In addition, it would be interesting to see whether these ratings could be replaced by proxy variables. Not having to assign ratings, and instead being able to ascertain school quality from other information the Department of Education (DOE) already knows about schools could save the DOE time.
 
-Our response variable will be the average student's SAT Score at a given school. SAT Scores are an imperfect metric given their [correlation with other socioeconomic factors](https://www.manhattanreview.com/sat-predictor-college-success/), but for our purposes can serve as an imperfect benchmark to measure academic performance.
+Our response variable will be the average student's SAT score at a given school. SAT scores are an imperfect metric given their [correlation with other socioeconomic factors](https://www.manhattanreview.com/sat-predictor-college-success/), but for our purposes, they can serve as an imperfect benchmark to measure academic performance.
 
-**Main research question:** Do these DOE-ratings accurately predict whether a school will foster high academic performance in students, and are there other proxy variables that can be used to more accurately predict academic performance (measured in SAT scores)
+**Main research question:** Do these DOE ratings accurately predict whether a school will foster high academic performance in students, and are there other proxy variables that can be used to more accurately predict academic performance (measured in SAT scores)?
 
+## Data Cleaning:
 
-### Data Cleaning
 ```{r}
 # Renaming some dataframe variables
 df$math_score_8 <- df$Average.Grade.8.Math.Proficiency
 df$english_score_8 <- df$Average.Grade.8.English.Proficiency
 df$avg_sat_score <- df$Average.SAT.Score
+
+# Make predictor rating variables factors
+levels_ach_rat <- c("N/A", "Not Meeting Target", "Approaching Target",
+                    "Meeting Target", "Exceeding Target")
+levels_qual_rev_rat <- c("N/A", "Underdeveloped", "Developing", "Proficient",
+                         "Well Developed")
+df$Achievement.Rating <- factor(df$Achievement.Rating,
+                                levels=levels_ach_rat)
+df$Quality.Review.Rating <- factor(df$Quality.Review.Rating,
+                                   levels=levels_qual_rev_rat)
+df$Environment.Rating <- factor(df$Environment.Rating,
+                                levels=levels_ach_rat)
+df$College.and.Career.Readiness.Rating <- factor(
+    df$College.and.Career.Readiness.Rating, levels=levels_ach_rat)
+
 ```
 
+## Exploratory Data Analysis:
 
+First, let's plot the counts of schools receiving all possible different rating combinations. This should give us a sense whether schools with a rating for one category tend to have a similar rating for other categories. That is, schools with high *Quality Review Rating* values might be expected to have high *Achievement Ratings*, and this plot will highlight whether expectations for these variables match reality for all possible buckets. 
 
-## EDA
-
-First, let's plot the counts of different rating combinations by school. This should give us a sense if schools with one rating for a given bucket tend to have similar ratings for other categories (i.e., schools with high *Quality Review Rating* values tend to have high *Achievement Ratings* as well).
 ```{r}
 # Group schools by ratings
 ratings <- df %>% group_by(Achievement.Rating, Quality.Review.Rating) %>% summarise(count_schools=n())
@@ -64,13 +79,13 @@ head(ratings, 5)
 ```{r plot-ratings}
 ggplot(ratings, aes(x=Quality.Review.Rating,
                     y=Achievement.Rating,
-                    fill=count_schools)) + geom_tile()
+                    fill=count_schools)) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Blues", direction = 1) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
-
-
-
-## Modeling
+## Modeling:
 
 First, let's create a basic linear model between our rating variables, and our dependent variable (Average SAT Score of a school)
 ```{r}
