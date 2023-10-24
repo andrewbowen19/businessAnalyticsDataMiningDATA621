@@ -1,0 +1,92 @@
+---
+title: "DATA 621 - HW3"
+author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
+date: "2023-10-23"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
+
+library(tidyverse)
+library(modelr)
+```
+
+## Homework 3 - Logistic Regression
+
+### Overview
+
+In this homework assignment, you will explore, analyze and model a data set containing information on crime for various neighborhoods of a major city. Each record has a response variable indicating whether or not the crime rate is above the median crime rate (1) or not (0).
+
+Your objective is to build a binary logistic regression model on the training data set to predict whether the neighborhood will be at risk for high crime levels. You will provide classifications and probabilities for the evaluation data set using your binary logistic regression model. You can only use the variables given to you (or, variables that you derive from the variables provided).
+
+Below is a short description of the variables of interest in the data set:
+
+|Column|Description|
+|--|--|
+|`zn`|proportion of residential land zoned for large lots (over 25000 square feet) (*predictor variable*)|
+|`indus`|proportion of non-retail business acres per suburb (*predictor variable*)|
+|`chas`|a dummy var. for whether the suburb borders the Charles River (1) or not (0) (*predictor variable*)|
+|`nox`|nitrogen oxides concentration (parts per 10 million) (*predictor variable*)|
+|`rm`|average number of rooms per dwelling (*predictor variable*)|
+|`age`|proportion of owner-occupied units built prior to 1940 (*predictor variable*)
+|`dis`|weighted mean of distances to five Boston employment centers (*predictor variable*)
+|`rad`|index of accessibility to radial highways (*predictor variable*)|
+|`tax`|full-value property-tax rate per $10,000 (*predictor variable*)|
+|`ptratio`|pupil-teacher ratio by town (*predictor variable*)|
+|`lstat`|lower status of the population (percent) (*predictor variable*)|
+|`medv`|median value of owner-occupied homes in $1000s (*predictor variable*)|
+|**`target`**|**whether the crime rate is above the median crime rate (1) or not (0) (*response variable*)**|
+
+### Data Loading
+
+Let's load in the training dataset. 
+
+```{r load-train-data}
+train_df <- read.csv('https://raw.githubusercontent.com/ShanaFarber/businessAnalyticsDataMiningDATA621/main/data/crime-training-data_modified.csv')
+
+head(train_df)  # preview data
+```
+
+### Data Exploration
+
+```{r dim-data}
+dim(train_df)
+```
+
+The dataset consists of 466 observations of 13 variables. There are 12 predictor variables and one response variable (`target`).
+
+All of the columns in the dataset are numeric. Let's take a look at the summary statistics for the variables in the dataset. 
+
+```{r summary-stats}
+summary(train_df)
+```
+
+We can see the mean, median, and interquartile ranges for each of the variables in the dataset.
+
+There does not appear to be any NA values in the dataset. Let's validate this. 
+
+```{r}
+sum(is.na(train_df))
+```
+
+There are no null values in the training dataset. 
+
+Let's take a look at the distributions for the predictor variables. 
+
+```{r plot-distributions}
+par(mfrow=c(3,4))
+par(mai=c(.3,.3,.3,.3))
+
+variables <- names(train_df)
+
+for (i in 1:(length(variables)-1)) {
+  hist(train_df[[variables[i]]], main = variables[i], col = "lightblue")
+}
+```
+
+`rm` appears to be normally distributed. `zn`, `dis`, and `lstat` appear to be skewed to the right. All other columns seem to be multimodal. 
+
+
