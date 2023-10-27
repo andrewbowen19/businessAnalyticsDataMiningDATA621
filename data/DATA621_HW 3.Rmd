@@ -1,0 +1,130 @@
+---
+title: "DATA 621 Homework 3"
+output:
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(psych)
+library(corrplot)
+library(RColorBrewer)
+library(knitr)
+library(MASS)
+library(caret)
+library(kableExtra)
+library(ResourceSelection)
+library(pROC)
+```
+
+
+# Data Exploration
+
+There are 12 features in the data and the training data set additionally has 1 target variable, which marks neighborhoods as "high crime" (target==1) or not high crime (target==0).
+
+- zn: proportion of residential land zoned for large lots (over 25000 square feet) 
+- indus: proportion of non-retail business acres per suburb 
+- chas: a dummy var. for whether the suburb borders the Charles River (1) or not (0) 
+- nox: nitrogen oxides concentration (parts per 10 million) 
+- rm: average number of rooms per dwelling 
+- age: proportion of owner-occupied units built prior to 1940 
+- dis: weighted mean of distances to five Boston employment centers 
+- rad: index of accessibility to radial highways 
+- tax: full-value property-tax rate per $10,000 
+- ptratio: pupil-teacher ratio by town 
+- lstat: lower status of the population (percent) 
+- medv: median value of owner-occupied homes in $1000s 
+- target: whether the crime rate is above the median crime rate (1) or not (0)
+
+
+### Load Required dataset
+```{r}
+df_train <- read.csv('https://raw.githubusercontent.com/omocharly/businessAnalyticsDataMiningDATA621/main/data/crime-training-data_modified.csv')
+
+df_eval <- read.csv('https://raw.githubusercontent.com/omocharly/businessAnalyticsDataMiningDATA621/main/data/crime-evaluation-data_modified.csv')
+```
+
+**We take a glimpse look at our data to understand it**
+```{r}
+glimpse(df_train)
+```
+
+```{r}
+df_train %>% 
+  mutate(chas = as.factor(chas), 
+         target = as.factor(target)) %>% 
+  glimpse() %>% 
+  describe()
+```
+
+
+
+**we examine the summary statistics to understand our data**
+```{r}
+summary(df_train)
+```
+
+### Data Visualization.
+
+From the histogram visualization, it is clear to see that most of the distribution are skewed. 'dis, 'lsat, 'nox, and 'zn are skew to the right. 'Age, 'Ptratio are skew to the right.  'rm and 'mdev are normally distributed. it is also interesting to see that 'indus 'rad, and 'tax are bimodal.
+
+```{r}
+df_train %>%
+  gather(key, value, -c(target, chas)) %>%
+  ggplot(aes(value)) +
+  geom_histogram(bins = 15,aes(x=value, y = ..density..),fill="gray", color="#e9ecef") + 
+  geom_density(aes(x=value), color='red', lwd = 0.8)+
+  facet_wrap(~ key, scales = 'free', ncol = 3) +
+  theme_minimal()
+```
+
+### Boxplot
+
+**in using the boxplot, we can see the spread of the variable.The presence of outliers are also noticed in most of the variable. The variance between two values of the response variable differ largely for 'age, 'dis 'nox. 'rad. 'tax.**
+
+```{r}
+df_train %>%
+  dplyr::select(-chas) %>% 
+  gather(key, value, -target) %>% 
+  mutate(key = factor(key),
+         target = factor(target)) %>% 
+  ggplot(aes(x = key, y = value)) +
+  geom_boxplot(aes(fill = target)) +
+  facet_wrap(~ key, scales = 'free', ncol = 3) +
+  scale_fill_manual(values=c("#499ac6de", "#bf6334f2")) +
+  theme_minimal()
+```
+
+### Check for Missing Data
+
+**We check to see the availability of Missing data**
+
+```{r}
+missing <- colSums(df_train %>% sapply(is.na))
+missing_pct <- round(missing / nrow(df_train) * 100, 2)
+stack(sort(missing_pct, decreasing = TRUE))
+```
+
+### Correlation Matrix
+
+**we see a positive correlation in 'indus, 'nox, 'rm, 'age, and 'dis while 'rad, 'tax, 'ptratio, and 'lstat have negative correlation.
+```{r}
+kable(sort(cor(dplyr::select(df_train, target, everything()))[,1], decreasing = T), col.names = c("Correlation")) %>% 
+  kable_styling(full_width = F)
+
+corrplot.mixed(cor(dplyr::select(df_train, -chas)), 
+               number.cex = .9, 
+               upper = "number", 
+               lower = "shade", 
+               lower.col = brewer.pal(n = 12, name = "Paired"),
+               upper.col = brewer.pal(n = 12, name = "Paired"))
+```
+
