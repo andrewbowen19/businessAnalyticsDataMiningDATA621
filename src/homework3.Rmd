@@ -3,8 +3,8 @@ title: "DATA 621 - HW3"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-10-23"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -12,6 +12,10 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
 
 library(tidyverse)
 library(modelr)
+library(DataExplorer)
+library(correlationfunnel)
+library(caret)
+library(knitr)
 ```
 
 ## Homework 3 - Logistic Regression
@@ -58,15 +62,23 @@ dim(train_df)
 
 The dataset consists of 466 observations of 13 variables. There are 12 predictor variables and one response variable (`target`).
 
-All of the columns in the dataset are numeric. Let's take a look at the summary statistics for the variables in the dataset. 
+All of the columns in the dataset are numeric, but the predictor variable `chas` is a dummy variable, as is the response variable `target`. We recode them as factors. 
+
+```{r }
+train_df <- train_df |>
+    mutate(chas = as.factor(chas), target = as.factor(target))
+
+```
+
+Let's take a look at the summary statistics for the variables in the dataset. 
 
 ```{r summary-stats}
 summary(train_df)
 ```
 
-We can see the mean, median, and interquartile ranges for each of the variables in the dataset.
+We can see the mean, median, and interquartile ranges for each of the numeric variables in the dataset.
 
-There does not appear to be any NA values in the dataset. Let's validate this. 
+There do not appear to be any NA values in the dataset. Let's validate this. 
 
 ```{r}
 sum(is.na(train_df))
@@ -81,12 +93,39 @@ par(mfrow=c(3,4))
 par(mai=c(.3,.3,.3,.3))
 
 variables <- names(train_df)
-
+factors <- c("chas", "target")
 for (i in 1:(length(variables)-1)) {
-  hist(train_df[[variables[i]]], main = variables[i], col = "lightblue")
+    if (variables[i] %in% factors){
+        hist(as.numeric(train_df[[variables[i]]]), main = variables[i],
+             col = "lightblue")
+    }else{
+        hist(train_df[[variables[i]]], main = variables[i], col = "lightblue")
+    }
 }
 ```
 
 `rm` appears to be normally distributed. `zn`, `dis`, and `lstat` appear to be skewed to the right. All other columns seem to be multimodal. 
 
+The distribution for `chas` appears degenerate at first glance. It looks like a near-zero variance predictor, which we can confirm using the `nearZeroVar` function from the `caret` package. 
 
+```{r near_zero_var}
+nzv <- nearZeroVar(train_df |> select(-target), saveMetrics = TRUE)
+knitr::kable(nzv)
+```
+
+The percentage of unique values, `percentUnique`, in the sample for this predictor is less than the typical threshold of 10 percent, but there is a second criterion to consider: the `freqRatio`. This measures the frequency of the most common value (0 in this case) to the frequency of the second most common value (1 in this case). The `freqRatio` value for this predictor is less than the typical threshold of 19 (i.e. 95 occurrences of the most frequent value for every 5 occurrences of the second most frequent values). So it is not considered a near-zero variance predictor. Neither are any of the other predictors. 
+
+We produce a correlation funnel to visualize the relationships between our predictors and our response. 
+
+```{r correlation_funnel}
+train_df_binarized <- train_df |>
+    binarize(n_bins = 5, thresh_infreq = 0.01, name_infreq = "OTHER",
+           one_hot = TRUE)
+train_df_corr <- train_df_binarized |>
+    correlate(target__1)
+train_df_corr |>
+    plot_correlation_funnel()
+
+```
+
+The correlation funnel plots the most important features towards the top.
