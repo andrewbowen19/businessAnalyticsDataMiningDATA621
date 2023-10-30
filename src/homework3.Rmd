@@ -16,6 +16,7 @@ library(DataExplorer)
 library(correlationfunnel)
 library(caret)
 library(knitr)
+library(confintr)
 ```
 
 ## Homework 3 - Logistic Regression
@@ -128,4 +129,13 @@ train_df_corr |>
 
 ```
 
-The correlation funnel plots the most important features towards the top.
+The correlation funnel plots the most important features towards the top. The variable `chas` is the least correlated to `target` by the Pearson Correlation coefficient. The correct coefficient to use to understand the strength of the relationship between two categorical variables is actually the $\phi$ coefficient. If one of the categorical variables had more than two categories, we would need to calculate $\phi$ using the formula for Cramer's V (also called Cramer's $\phi$). However, in the special case that both categorical variables are binary,  the value of the Cramer's V coefficient will actually be equal to the value of the Pearson Correlation coefficient. So either formula actually results in the same value for $\phi$. We prove this below.
+
+```{r correlation_coefficients}
+cramersv <- round(cramersv(train_df |> select(all_of(factors))), 5)
+pearson <- round(cor(as.numeric(train_df$chas), as.numeric(train_df$target), method = "pearson"), 5)
+(cramersv == pearson)
+
+```
+
+The value for $\phi$ is `r cramersv` regardless of the formula used to calculate it, and this very low value indicates very little correlation between `chas` and `target`. 
