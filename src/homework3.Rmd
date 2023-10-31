@@ -3,8 +3,8 @@ title: "DATA 621 - HW3"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-10-23"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -17,11 +17,12 @@ library(correlationfunnel)
 library(caret)
 library(knitr)
 library(confintr)
+library(psych)
 ```
 
 ## Homework 3 - Logistic Regression
 
-### Overview
+### Overview:
 
 In this homework assignment, you will explore, analyze and model a data set containing information on crime for various neighborhoods of a major city. Each record has a response variable indicating whether or not the crime rate is above the median crime rate (1) or not (0).
 
@@ -45,20 +46,19 @@ Below is a short description of the variables of interest in the data set:
 |`medv`|median value of owner-occupied homes in $1000s (*predictor variable*)|
 |**`target`**|**whether the crime rate is above the median crime rate (1) or not (0) (*response variable*)**|
 
-### Data Loading
+### Data Loading:
 
 Let's load in the training dataset. 
 
 ```{r load-train-data}
 train_df <- read.csv('https://raw.githubusercontent.com/ShanaFarber/businessAnalyticsDataMiningDATA621/main/data/crime-training-data_modified.csv')
-
-head(train_df)  # preview data
 ```
 
-### Data Exploration
+### Data Exploration:
 
 ```{r dim-data}
-dim(train_df)
+train_df |>
+    glimpse()
 ```
 
 The dataset consists of 466 observations of 13 variables. There are 12 predictor variables and one response variable (`target`).
@@ -74,18 +74,22 @@ train_df <- train_df |>
 Let's take a look at the summary statistics for the variables in the dataset. 
 
 ```{r summary-stats}
-summary(train_df)
+remove <- c("vars", "trimmed", "mad")
+describe <- train_df |>
+    describe() |>
+    select(-all_of(remove))
+knitr::kable(describe, format = "simple")
 ```
 
-We can see the mean, median, and interquartile ranges for each of the numeric variables in the dataset.
+We can see the mean, median, standard deviations, ranges, etc. for each of the variables in the dataset.
 
-There do not appear to be any NA values in the dataset. Let's validate this. 
+Each predictor has 466 values, which matches the number of observations in our dataset, so there do not appear to be any missing values to address. Let's validate this. 
 
 ```{r}
 sum(is.na(train_df))
 ```
 
-There are no null values in the training dataset. 
+There are in fact no missing values in the dataset. 
 
 Let's take a look at the distributions for the predictor variables. 
 
@@ -105,18 +109,36 @@ for (i in 1:(length(variables)-1)) {
 }
 ```
 
-`rm` appears to be normally distributed. `zn`, `dis`, and `lstat` appear to be skewed to the right. All other columns seem to be multimodal. 
+The distribution for `rm` appears to be normal, and the distribution for `medv` is nearly normal. The distributions for `zn`, `dis`, `lstat`, and `nox` are right-skewed. The distributions for `age` and `ptratio` are left-skewed.
 
-The distribution for `chas` appears degenerate at first glance. It looks like a near-zero variance predictor, which we can confirm using the `nearZeroVar` function from the `caret` package. 
+The distributions for the remaining variables are multimodal, including the distribution for `chas`, which appears degenerate at first glance. It looks like a near-zero variance predictor, which we can confirm using the `nearZeroVar` function from the `caret` package. 
 
 ```{r near_zero_var}
 nzv <- nearZeroVar(train_df |> select(-target), saveMetrics = TRUE)
 knitr::kable(nzv)
 ```
 
-The percentage of unique values, `percentUnique`, in the sample for this predictor is less than the typical threshold of 10 percent, but there is a second criterion to consider: the `freqRatio`. This measures the frequency of the most common value (0 in this case) to the frequency of the second most common value (1 in this case). The `freqRatio` value for this predictor is less than the typical threshold of 19 (i.e. 95 occurrences of the most frequent value for every 5 occurrences of the second most frequent values). So it is not considered a near-zero variance predictor. Neither are any of the other predictors. 
+The percentage of unique values, `percentUnique`, in the sample for this predictor is less than the typical threshold of 10 percent, but there is a second criterion to consider: the `freqRatio`. This measures the frequency of the most common value (0 in this case) to the frequency of the second most common value (1 in this case). The `freqRatio` value for this predictor is less than the typical threshold of 19 (i.e. 95 occurrences of the most frequent value for every 5 occurrences of the second most frequent value). So it is not considered a near-zero variance predictor. Neither are any of the other predictors. 
 
-We produce a correlation funnel to visualize the relationships between our predictors and our response. 
+Next we analyze boxplots to determine the spread of the numeric predictor variables. This will also reveal any outliers.
+
+```{r boxplots}
+train_df |>
+    dplyr::select(-chas) |>
+    gather(key, value, -target) |>
+    mutate(key = factor(key),
+           target = factor(target)) |>
+    ggplot(aes(x = key, y = value)) +
+    geom_boxplot(aes(fill = target)) +
+    facet_wrap(~ key, scales = 'free', ncol = 3) +
+    scale_fill_brewer(palette = "Paired") +
+    theme_minimal()
+
+```
+
+For certain predictors, the variance between the two categories of the response variable differs largely: `age`, `dis`, `nox`, `rad`, and `tax`.
+
+Next we produce a correlation funnel to visualize the strength of the relationships between our predictors and our response. 
 
 ```{r correlation_funnel}
 train_df_binarized <- train_df |>
@@ -129,7 +151,9 @@ train_df_corr |>
 
 ```
 
-The correlation funnel plots the most important features towards the top. The variable `chas` is the least correlated to `target` by the Pearson Correlation coefficient. The correct coefficient to use to understand the strength of the relationship between two categorical variables is actually the $\phi$ coefficient. If one of the categorical variables had more than two categories, we would need to calculate $\phi$ using the formula for Cramer's V (also called Cramer's $\phi$). However, in the special case that both categorical variables are binary,  the value of the Cramer's V coefficient will actually be equal to the value of the Pearson Correlation coefficient. So either formula actually results in the same value for $\phi$. We prove this below.
+The correlation funnel plots the most important features towards the top. In our dataset, the four most important features correlated with the response variable are `tax`, `indus`, `ptratio`, and `nox`.
+
+Looking at the features towards the bottom, the variable `chas` is the least correlated to `target` by the Pearson Correlation coefficient. The correct coefficient to use to understand the strength of the relationship between two categorical variables is actually the $\phi$ coefficient. If one of the categorical variables had more than two categories, we would need to calculate $\phi$ using the formula for Cramer's V (also called Cramer's $\phi$). However, in the special case that both categorical variables are binary,  the value of the Cramer's V coefficient will actually be equal to the value of the Pearson Correlation coefficient. So either formula actually results in the same value for $\phi$. We prove this below.
 
 ```{r correlation_coefficients}
 cramersv <- round(cramersv(train_df |> select(all_of(factors))), 5)
