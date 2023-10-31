@@ -3,8 +3,8 @@ title: "DATA 621 - HW3"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-10-23"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
