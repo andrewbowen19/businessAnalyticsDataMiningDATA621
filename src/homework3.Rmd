@@ -4,7 +4,6 @@ author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugia
 date: "2023-10-23"
 output:
   pdf_document: default
-  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -18,6 +17,9 @@ library(caret)
 library(knitr)
 library(confintr)
 library(psych)
+library(car)
+library(corrplot)
+
 ```
 
 ## Homework 3 - Logistic Regression
@@ -46,26 +48,29 @@ Below is a short description of the variables of interest in the data set:
 |`medv`|median value of owner-occupied homes in $1000s (*predictor variable*)|
 |**`target`**|**whether the crime rate is above the median crime rate (1) or not (0) (*response variable*)**|
 
-### Data Loading:
-
-Let's load in the training dataset. 
-
-```{r load-train-data}
+```{r load-train-data, echo=F}
 train_df <- read.csv('https://raw.githubusercontent.com/ShanaFarber/businessAnalyticsDataMiningDATA621/main/data/crime-training-data_modified.csv')
+
 ```
 
 ### Data Exploration:
 
-```{r dim-data}
-train_df |>
-    glimpse()
+```{r df-shape, echo=F}
+dim(train_df)
+
 ```
 
 The dataset consists of 466 observations of 13 variables. There are 12 predictor variables and one response variable (`target`).
 
-All of the columns in the dataset are numeric, but the predictor variable `chas` is a dummy variable, as is the response variable `target`. We recode them as factors. 
+```{r dim-data, echo=F}
+train_df |>
+    glimpse()
 
-```{r }
+```
+
+All of the columns in the dataset are numeric, but the predictor variable `chas` is a dummy variable, as is the response variable `target`. We re-code them as factors. 
+
+```{r echo=F}
 train_df <- train_df |>
     mutate(chas = as.factor(chas), target = as.factor(target))
 
@@ -73,27 +78,57 @@ train_df <- train_df |>
 
 Let's take a look at the summary statistics for the variables in the dataset. 
 
-```{r summary-stats}
+```{r summary-stats1, echo=F}
+summary(train_df)
+
+```
+
+```{r summary-stats2, echo=F}
 remove <- c("vars", "trimmed", "mad")
 describe <- train_df |>
-    describe() |>
-    select(-all_of(remove))
+  describe() |>
+  round(digits=4) |>
+  select(-all_of(remove))
 knitr::kable(describe, format = "simple")
+
 ```
 
 We can see the mean, median, standard deviations, ranges, etc. for each of the variables in the dataset.
 
+There are 229 instances where crime level is above the median level and 237 instances where crime is not above the median level. 
+
 Each predictor has 466 values, which matches the number of observations in our dataset, so there do not appear to be any missing values to address. Let's validate this. 
 
-```{r}
+```{r, echo=F}
 sum(is.na(train_df))
+
 ```
 
 There are in fact no missing values in the dataset. 
 
+Let's check for multicollinearity between variables.
+
+```{r check-multicolin, echo=F, fig.show='hold', fig.align='center', out.width='90%'}
+train_df$chas <- as.numeric(train_df$chas)
+train_df$target <- as.numeric(train_df$target)
+
+corrplot(cor(train_df), method="color",
+         diag=FALSE,
+         type="lower",
+         addCoef.col = "black",
+         number.cex=0.70)
+
+```
+
+Predictor variables: `indus` is highly correlated (more than 0.7) with `nox`, `dis`, and `tax`. `nox` is also highly correlated with `age` and `dis`. `rm` is highly correlated with `medv`. `rad` is very highly correlated with `tax`. `lstat` is highly correlted with `medv`. 
+
+Response variable: `target` is highly correlated with `nox`. It is also fairly strongly correlated with `indus`, `age`, `dis`, `rad`, and `tax`. 
+
 Let's take a look at the distributions for the predictor variables. 
 
-```{r plot-distributions}
+```{r plot-distributions, echo=F}
+train_df$chas <- as.factor(train_df$chas)
+train_df$target <- as.factor(train_df$target)
 par(mfrow=c(3,4))
 par(mai=c(.3,.3,.3,.3))
 
@@ -107,22 +142,24 @@ for (i in 1:(length(variables)-1)) {
         hist(train_df[[variables[i]]], main = variables[i], col = "lightblue")
     }
 }
+
 ```
 
 The distribution for `rm` appears to be normal, and the distribution for `medv` is nearly normal. The distributions for `zn`, `dis`, `lstat`, and `nox` are right-skewed. The distributions for `age` and `ptratio` are left-skewed.
 
 The distributions for the remaining variables are multimodal, including the distribution for `chas`, which appears degenerate at first glance. It looks like a near-zero variance predictor, which we can confirm using the `nearZeroVar` function from the `caret` package. 
 
-```{r near_zero_var}
+```{r near_zero_var, echo=F}
 nzv <- nearZeroVar(train_df |> select(-target), saveMetrics = TRUE)
 knitr::kable(nzv)
+
 ```
 
 The percentage of unique values, `percentUnique`, in the sample for this predictor is less than the typical threshold of 10 percent, but there is a second criterion to consider: the `freqRatio`. This measures the frequency of the most common value (0 in this case) to the frequency of the second most common value (1 in this case). The `freqRatio` value for this predictor is less than the typical threshold of 19 (i.e. 95 occurrences of the most frequent value for every 5 occurrences of the second most frequent value). So it is not considered a near-zero variance predictor. Neither are any of the other predictors. 
 
 Next we analyze boxplots to determine the spread of the numeric predictor variables. This will also reveal any outliers.
 
-```{r boxplots}
+```{r boxplots, echo=F}
 train_df |>
     dplyr::select(-chas) |>
     gather(key, value, -target) |>
@@ -130,9 +167,11 @@ train_df |>
            target = factor(target)) |>
     ggplot(aes(x = key, y = value)) +
     geom_boxplot(aes(fill = target)) +
+    scale_x_discrete(labels = NULL, breaks = NULL) +
     facet_wrap(~ key, scales = 'free', ncol = 3) +
     scale_fill_brewer(palette = "Paired") +
-    theme_minimal()
+    theme_minimal() +
+    theme(strip.text = element_text(face = "bold"))
 
 ```
 
@@ -140,7 +179,7 @@ For certain predictors, the variance between the two categories of the response 
 
 Next we produce a correlation funnel to visualize the strength of the relationships between our predictors and our response. 
 
-```{r correlation_funnel}
+```{r correlation_funnel, echo=F}
 train_df_binarized <- train_df |>
     binarize(n_bins = 5, thresh_infreq = 0.01, name_infreq = "OTHER",
            one_hot = TRUE)
@@ -155,7 +194,7 @@ The correlation funnel plots the most important features towards the top. In our
 
 Looking at the features towards the bottom, the variable `chas` is the least correlated to `target` by the Pearson Correlation coefficient. The correct coefficient to use to understand the strength of the relationship between two categorical variables is actually the $\phi$ coefficient. If one of the categorical variables had more than two categories, we would need to calculate $\phi$ using the formula for Cramer's V (also called Cramer's $\phi$). However, in the special case that both categorical variables are binary,  the value of the Cramer's V coefficient will actually be equal to the value of the Pearson Correlation coefficient. So either formula actually results in the same value for $\phi$. We prove this below.
 
-```{r correlation_coefficients}
+```{r correlation_coefficients, echo=F}
 cramersv <- round(cramersv(train_df |> select(all_of(factors))), 5)
 pearson <- round(cor(as.numeric(train_df$chas), as.numeric(train_df$target), method = "pearson"), 5)
 (cramersv == pearson)
@@ -163,3 +202,32 @@ pearson <- round(cor(as.numeric(train_df$chas), as.numeric(train_df$target), met
 ```
 
 The value for $\phi$ is `r cramersv` regardless of the formula used to calculate it, and this very low value indicates very little correlation between `chas` and `target`. 
+
+### Modeling
+
+Let's start with a full model and then reduce using the `step()` function. 
+
+```{r full-model, echo=F}
+glm_full <- glm(target~., family='binomial', data=train_df)
+model_1 <- step(glm_full, trace=0)
+summary(model_1)
+
+```
+
+The reduced model consists of 8 predictor variables and has an AIC of 215.32. 
+
+Let's check for possible multicollinearity within this model. 
+
+```{r check-multicol-model1, echo=F}
+vif(model_1)
+
+```
+
+All of the variance inflation factors are less than 5 so there are no issues of multicollinearity within this model. 
+
+
+### Appendix
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
