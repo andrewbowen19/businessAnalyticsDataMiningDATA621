@@ -3,6 +3,8 @@ title: "DATA 621 - HW3"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-10-23"
 output:
+  html_document:
+    df_print: paged
   pdf_document: default
 ---
 
@@ -19,6 +21,10 @@ library(confintr)
 library(psych)
 library(car)
 library(corrplot)
+library(RColorBrewer)
+library(MASS)
+select <- dplyr::select
+library(glmtoolbox)
 
 ```
 
@@ -205,11 +211,11 @@ The value for $\phi$ is `r cramersv` regardless of the formula used to calculate
 
 ### Modeling
 
-Let's start with a full model and then reduce using the `step()` function. 
+Let's start with a full model and then reduce using the `stepAIC()` function from the `MASS` package. 
 
 ```{r full-model, echo=F}
 glm_full <- glm(target~., family='binomial', data=train_df)
-model_1 <- step(glm_full, trace=0)
+model_1 <- stepAIC(glm_full, trace=0)
 summary(model_1)
 
 ```
@@ -225,6 +231,24 @@ vif(model_1)
 
 All of the variance inflation factors are less than 5 so there are no issues of multicollinearity within this model. 
 
+To check for goodness of fit, we create marginal model plots for the response and each predictor in this model.
+
+```{r marginal_model_plots, echo=F}
+palette <- brewer.pal(n = 12, name = "Paired")
+mmps(model_1, layout = c(3, 3), grid = FALSE, col.line = palette[c(2,6)])
+
+```
+
+There is very good agreement between the two fits in each of the marginal model plots. 
+
+We calculate the Hosmer-Lemeshow statistic to further check for lack of fit. 
+
+```{r }
+hlstat <- hltest(model_1)
+
+```
+
+The moderate p-value here suggests no lack of fit. However, this test provides no insight about whether there is overfitting in the model.
 
 ### Appendix
 
