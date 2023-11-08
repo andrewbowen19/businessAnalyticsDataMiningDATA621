@@ -240,7 +240,7 @@ rm(train_df_trans)
 
 Some of the skewed variables might benefit from common transformations, so when we train our models, we will train some without any transformations, and some with the five transformations listed above.
 
-### Modeling
+### Build Models
 
 Let's start with a full model and then reduce using the `stepAIC()` function from the `MASS` package. 
 
@@ -321,6 +321,8 @@ The moderate p-value here suggests no lack of fit. However, this test provides n
 
 
 ```
+
+### Select Models
 
 ### Appendix
 
