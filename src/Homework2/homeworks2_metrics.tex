@@ -1,0 +1,806 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Data621: HW2},
+  pdfauthor={Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen, Charles Ugiagbe},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Data621: HW2}
+\author{Shoshanna Farber, Josh Forster, Glen Davis, Andrew Bowen,
+Charles Ugiagbe}
+\date{2023-10-05}
+
+\begin{document}
+\maketitle
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(tidyverse)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## -- Attaching core tidyverse packages ------------------------ tidyverse 2.0.0 --
+## v dplyr     1.1.2     v readr     2.1.4
+## v forcats   1.0.0     v stringr   1.5.0
+## v ggplot2   3.4.2     v tibble    3.2.1
+## v lubridate 1.9.2     v tidyr     1.3.0
+## v purrr     1.0.1     
+## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+## i Use the ]8;;http://conflicted.r-lib.org/conflicted package]8;; to force all conflicts to become errors
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(geomtextpath)}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{overview}{%
+\subsection{Overview:}\label{overview}}
+
+In this homework assignment, you will work through various
+classification metrics. You will be asked to create functions in R to
+carry out the various calculations. You will also investigate some
+functions in packages that will let you obtain the equivalent results.
+Finally, you will create graphical output that also can be used to
+evaluate the output of classification models, such as binary logistic
+regression.
+
+\hypertarget{supplemental-material}{%
+\subsection{Supplemental Material:}\label{supplemental-material}}
+
+\begin{itemize}
+\item
+  Applied Predictive Modeling, Ch. 11 (provided as a PDF file).
+\item
+  Web tutorials: \url{http://www.saedsayad.com/model_evaluation_c.htm}
+\end{itemize}
+
+\hypertarget{deliverables-100-points}{%
+\subsection{Deliverables (100 Points):}\label{deliverables-100-points}}
+
+\begin{itemize}
+\tightlist
+\item
+  Upon following the instructions below, use your created R functions
+  and the other packages to generate the classification metrics for the
+  provided data set. A write-up of your solutions submitted in PDF
+  format.
+\end{itemize}
+
+\hypertarget{instructions}{%
+\subsection{Instructions:}\label{instructions}}
+
+Complete each of the following steps as instructed:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Download the classification output data set (attached in Blackboard to
+  the assignment).
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{class\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{read.csv}\NormalTok{(}\StringTok{\textquotesingle{}https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/hw2\_input\_classification{-}output{-}data.csv\textquotesingle{}}\NormalTok{))}
+\FunctionTok{head}\NormalTok{(class\_df)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   pregnant glucose diastolic skinfold insulin  bmi pedigree age class
+## 1        7     124        70       33     215 25.5    0.161  37     0
+## 2        2     122        76       27     200 35.9    0.483  26     0
+## 3        3     107        62       13      48 22.9    0.678  23     1
+## 4        1      91        64       24       0 29.2    0.192  21     0
+## 5        4      83        86       19       0 29.3    0.317  34     0
+## 6        1     100        74       12      46 19.5    0.149  28     0
+##   scored.class scored.probability
+## 1            0         0.32845226
+## 2            0         0.27319044
+## 3            0         0.10966039
+## 4            0         0.05599835
+## 5            0         0.10049072
+## 6            0         0.05515460
+\end{verbatim}
+
+The dataset provided includes several attributes to predict whether or
+not a patient has diabetes.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{1}
+\item
+  The data set has three key columns we will use:
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \item
+    class: the actual class for the observation
+  \item
+    scored.class: the predicted class for the observation (based on a
+    threshold of \(0.5\))
+  \item
+    scored.probability: the predicted probability of success for the
+    observation
+  \end{enumerate}
+\end{enumerate}
+
+Use the table() function to get the raw confusion matrix for this scored
+dataset. Make sure you understand the output. In particular, do the rows
+represent the actual or predicted class? The columns?
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{class\_df }\OtherTok{\textless{}{-}}\NormalTok{ class\_df }\SpecialCharTok{|\textgreater{}}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{class =} \FunctionTok{factor}\NormalTok{(class, }\AttributeTok{levels=}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{,}\DecValTok{0}\NormalTok{)),}
+         \AttributeTok{scored.class =} \FunctionTok{factor}\NormalTok{(scored.class, }\AttributeTok{levels=}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{,}\DecValTok{0}\NormalTok{)))}
+\NormalTok{keep }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"scored.class"}\NormalTok{, }\StringTok{"class"}\NormalTok{)}
+\NormalTok{class\_subset }\OtherTok{\textless{}{-}}\NormalTok{ class\_df }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(keep))}
+\NormalTok{confusion\_matrix }\OtherTok{\textless{}{-}} \FunctionTok{table}\NormalTok{(class\_subset)}
+\NormalTok{confusion\_matrix}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##             class
+## scored.class   1   0
+##            1  27   5
+##            0  30 119
+\end{verbatim}
+
+The row labels in the confusion matrix represent the predicted class,
+while the column labels represent the actual class. The values in the
+confusion matrix correspond to the number of observations
+correctly/incorrectly predicted for this dataframe. There we 27
+instances where a patient was accurately diagnosed with diabetes (true
+positive) and 119 instances where a patient without diabetes was
+classified as not having diabetes (true negative). There were 30
+instances where a patient with diabetes was incorrectly classified as
+not having diabetes (false negative) and 5 instances of a patient being
+incorrectly diagnosed with diabetes (false positive).
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{2}
+\tightlist
+\item
+  Write a function that takes the data set as a dataframe, with actual
+  and predicted classifications identified, and returns the accuracy of
+  the predictions.
+\end{enumerate}
+
+\[Accuracy = \frac{TP + TN}{TP + FP + TN + FN}\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{accuracy.func }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(input\_df) \{}
+\NormalTok{    accuracy }\OtherTok{\textless{}{-}}\NormalTok{ input\_df }\SpecialCharTok{|\textgreater{}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{mutate}\NormalTok{(}\AttributeTok{correct=}\FunctionTok{ifelse}\NormalTok{(class}\SpecialCharTok{==}\NormalTok{scored.class,}\DecValTok{1}\NormalTok{,}\DecValTok{0}\NormalTok{)) }\SpecialCharTok{|\textgreater{}} \FunctionTok{summarise}\NormalTok{(}\AttributeTok{total\_correct =} \FunctionTok{sum}\NormalTok{(correct),}\AttributeTok{accuracy=}\NormalTok{total\_correct}\SpecialCharTok{/}\FunctionTok{n}\NormalTok{()) }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\FunctionTok{c}\NormalTok{(accuracy))}
+\NormalTok{\}}
+
+\NormalTok{acc\_val }\OtherTok{\textless{}{-}} \FunctionTok{accuracy.func}\NormalTok{(class\_subset)}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{round}\NormalTok{(acc\_val, }\DecValTok{2}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   accuracy
+## 1     0.81
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{3}
+\tightlist
+\item
+  Write a function that takes the data set as a dataframe, with actual
+  and predicted classifications identified, and returns the
+  classification error rate of the predictions.
+\end{enumerate}
+
+\[Classification\ Error\ Rate = \frac{FP + FN}{TP + FP + TN + FN}\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{error.func }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(input\_df) \{}
+\NormalTok{    accuracy }\OtherTok{\textless{}{-}}\NormalTok{ input\_df }\SpecialCharTok{|\textgreater{}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{mutate}\NormalTok{(}\AttributeTok{incorrect=}\FunctionTok{ifelse}\NormalTok{(class}\SpecialCharTok{==}\NormalTok{scored.class,}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{)) }\SpecialCharTok{|\textgreater{}} \FunctionTok{summarise}\NormalTok{(}\AttributeTok{total\_incorrect =} \FunctionTok{sum}\NormalTok{(incorrect),}\AttributeTok{error\_rate=}\NormalTok{total\_incorrect}\SpecialCharTok{/}\FunctionTok{n}\NormalTok{()) }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\FunctionTok{c}\NormalTok{(error\_rate))}
+\NormalTok{\}}
+
+\NormalTok{error\_val }\OtherTok{\textless{}{-}} \FunctionTok{error.func}\NormalTok{(class\_subset)}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{round}\NormalTok{(error\_val, }\DecValTok{2}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   error_rate
+## 1       0.19
+\end{verbatim}
+
+Verify that you get an accuracy and an error rate that sums to one.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{(}\FunctionTok{as.numeric}\NormalTok{(acc\_val) }\SpecialCharTok{+} \FunctionTok{as.numeric}\NormalTok{(error\_val))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 1
+\end{verbatim}
+
+Confirmed. The accuracy and error rate values do add up to one.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{4}
+\tightlist
+\item
+  Write a function that takes the data set as a dataframe, with actual
+  and predicted classifications identified, and returns the precision of
+  the predictions.
+\end{enumerate}
+
+\[Precision = \frac{TP}{TP + FP}\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{precision.func }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(input\_df) \{}
+\NormalTok{    precision }\OtherTok{\textless{}{-}}\NormalTok{ input\_df }\SpecialCharTok{|\textgreater{}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{filter}\NormalTok{(scored.class}\SpecialCharTok{==}\DecValTok{1}\NormalTok{) }\SpecialCharTok{|\textgreater{}} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{prec=}\FunctionTok{ifelse}\NormalTok{(class}\SpecialCharTok{==}\NormalTok{scored.class,}\DecValTok{1}\NormalTok{,}\DecValTok{0}\NormalTok{)) }\SpecialCharTok{|\textgreater{}} 
+        \FunctionTok{summarise}\NormalTok{(}\AttributeTok{total\_prec =} \FunctionTok{sum}\NormalTok{(prec),}\AttributeTok{precision\_rate=}\NormalTok{total\_prec}\SpecialCharTok{/}\FunctionTok{n}\NormalTok{()) }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\FunctionTok{c}\NormalTok{(precision\_rate))}
+\NormalTok{\}}
+
+\NormalTok{prec\_val }\OtherTok{\textless{}{-}} \FunctionTok{precision.func}\NormalTok{(class\_subset)}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{round}\NormalTok{(prec\_val, }\DecValTok{2}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   precision_rate
+## 1           0.84
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{5}
+\tightlist
+\item
+  Write a function that takes the data set as a dataframe, with actual
+  and predicted classifications identified, and returns the sensitivity
+  of the predictions. Sensitivity is also known as recall.
+\end{enumerate}
+
+\[Sensitivity = \frac{TP}{TP + FN}\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sensitivity.func }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(input\_df) \{}
+\NormalTok{    sensitivity }\OtherTok{\textless{}{-}}\NormalTok{ input\_df }\SpecialCharTok{|\textgreater{}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{filter}\NormalTok{(class}\SpecialCharTok{==}\DecValTok{1}\NormalTok{) }\SpecialCharTok{|\textgreater{}} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sens=}\FunctionTok{ifelse}\NormalTok{(class}\SpecialCharTok{==}\NormalTok{scored.class,}\DecValTok{1}\NormalTok{,}\DecValTok{0}\NormalTok{)) }\SpecialCharTok{|\textgreater{}} 
+        \FunctionTok{summarise}\NormalTok{(}\AttributeTok{total\_sens =} \FunctionTok{sum}\NormalTok{(sens),}\AttributeTok{sensitivity\_rate=}\NormalTok{total\_sens}\SpecialCharTok{/}\FunctionTok{n}\NormalTok{()) }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\FunctionTok{c}\NormalTok{(sensitivity\_rate))}
+\NormalTok{\}}
+
+\NormalTok{sens\_val }\OtherTok{\textless{}{-}} \FunctionTok{sensitivity.func}\NormalTok{(class\_subset)}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{round}\NormalTok{(sens\_val, }\DecValTok{2}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   sensitivity_rate
+## 1             0.47
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{6}
+\tightlist
+\item
+  Write a function that takes the data set as a dataframe, with actual
+  and predicted classifications identified, and returns the specificity
+  of the predictions.
+\end{enumerate}
+
+\[Specificity = \frac{TN}{TN + FP}\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{specificity.func }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(input\_df) \{}
+\NormalTok{    specificity }\OtherTok{\textless{}{-}}\NormalTok{ input\_df }\SpecialCharTok{|\textgreater{}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{filter}\NormalTok{(class}\SpecialCharTok{==}\DecValTok{0}\NormalTok{) }\SpecialCharTok{|\textgreater{}} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{spec=}\FunctionTok{ifelse}\NormalTok{(class}\SpecialCharTok{==}\NormalTok{scored.class,}\DecValTok{1}\NormalTok{,}\DecValTok{0}\NormalTok{)) }\SpecialCharTok{|\textgreater{}} 
+        \FunctionTok{summarise}\NormalTok{(}\AttributeTok{total\_spec =} \FunctionTok{sum}\NormalTok{(spec),}\AttributeTok{specificity\_rate=}\NormalTok{total\_spec}\SpecialCharTok{/}\FunctionTok{n}\NormalTok{()) }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\FunctionTok{c}\NormalTok{(specificity\_rate))}
+\NormalTok{\}}
+
+\NormalTok{spec\_val }\OtherTok{\textless{}{-}} \FunctionTok{specificity.func}\NormalTok{(class\_subset)}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{round}\NormalTok{(spec\_val, }\DecValTok{2}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   specificity_rate
+## 1             0.96
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{7}
+\tightlist
+\item
+  Write a function that takes the data set as a dataframe, with actual
+  and predicted classifications identified, and returns the F1 score of
+  the predictions.
+\end{enumerate}
+
+\[F1\ Score = \frac{2 \times Precision \times Sensitivity}{Precision + Sensitivity}\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{f1.score }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(input\_df) \{}
+\NormalTok{    f1}\OtherTok{\textless{}{-}}\NormalTok{(}\DecValTok{2}\SpecialCharTok{*}\FunctionTok{precision.func}\NormalTok{(input\_df)}\SpecialCharTok{*}\FunctionTok{sensitivity.func}\NormalTok{(input\_df))}\SpecialCharTok{/}\NormalTok{(}\FunctionTok{precision.func}\NormalTok{(input\_df)}\SpecialCharTok{+}\FunctionTok{sensitivity.func}\NormalTok{(input\_df))}
+\NormalTok{\}}
+
+\NormalTok{f1\_val }\OtherTok{\textless{}{-}} \FunctionTok{f1.score}\NormalTok{(class\_subset)}
+\FunctionTok{colnames}\NormalTok{(f1\_val) }\OtherTok{\textless{}{-}} \StringTok{"f1\_score"}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{round}\NormalTok{(f1\_val, }\DecValTok{2}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   f1_score
+## 1     0.61
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{8}
+\tightlist
+\item
+  Before we move on, let's consider a question that was asked: What are
+  the bounds on the F1 score? Show that the F1 score will always be
+  between \(0\) and \(1\). (Hint: If \(0 < a < 1\) and \(0 < b < 1\)
+  then \(ab < a\).)
+\end{enumerate}
+
+Result of the F1 function given that the maximum value for precision and
+sensitivity is 1 if every single value were correctly predicted:
+
+\[\frac{2 * 1 * 1}{1+1} = \frac{2}{2} = 1\]
+
+Alternatively, the worst case scenario for the metrics from a
+classification model would if every single prediction was incorrect:
+
+\[\frac{2 * 0 * 0}{0+0} = \frac{0}{0}\]
+
+Let's show graphically that even if one of the scores was
+perfect/imperfect the maximum value as assumed before would be 1
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{x }\OtherTok{\textless{}{-}} \FunctionTok{seq}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{, }\AttributeTok{by=}\FloatTok{0.01}\NormalTok{)}
+
+\CommentTok{\# Calculate the function values}
+\NormalTok{y }\OtherTok{\textless{}{-}}\NormalTok{ (}\DecValTok{2}\SpecialCharTok{*}\NormalTok{ x }\SpecialCharTok{*} \DecValTok{1}\NormalTok{)}\SpecialCharTok{/}\NormalTok{(x}\SpecialCharTok{+}\DecValTok{1}\NormalTok{)}
+
+\CommentTok{\# Create a data frame with x and y values}
+\NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(}\AttributeTok{x =}\NormalTok{ x, }\AttributeTok{y =}\NormalTok{ y)}
+
+\FunctionTok{ggplot}\NormalTok{(}\AttributeTok{data =}\NormalTok{ df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ x, }\AttributeTok{y =}\NormalTok{ y)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x =} \StringTok{"x"}\NormalTok{, }\AttributeTok{y =} \StringTok{"f(x)"}\NormalTok{,}\AttributeTok{title =} \StringTok{"F1 Score between 0 and 1"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_light}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{homeworks2_metrics_files/figure-latex/unnamed-chunk-11-1.pdf}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{9}
+\tightlist
+\item
+  Write a function that generates an ROC curve from a data set with a
+  true classification column (class in our example) and a probability
+  column (scored.probability in our example). Your function should
+  return a list that includes the plot of the ROC curve and a vector
+  that contains the calculated area under the curve (AUC). Note that I
+  recommend using a sequence of thresholds ranging from 0 to 1 at 0.01
+  intervals.
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{keep }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"class"}\NormalTok{, }\StringTok{"scored.probability"}\NormalTok{)}
+\NormalTok{class\_subset }\OtherTok{\textless{}{-}}\NormalTok{ class\_df }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(keep))}
+\NormalTok{roc.func }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(input\_df)\{}
+\NormalTok{    plot\_points\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{matrix}\NormalTok{(}\AttributeTok{ncol =} \DecValTok{3}\NormalTok{, }\AttributeTok{nrow =} \DecValTok{0}\NormalTok{))}
+\NormalTok{    cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"threshold"}\NormalTok{, }\StringTok{"fpr"}\NormalTok{, }\StringTok{"tpr"}\NormalTok{)}
+    \FunctionTok{colnames}\NormalTok{(plot\_points\_df) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
+\NormalTok{    thresholds }\OtherTok{\textless{}{-}} \FunctionTok{seq}\NormalTok{(}\AttributeTok{from =} \DecValTok{0}\NormalTok{, }\AttributeTok{to =} \DecValTok{1}\NormalTok{, }\AttributeTok{by =} \FloatTok{0.01}\NormalTok{)}
+\NormalTok{    copy }\OtherTok{\textless{}{-}}\NormalTok{ input\_df}
+    \ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(thresholds))\{}
+\NormalTok{        threshold }\OtherTok{\textless{}{-}}\NormalTok{ thresholds[i]}
+\NormalTok{        copy }\OtherTok{\textless{}{-}}\NormalTok{ copy }\SpecialCharTok{|\textgreater{}}
+            \FunctionTok{mutate}\NormalTok{(}\AttributeTok{scored.class =} \FunctionTok{ifelse}\NormalTok{(scored.probability }\SpecialCharTok{\textgreater{}}\NormalTok{ threshold, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{))}
+\NormalTok{        fpr }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{specificity.func}\NormalTok{(copy))}
+\NormalTok{        tpr }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{sensitivity.func}\NormalTok{(copy))}
+\NormalTok{        new\_row }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{t}\NormalTok{(}\FunctionTok{c}\NormalTok{(threshold, fpr, tpr)))}
+        \FunctionTok{colnames}\NormalTok{(new\_row) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
+\NormalTok{        plot\_points\_df }\OtherTok{\textless{}{-}} \FunctionTok{rbind}\NormalTok{(plot\_points\_df, new\_row)}
+\NormalTok{    \}}
+\NormalTok{    roc\_plot }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(plot\_points\_df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ fpr, }\AttributeTok{y =}\NormalTok{ tpr)) }\SpecialCharTok{+} 
+        \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+}
+        \FunctionTok{geom\_line}\NormalTok{() }\SpecialCharTok{+}
+        \FunctionTok{geom\_labelabline}\NormalTok{(}\AttributeTok{intercept =} \DecValTok{0}\NormalTok{, }\AttributeTok{slope =} \DecValTok{1}\NormalTok{, }\AttributeTok{label =} \StringTok{"Random Classifier"}\NormalTok{,}
+                        \AttributeTok{linetype =} \StringTok{"dashed"}\NormalTok{, }\AttributeTok{color =} \StringTok{"red"}\NormalTok{) }\SpecialCharTok{+}
+        \FunctionTok{labs}\NormalTok{(}\AttributeTok{x =} \StringTok{"False Positive Rate (1 {-} Specifity)"}\NormalTok{,}
+             \AttributeTok{y =} \StringTok{"True Positive Rate (Sensitivity)"}\NormalTok{,}
+             \AttributeTok{title =} \StringTok{"ROC Curve"}\NormalTok{) }\SpecialCharTok{+}
+        \FunctionTok{theme\_light}\NormalTok{()}
+\NormalTok{    auc }\OtherTok{\textless{}{-}} \DecValTok{0}
+\NormalTok{    plot\_points\_df }\OtherTok{\textless{}{-}}\NormalTok{ plot\_points\_df }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{arrange}\NormalTok{(fpr)}
+    \ControlFlowTok{for}\NormalTok{ (k }\ControlFlowTok{in} \DecValTok{2}\SpecialCharTok{:}\FunctionTok{nrow}\NormalTok{(plot\_points\_df))\{}
+\NormalTok{        x2 }\OtherTok{\textless{}{-}}\NormalTok{ plot\_points\_df[k, }\DecValTok{2}\NormalTok{]}
+\NormalTok{        x1 }\OtherTok{\textless{}{-}}\NormalTok{ plot\_points\_df[k }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{]}
+\NormalTok{        y2 }\OtherTok{\textless{}{-}}\NormalTok{ plot\_points\_df[k, }\DecValTok{3}\NormalTok{]}
+\NormalTok{        y1 }\OtherTok{\textless{}{-}}\NormalTok{ plot\_points\_df[k }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{, }\DecValTok{3}\NormalTok{]}
+\NormalTok{        trap\_area }\OtherTok{\textless{}{-}}\NormalTok{ (x2 }\SpecialCharTok{{-}}\NormalTok{ x1) }\SpecialCharTok{*}\NormalTok{ ((y2 }\SpecialCharTok{+}\NormalTok{ y1)}\SpecialCharTok{/}\DecValTok{2}\NormalTok{)}
+\NormalTok{        auc }\OtherTok{\textless{}{-}}\NormalTok{ auc }\SpecialCharTok{+}\NormalTok{ trap\_area}
+\NormalTok{    \}}
+\NormalTok{    roc\_plot\_and\_auc }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{(}\AttributeTok{ROC\_Plot =}\NormalTok{ roc\_plot, }\AttributeTok{AUC =} \FunctionTok{round}\NormalTok{(auc, }\DecValTok{2}\NormalTok{))}
+    \FunctionTok{return}\NormalTok{(roc\_plot\_and\_auc)}
+\NormalTok{\}}
+
+\NormalTok{roc\_plot\_and\_auc }\OtherTok{\textless{}{-}} \FunctionTok{roc.func}\NormalTok{(class\_subset)}
+\NormalTok{roc\_plot\_and\_auc}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## $ROC_Plot
+\end{verbatim}
+
+\includegraphics{homeworks2_metrics_files/figure-latex/unnamed-chunk-12-1.pdf}
+
+\begin{verbatim}
+## 
+## $AUC
+## [1] 0.85
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{10}
+\tightlist
+\item
+  Use your created R functions and the provided classification output
+  data set to produce all of the classification metrics discussed above.
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{metrics\_table }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(acc\_val, error\_val, prec\_val, sens\_val, spec\_val, f1\_val) }\SpecialCharTok{|\textgreater{}}
+  \FunctionTok{pivot\_longer}\NormalTok{(accuracy}\SpecialCharTok{:}\NormalTok{f1\_score,}
+               \AttributeTok{names\_to=}\StringTok{"metric"}\NormalTok{,}
+               \AttributeTok{values\_to=}\StringTok{"value"}\NormalTok{)}
+
+\CommentTok{\#knitr::kable(metrics\_table)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{11}
+\tightlist
+\item
+  Investigate the caret package. In particular, consider the functions
+  confusionMatrix, sensitivity, and specificity. Apply the functions to
+  the data set. How do the results compare with your own functions?
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# load package}
+\FunctionTok{library}\NormalTok{(caret)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Loading required package: lattice
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'caret'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:purrr':
+## 
+##     lift
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# confusionMatrix}
+\NormalTok{(conf\_matrix }\OtherTok{\textless{}{-}} \FunctionTok{confusionMatrix}\NormalTok{(class\_df}\SpecialCharTok{$}\NormalTok{scored.class,}
+                \AttributeTok{reference =}\NormalTok{ class\_df}\SpecialCharTok{$}\NormalTok{class,}
+                \AttributeTok{positive =} \StringTok{\textquotesingle{}1\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction   1   0
+##          1  27   5
+##          0  30 119
+##                                           
+##                Accuracy : 0.8066          
+##                  95% CI : (0.7415, 0.8615)
+##     No Information Rate : 0.6851          
+##     P-Value [Acc > NIR] : 0.0001712       
+##                                           
+##                   Kappa : 0.4916          
+##                                           
+##  Mcnemar's Test P-Value : 4.976e-05       
+##                                           
+##             Sensitivity : 0.4737          
+##             Specificity : 0.9597          
+##          Pos Pred Value : 0.8438          
+##          Neg Pred Value : 0.7987          
+##              Prevalence : 0.3149          
+##          Detection Rate : 0.1492          
+##    Detection Prevalence : 0.1768          
+##       Balanced Accuracy : 0.7167          
+##                                           
+##        'Positive' Class : 1               
+## 
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# sensitivity}
+\NormalTok{caret\_sens }\OtherTok{\textless{}{-}} \FunctionTok{sensitivity}\NormalTok{(conf\_matrix}\SpecialCharTok{$}\NormalTok{table)}
+
+\CommentTok{\# specificity}
+\NormalTok{caret\_spec }\OtherTok{\textless{}{-}} \FunctionTok{specificity}\NormalTok{(conf\_matrix}\SpecialCharTok{$}\NormalTok{table)}
+
+\CommentTok{\# compare functions}
+\NormalTok{caret\_calcs }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{cbind}\NormalTok{(caret\_sens, caret\_spec)) }
+\FunctionTok{colnames}\NormalTok{(caret\_calcs) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"sens\_val"}\NormalTok{, }\StringTok{"spec\_val"}\NormalTok{)}
+\NormalTok{caret\_calcs }\SpecialCharTok{|\textgreater{}}
+  \FunctionTok{pivot\_longer}\NormalTok{(}\AttributeTok{cols=}\FunctionTok{c}\NormalTok{(sens\_val, spec\_val),}
+               \AttributeTok{names\_to =} \StringTok{"metric"}\NormalTok{,}
+               \AttributeTok{values\_to =} \StringTok{"caret value"}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+  \FunctionTok{left\_join}\NormalTok{(metrics\_table, }\AttributeTok{by=}\StringTok{"metric"}\NormalTok{) }\CommentTok{\#|\textgreater{}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 2 x 3
+##   metric   `caret value` value
+##   <chr>            <dbl> <dbl>
+## 1 sens_val         0.474    NA
+## 2 spec_val         0.960    NA
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+ \CommentTok{\# knitr::kable(col.names = c("Metric", "Caret Values", "Function Values"))}
+\end{Highlighting}
+\end{Shaded}
+
+The values from our functions and the values from the sensitivity and
+specificity functions are the same.
+
+Let's check the rest of our functions against the values from the
+confusionMatrix function. Sensitivity and specificity can also be taken
+from here.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{caret\_acc }\OtherTok{\textless{}{-}}\NormalTok{ conf\_matrix}\SpecialCharTok{$}\NormalTok{overall[}\DecValTok{1}\NormalTok{]}
+\NormalTok{caret\_err }\OtherTok{\textless{}{-}} \DecValTok{1}\SpecialCharTok{{-}}\NormalTok{caret\_acc}
+\NormalTok{caret\_prec }\OtherTok{\textless{}{-}}\NormalTok{ conf\_matrix}\SpecialCharTok{$}\NormalTok{byClass[}\DecValTok{5}\NormalTok{]}
+\NormalTok{caret\_sens }\OtherTok{\textless{}{-}}\NormalTok{ conf\_matrix}\SpecialCharTok{$}\NormalTok{byClass[}\DecValTok{1}\NormalTok{]}
+\NormalTok{caret\_spec }\OtherTok{\textless{}{-}}\NormalTok{ conf\_matrix}\SpecialCharTok{$}\NormalTok{byClass[}\DecValTok{2}\NormalTok{]}
+\NormalTok{caret\_f1 }\OtherTok{\textless{}{-}}\NormalTok{ conf\_matrix}\SpecialCharTok{$}\NormalTok{byClass[}\DecValTok{7}\NormalTok{]}
+
+\NormalTok{caret\_results }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{cbind}\NormalTok{(caret\_acc, caret\_err, caret\_prec, caret\_sens, caret\_spec, caret\_f1))}
+\FunctionTok{colnames}\NormalTok{(caret\_results) }\OtherTok{\textless{}{-}}\NormalTok{ metrics\_table}\SpecialCharTok{$}\NormalTok{metric}
+\NormalTok{caret\_results }\SpecialCharTok{|\textgreater{}} 
+  \FunctionTok{pivot\_longer}\NormalTok{(accuracy}\SpecialCharTok{:}\NormalTok{f1\_score,}
+               \AttributeTok{names\_to=}\StringTok{"metric"}\NormalTok{,}
+               \AttributeTok{values\_to=}\StringTok{"caret\_vals"}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+  \FunctionTok{right\_join}\NormalTok{(metrics\_table) }\CommentTok{\#|\textgreater{}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Joining with `by = join_by(metric)`
+\end{verbatim}
+
+\begin{verbatim}
+## # A tibble: 6 x 3
+##   metric           caret_vals value
+##   <chr>                 <dbl> <dbl>
+## 1 accuracy              0.807 0.807
+## 2 error_rate            0.193 0.193
+## 3 precision_rate        0.844 0.844
+## 4 sensitivity_rate      0.474 0.474
+## 5 specificity_rate      0.960 0.960
+## 6 f1_score              0.607 0.607
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+  \CommentTok{\#knitr::kable(col.names = c("Metric", "Function Values", "Caret Values"))}
+\end{Highlighting}
+\end{Shaded}
+
+The values for each of our functions are the same as the values for the
+built in functions from the caret package.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{12}
+\tightlist
+\item
+  Investigate the pROC package. Use it to generate an ROC curve for the
+  data set. How do the results compare with your own functions?
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(pROC)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Type 'citation("pROC")' for a citation.
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'pROC'
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:stats':
+## 
+##     cov, smooth, var
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{roc}\NormalTok{(class\_df}\SpecialCharTok{$}\NormalTok{class,}
+\NormalTok{    class\_df}\SpecialCharTok{$}\NormalTok{scored.probability,}
+    \AttributeTok{plot=}\NormalTok{T)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Setting levels: control = 1, case = 0
+\end{verbatim}
+
+\begin{verbatim}
+## Setting direction: controls > cases
+\end{verbatim}
+
+\includegraphics{homeworks2_metrics_files/figure-latex/unnamed-chunk-16-1.pdf}
+
+\begin{verbatim}
+## 
+## Call:
+## roc.default(response = class_df$class, predictor = class_df$scored.probability,     plot = T)
+## 
+## Data: class_df$scored.probability in 57 controls (class_df$class 1) > 124 cases (class_df$class 0).
+## Area under the curve: 0.8503
+\end{verbatim}
+
+\end{document}
