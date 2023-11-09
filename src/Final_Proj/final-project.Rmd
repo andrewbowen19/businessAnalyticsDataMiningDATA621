@@ -1,0 +1,84 @@
+---
+title             : "Department of Education"
+shorttitle        : "DATA621 Final Project"
+
+author: 
+  - name          : "Andrew Bowen"
+    affiliation   : "1"
+    corresponding : no    # Define only one corresponding author
+    email         : "andrew.bowen08@spsmail.cuny.edu"
+  - name          : "Glen Dale Davis"
+    affiliation   : "1"
+  - name: "Josh Forster"
+    affiliation: "1"
+  - name: "Shoshana Farber"
+    affiliation: "1"
+  - name: "Charles Ugiagbe"
+    affiliation: "1"
+
+affiliation:
+  - id            : "1"
+    institution   : "City University of New York"
+
+
+abstract: |
+  Abstract coming soon!
+  
+  
+keywords          : "Educational Outcomes, School Quality, Education"
+wordcount         : "X"
+
+bibliography      : "r-references.bib"
+
+floatsintext      : no
+linenumbers       : no
+draft             : no
+mask              : no
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+classoption       : "man"
+output            : papaja::apa6_pdf
+---
+```{r setup-knitr, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r setup, include = FALSE}
+library("papaja")
+r_refs("r-references.bib")
+```
+
+
+# Introduction
+The NYC School Survey seeks to collect data to provide an overview of New York City Schools. Beginning in 2005, the survey looks to collect demographic and achievement data for New York City Public Schools, 
+
+The survey has changed over the years. This change has come from recommnedations of public policy analysts in order to more accurately define the quality of schools @redesign-school-survey.
+
+# Literature Review
+
+
+# Data Sourcing
+
+- [School Quality NYC 2020 - 2021](https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6)
+
+```{r data-read-in}
+# Read in our dataset from GitHub
+# https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch
+df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
+```
+
+
+
+
+# Modeling
+
+
+
+
+\newpage
+
+# References
+
+::: {#refs custom-style="Bibliography"}
+:::
