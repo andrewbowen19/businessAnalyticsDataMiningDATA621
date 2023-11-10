@@ -3,9 +3,9 @@ title: "DATA 621 - HW3"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-10-23"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -419,7 +419,7 @@ pc <- res2 |>
     ggplot() +
     geom_point(aes(x = linpred2, y = rawres2)) +
     labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
-train_df2 <- train_df |>
+train_df2 <- train_df_trans |>
     mutate(residuals = residuals(model_2),
            linpred = predict(model_2),
            predprob = predict(model_2, type = "response"))
