@@ -150,7 +150,9 @@ corrplot(cor(train_df |> select(-target) |> mutate(chas = as.numeric(chas))),
 
 ```
 
-Predictor variables: `indus` is highly correlated (more than 0.7) with `nox`, `dis`, and `tax`. `nox` is also highly correlated with `age` and `dis`. `rm` is highly correlated with `medv`. `rad` is very highly correlated with `tax`. `lstat` is highly correlted with `medv`. 
+It is clear that the predictor variables `rad` and `tax` are very highly correlated (more than 0.9). We will attempt to account for this when we prepare the data. 
+
+There are some smaller, but still high correlations between other predictor variables as well. `indus` is highly correlated (more than 0.7) with `nox`, `dis`, and `tax`. `nox` is also highly correlated with `age` and `dis`. `rm` is highly correlated with `medv`. `lstat` is highly correlated with `medv`. 
 
 Let's take a look at the distributions for the predictor variables. 
 
@@ -236,7 +238,7 @@ kable(lambdas, format = "simple")
 
 ```
 
-Some of the skewed variables might benefit from transformations, so we create transformed versions of our train and test data.
+Some of the skewed variables might benefit from transformations, so we create transformed versions of our train and test data. We will incorporate these transformed predictors into one of our models in the next section: Model 2. 
 
 ```{r trans2, echo=F}
 remove <- c("zn", "dis", "lstat", "nox")
@@ -265,35 +267,39 @@ test_df_trans <- test_df_trans |>
 
 ```
 
-Given the above correlation plot, we attempt to modify Rad and/or Tax variables to try to minimize the strong relationship between the two predictors. When reviewing the Rad distribution more closely it becomes more apparent that this variable may be better served as a dummy variable given the limited potential values in the dataset. We will also test binning property tax ranges, tax, as a means to impact the correlations among the predictors.
+We now consider modifying the `rad` and `tax` variables in an attempt to minimize the very high correlation we identified earlier between these two predictors. First, we look at the `rad` distribution more closely.
 
 ```{r rad_review,echo=F}
 ggplot(train_df,aes(x=rad)) +
     geom_bar()
 ```
 
+It is apparent that this variable may be more useful as a dummy variable given the limited potential values for this predictor. We bin the values and create the `rad_less5` dummy variable indicating 1 if the value for `rad` is < 5 and 0 if not. Using the same logic, we also bin the values in the `tax` variable into three levels (low is < 300, middle is 300 to 400, high is 400+), then create two dummy variables: `middle_tax` and `high_tax`. 
+
 ```{r create_rad_tax_cols,echo=F}
-train_df2 <- train_df |> select(-chas) |> mutate(rad_less5=ifelse(rad<5,1,0)) |> select(-rad) |> relocate(target,.after=last_col()) 
-train_df3 <- train_df|> mutate(least_tax=ifelse(tax<300,1,0),middle_tax=ifelse(tax<400 & tax>=300,1,0)) |> select(-tax) |> relocate(target,.after=last_col())
+remove <- c("rad", "tax")
+train_df2 <- train_df |>
+    mutate(rad_less5=as.factor(ifelse(rad<5,1,0)),
+           high_tax=as.factor(ifelse(tax>400,1,0)),
+           middle_tax=as.factor(ifelse(tax<400 & tax>=300,1,0))) |>
+    select(-all_of(remove)) |>
+    relocate(target,.after=last_col())
 
 ```
 
-```{r rerun_corplot_rad,echo=F}
-corrplot(cor(train_df2 |> select(-target)), method="color",
-         diag=FALSE,
-         type="lower",
-         addCoef.col = "black",
-         number.cex=0.70)
-```
-```{r rerun_corplot_tax,echo=F}
-corrplot(cor(train_df3 |> select(-target)), method="color",
-         diag=FALSE,
-         type="lower",
-         addCoef.col = "black",
-         number.cex=0.70)
+```{r rerun_corplot_rad_tax,echo=F}
+corrplot(cor(train_df2 |> select(-target) |> mutate(chas = as.numeric(chas),
+                                                    rad_less5 = as.numeric(rad_less5),
+                                                    high_tax = as.numeric(high_tax),
+                                                    middle_tax = as.numeric(middle_tax))),
+             method="color",
+             diag=FALSE,
+             type="lower",
+             addCoef.col = "black",
+             number.cex=0.70)
 ```
 
-Both binned dummy columns address the correlation concerns that were previously identified and we will see if these predictors can be incorporated into the best fit models in the next section.
+Both binned dummy columns address the correlation concerns that were previously identified. We will attempt to incorporate these binned predictors into one of our models in the next section: Model 3. 
 
 ### Build Models
 
@@ -343,7 +349,7 @@ knitr::kable(beta_exp, format = "simple")
 
 ```
 
-Here, we see that increasing `rad` by 1 unit increases the odds of being above the median crime rate by 106.5%, increasing `zn` by 1 unit decreases the odds of being above the median crime rate by 6.6%, and so forth. 
+Here, we see that increasing `rad` by 1 unit increases the odds of being above the median crime rate by 106.5 percent, increasing `zn` by 1 unit decreases the odds of being above the median crime rate by 6.6 percent, and so forth. 
 
 **More Discussion of These Coefficients/Inference TK**
 
@@ -413,37 +419,51 @@ summary(model_2)
 This increased the AIC for Model 2 to 210.28.
 
 #### Model 3: Utilizing Dummy Variables with Best Subset
-The backward selection method was already utilized to optimize one model's performance. In this iteration we will use an alternative approach attempting to find the best subset using bestglm package to compare all permutations for model optimization. This package also allows us to use alternative criterion to evaluate the model performance and we will evaluate on both AIC and BIC. It is limited to 15 predictors given the computational power needed for all variations of the model
+
+The stepwise lowest-AIC selection method was utilized to optimize the previous two models' performance. For Model 3, we will use an alternative approach, the `bestglm` function from the `bestglm` package, which attempts to find the best subset model by comparing all permutations for model optimization. This package also allows us to use an alternative criterion to evaluate the model performance. So we will evaluate using AIC in one iteration and BIC in another. (This function has a limitation of 15 predictors given the computational power needed for all variations of the model.)
+
 ```{r model3,echo=F}
-model_3_aic_rad <- bestglm(train_df2,IC="AIC",family=binomial)
-model_3_bic_rad <- bestglm(train_df2,IC="BIC",family=binomial)
-model_3_aic_tax <- bestglm(train_df3,IC="AIC",family=binomial)
-model_3_bic_tax <- bestglm(train_df3,IC="BIC",family=binomial)
+model_3_aic <- bestglm(train_df2,IC="AIC",family=binomial)
+model_3_bic <- bestglm(train_df2,IC="BIC",family=binomial)
 
 ```
 
-One nice feature of the bestglm returned output is it includes the best criterion version of each model size, which can allow us to evaluate if certain combinations make intuitive sense.
+One nice feature of the `bestglm` output is it includes the best criterion version of each model size, which can allow us to evaluate if certain combinations make intuitive sense.
 
 ```{r model3_bestmodels_review,echo=F}
-log_aic_tax$BestModels
+#log_aic_tax$BestModels #commented out since I'm not sure what you want to extract from what object here
 ```
+
+```{r model3_bestmodels_review2, echo=F}
+summary(model_3_aic$BestModel)
+
+```
+For Model 3, the model with the lowest AIC returned by the `bestglm` function has nine predictors and an AIC of 232.43. 
+
+```{r model3_bestmodels_review3, echo=F}
+summary(model_3_bic$BestModel)
+
+```
+
+In contrast, lowest BIC model returned by the `bestglm` function has only six predictors.
+
 #add more model evaluation; need to determine why bestmodel returns error for mpp function and discussion on coefficients
 
-Let's review the models for any multcollinearity concerns:
+Let's review the models for any multicollinearity concerns:
 
 ``` {r model3_vif,echo=F}
-viz_vif <- function(model_input){
-    barplot(vif(model_input), main = "VIF Values", col = "steelblue",ylim=c(0,7)) #create horizontal bar chart to display each VIF value
+viz_vif <- function(model_input, title){
+    barplot(vif(model_input), main = title, col = "steelblue",
+            ylim=c(0,7), las = 2) #create horizontal bar chart to display each VIF value
 
 abline(h = 5, lwd = 3, lty = 2)
 }
-
-viz_vif(model_3_aic_rad$BestModel)
-viz_vif(model_3_bic_rad$BestModel)
-viz_vif(model_3_aic_tax$BestModel)
-viz_vif(model_3_bic_tax$BestModel)
+par(mfrow=c(1,2))
+viz_vif(model_3_aic$BestModel, "Model 3 (Best AIC) VIF")
+viz_vif(model_3_bic$BestModel, "Model 3 (Best BIC) VIF")
 
 ```
+
 None of the models have correlation concerns that would require further revision of the underlying selected predictors.
 
 ### Select Models:
