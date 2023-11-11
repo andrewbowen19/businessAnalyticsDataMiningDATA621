@@ -284,6 +284,11 @@ train_df2 <- train_df |>
            middle_tax=as.factor(ifelse(tax<400 & tax>=300,1,0))) |>
     select(-all_of(remove)) |>
     relocate(target,.after=last_col())
+test_df2 <- test_df |>
+    mutate(rad_less5=as.factor(ifelse(rad<5,1,0)),
+           high_tax=as.factor(ifelse(tax>400,1,0)),
+           middle_tax=as.factor(ifelse(tax<400 & tax>=300,1,0))) |>
+    select(-all_of(remove))
 
 ```
 
@@ -301,13 +306,31 @@ corrplot(cor(train_df2 |> select(-target) |> mutate(chas = as.numeric(chas),
 
 Both binned dummy columns address the correlation concerns that were previously identified. We will attempt to incorporate these binned predictors into one of our models in the next section: Model 3. 
 
+Before we build the models, we have decided that none of the models will be trained on the variable `chas`, as we have deemed this predictor irrelevant based on the earlier conclusion that its correlation with the response variable is very low.
+
+```{r remove_chas, echo=F}
+train_df <- train_df |>
+    select(-chas)
+train_df_trans <- train_df_trans |>
+    select(-chas)
+train_df2 <- train_df2 |>
+    select(-chas)
+test_df <- test_df |>
+    select(-chas)
+test_df_trans <- test_df_trans |>
+    select(-chas)
+test_df2 <- test_df2 |>
+    select(-chas)
+
+```
+
 ### Build Models
+
+We build three models. Model 1 will be trained using untransformed data, Model 2 will be trained using transformed data for skewed predictors, and Model 3 will be trained using binned data for highly correlated predictors. For Models 1 and 2, stepwise model selection will be used to pick the model with the lowest AIC. For Model 3, an alternative exhaustive search method will be used to pick two sub-models based on different criteria: one with the lowest AIC and one with the lowest BIC.
 
 #### Model 1: Stepwise AIC Selection on Untransformed Data 
 
 We start with a full model using the untransformed data and then perform stepwise model selection to select the model with the smallest AIC value using the `stepAIC()` function from the `MASS` package. 
-
-**TK: figure out why glm() function is leaving `chas` out of full model formulas**
 
 ```{r full-model, echo=F}
 glm_full <- glm(target~., family='binomial', data=train_df)
@@ -438,16 +461,54 @@ One nice feature of the `bestglm` output is it includes the best criterion versi
 summary(model_3_aic$BestModel)
 
 ```
-For Model 3, the model with the lowest AIC returned by the `bestglm` function has nine predictors and an AIC of 232.43. 
+For Model 3, the model with the lowest AIC returned by the `bestglm` function has nine predictors and an AIC of 232.43. We will refer to this model as Model 3A: Binned (Best AIC) hereafter.
+
+To interpret the model coefficients, we first need to exponentiate them again to discuss how 1 unit increases in each of these predictors would affect the odds of the crime rate being above the median. Since the coefficient for `nox` is again very large, and we know why, we omit it from this discussion.
+
+```{r coefs_model3a, echo=F}
+beta3a <- coef(model_3_aic$BestModel)
+beta3a_exp <- as.data.frame(exp(beta3a)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta3a_exp) <- cols
+remove <- c("nox", "(Intercept)")
+beta3a_exp <- beta3a_exp |>
+    filter(!Feature %in% remove)
+beta3a_exp <- beta3a_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds Crime Rate Above Median")
+colnames(beta3a_exp) <- cols
+knitr::kable(beta3a_exp, format = "simple")
+
+```
 
 ```{r model3_bestmodels_review3, echo=F}
 summary(model_3_bic$BestModel)
 
 ```
 
-In contrast, lowest BIC model returned by the `bestglm` function has only six predictors.
+The lowest BIC model returned by the `bestglm` function has only six predictors. We will refer to this model as Model 3B: Binned (Best BIC) hereafter. 
 
-#add more model evaluation; need to determine why bestmodel returns error for mpp function and discussion on coefficients
+To interpret the model coefficients, we first need to exponentiate them again to discuss how 1 unit increases in each of these predictors would affect the odds of the crime rate being above the median. Since the coefficient for `nox` is again very large, and we know why, we omit it from this discussion.
+
+```{r coefs_model3b, echo=F}
+beta3b <- coef(model_3_bic$BestModel)
+beta3b_exp <- as.data.frame(exp(beta3b)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta3b_exp) <- cols
+remove <- c("nox", "(Intercept)")
+beta3b_exp <- beta3b_exp |>
+    filter(!Feature %in% remove)
+beta3b_exp <- beta3b_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds Crime Rate Above Median")
+colnames(beta3b_exp) <- cols
+knitr::kable(beta3b_exp, format = "simple")
+
+```
 
 Let's review the models for any multicollinearity concerns:
 
@@ -459,14 +520,16 @@ viz_vif <- function(model_input, title){
 abline(h = 5, lwd = 3, lty = 2)
 }
 par(mfrow=c(1,2))
-viz_vif(model_3_aic$BestModel, "Model 3 (Best AIC) VIF")
-viz_vif(model_3_bic$BestModel, "Model 3 (Best BIC) VIF")
+viz_vif(model_3_aic$BestModel, "Model 3A: Binned (Best AIC) VIF")
+viz_vif(model_3_bic$BestModel, "Model 3B: Binned (Best BIC) VIF")
 
 ```
 
 None of the models have correlation concerns that would require further revision of the underlying selected predictors.
 
 ### Select Models:
+
+The main criterion we will use to select the model with the best performance is the ROC curve, but we need to check for goodness of fit issues prior to that. We will not select a model with a better ROC curve if we determine there is a suggestion of lack of fit for that model. The main criteria we will use to determine lack of fit are binned residual plots, marginal model plots, and the Hosmer-Lemeshow statistic.
 
 To check for goodness of fit, we first plot the residuals for each model against their fitted values.
 
@@ -483,11 +546,11 @@ pa <- res1 |>
     ggplot() +
     geom_point(aes(x = linpred1, y = rawres1)) +
     labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
-train_df1 <- train_df |>
+train_df_mod1 <- train_df |>
     mutate(residuals = residuals(model_1),
            linpred = predict(model_1),
            predprob = predict(model_1, type = "response"))
-binned1 <- train_df1 |>
+binned1 <- train_df_mod1 |>
     group_by(cut(linpred, breaks = unique(quantile(linpred,
                                                    probs = seq(.05, 1, .05)))))
 diag1 <- binned1 |>
@@ -500,11 +563,11 @@ pc <- res2 |>
     ggplot() +
     geom_point(aes(x = linpred2, y = rawres2)) +
     labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
-train_df2 <- train_df_trans |>
+train_df_mod2 <- train_df_trans |>
     mutate(residuals = residuals(model_2),
            linpred = predict(model_2),
            predprob = predict(model_2, type = "response"))
-binned2 <- train_df2 |>
+binned2 <- train_df_mod2 |>
     group_by(cut(linpred, breaks = unique(quantile(linpred,
                                                    probs = seq(.05, 1, .05)))))
 diag2 <- binned2 |>
@@ -524,9 +587,64 @@ p2 <- plot_grid(title2, p2a, ncol = 1, rel_heights = c(0.1, 1))
 p1
 p2
 
+linpred3a <- predict(model_3_aic$BestModel)
+predprob3a <- predict(model_3_aic$BestModel, type = "response")
+rawres3a <- residuals(model_3_aic$BestModel, type = "response")
+res3a <- as.data.frame(cbind(linpred3a, predprob3a, rawres3a))
+linpred3b <- predict(model_3_bic$BestModel)
+predprob3b <- predict(model_3_bic$BestModel, type = "response")
+rawres3b <- residuals(model_3_bic$BestModel, type = "response")
+res3b <- as.data.frame(cbind(linpred3b, predprob3b, rawres3b))
+pe <- res3a |>
+    ggplot() +
+    geom_point(aes(x = linpred3a, y = rawres3a)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
+train_df_mod3a <- train_df |>
+    mutate(residuals = residuals(model_3_aic$BestModel),
+           linpred = predict(model_3_aic$BestModel),
+           predprob = predict(model_3_aic$BestModel, type = "response"))
+binned3a <- train_df_mod3a |>
+    group_by(cut(linpred, breaks = unique(quantile(linpred,
+                                                   probs = seq(.05, 1, .05)))))
+diag3a <- binned3a |>
+    summarize(residuals = mean(residuals), linpred = mean(linpred))
+pf <- diag3a |>
+    ggplot() +
+    geom_point(aes(x = linpred, y = residuals)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Binned")
+pg <- res3b |>
+    ggplot() +
+    geom_point(aes(x = linpred3b, y = rawres3b)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
+train_df_mod3b <- train_df |>
+    mutate(residuals = residuals(model_3_bic$BestModel),
+           linpred = predict(model_3_bic$BestModel),
+           predprob = predict(model_3_bic$BestModel, type = "response"))
+binned3b <- train_df_mod3b |>
+    group_by(cut(linpred, breaks = unique(quantile(linpred,
+                                                   probs = seq(.05, 1, .05)))))
+diag3b <- binned3b |>
+    summarize(residuals = mean(residuals), linpred = mean(linpred))
+ph <- diag3b |>
+    ggplot() +
+    geom_point(aes(x = linpred, y = residuals)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Binned")
+title3 <- ggdraw() + 
+    draw_label("Model 3A: Binned (Best AIC)")
+p3a1 <- plot_grid(pe, pf, ncol = 2, align = "h", axis = "b")
+p3a <- plot_grid(title3, p3a1, ncol = 1, rel_heights = c(0.1, 1))
+title4 <- ggdraw() + 
+    draw_label("Model 3B: Binned (Best BIC)")
+p3b1 <- plot_grid(pg, ph, ncol = 2, align = "h", axis = "b")
+p3b <- plot_grid(title4, p3b1, ncol = 1, rel_heights = c(0.1, 1))
+p3a
+p3b
+
 ```
 
-Next we create marginal model plots for the response and each predictor in each model.
+The binned residual plots don't quite eliminate the patterns in the raw residuals as we expected. We refrain from concluding anything determinant about the fit for each model just by looking at these plots.
+
+Next we create marginal model plots for the response and each predictor in each model. (Note that the `mmps` function from the `car` package used to generate these plots skips any factors and interaction terms within the model intentionally. So for Models 3A and 3B, which include dummy variables we created, fewer predictors are plotted than are present within the models.)
 
 ```{r marginal_model_plots, echo=F}
 palette <- brewer.pal(n = 12, name = "Paired")
@@ -534,39 +652,64 @@ mmps(model_1, layout = c(3, 3), grid = FALSE, col.line = palette[c(2,6)],
      main = "Model 1: Stepwise Untransformed: Marginal Model Plots")
 mmps(model_2, layout = c(3, 4), grid = FALSE, col.line = palette[c(2,6)],
      main = "Model 2: Stepwise Transformed: Marginal Model Plots")
+model_3_aic_for_mmps <- glm(formula(model_3_aic$BestModel), family = "binomial",
+                            data = train_df2)
+mmps(model_3_aic_for_mmps, layout = c(3, 3), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model 3A: Binned: Best AIC: Marginal Model Plots", ylab = "target")
+model_3_bic_for_mmps <- glm(formula(model_3_bic$BestModel), family = "binomial",
+                            data = train_df2)
+mmps(model_3_bic_for_mmps, layout = c(2, 3), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model 3B: Binned: Best BIC: Marginal Model Plots", ylab = "target")
 ```
 
-There is very good agreement between the two fits for most of the predictors in the marginal model plots for Models 1 and 2. The only notable deviation of fit is for the relationship between `target` and `rm` for Model 2.
+There is very good agreement between the two fits for all of the predictors in the marginal model plots for Models 1 and 3B. There is one notable deviation of fit for the relationship between `target` and `rm` for Model 2, and one notable deviation of fit for the relationship between `target` and `indus` in Model 3A.
 
-We calculate the Hosmer-Lemeshow statistic for each model to further check for lack of fit. 
+We calculate the Hosmer-Lemeshow statistic for each model to further check for lack of fit.
 
 ```{r hlstats, echo=F}
 hlstat1 <- hltest(model_1, verbose = FALSE)
 hlstat2 <- hltest(model_2, verbose = FALSE)
+hlstat3a <- hltest(model_3_aic$BestModel, verbose = FALSE)
+hlstat3b <- hltest(model_3_bic$BestModel, verbose = FALSE)
 models <- c("Model 1: Stepwise Untransformed",
-            "Model 2: Stepwise Transformed")
-hl_tbl <- as.data.frame(cbind(models, rbind(hlstat1[2:4], hlstat2[2:4])))
+            "Model 2: Stepwise Transformed",
+            "Model 3A: Binned (Best AIC)",
+            "Model 3B: Binned (Best BIC)")
+hl_tbl <- as.data.frame(cbind(models, rbind(hlstat1[2:4], hlstat2[2:4],
+                                            hlstat3a[2:4], hlstat3b[2:4])))
 cols <- c("Model", "HL Statistic", "DoF", "P Value")
 colnames(hl_tbl) <- cols
 knitr::kable(hl_tbl, format = "simple")
 
 ```
 
-The moderate p-value here for Model 1 suggests no lack of fit, while the low p-value for Model 2 does. This is a little surprising given how good most of the fits in the marginal models plots for Model 2 were. Note that this statistic can't tell us whether either model is overfitting the data.
+The moderate p-values here for Models 1 and 3A suggest no lack of fit, while the low p-values for Models 2 and 3B do. This is a little surprising for Models 3A and 3B given the marginal models plots issues for the former and the lack thereof for the latter. Note that this statistic can't tell us whether any of the models are overfitting the data though.
 
-We will decide which model performs better based on their ROC curves. 
+We produce ROC curves for each model to determine which performs better on the training data. 
 
 ```{r roc_curves, echo=F, warning = FALSE, message = FALSE}
-par(mfrow=c(1,2))
+par(mfrow=c(2,2))
 par(mai=c(.3,.3,.3,.3))
-roc1 <- roc(train_df1$target, train_df1$predprob, plot = TRUE,
+roc1 <- roc(train_df_mod1$target, train_df_mod1$predprob, plot = TRUE,
             print.auc = TRUE, show.thres = TRUE)
 title(main = "Model 1: ROC")
-roc2 <- roc(train_df2$target, train_df2$predprob, plot = TRUE,
+roc2 <- roc(train_df_mod2$target, train_df_mod2$predprob, plot = TRUE,
             print.auc = TRUE, show.thres = TRUE)
 title(main = "Model 2: ROC")
+roc3a <- roc(train_df_mod3a$target, train_df_mod3a$predprob, plot = TRUE,
+            print.auc = TRUE, show.thres = TRUE)
+title(main = "Model 3A: ROC")
+roc3b <- roc(train_df_mod3b$target, train_df_mod3b$predprob, plot = TRUE,
+            print.auc = TRUE, show.thres = TRUE)
+title(main = "Model 3B: ROC")
 
 ```
+
+Model 2 performs best on the training data based on its ROC curve, but the only model for which there was no suggestion of lack of fit in both the marginal models plots and the HL statistics was Model 1. Its ROC curve is very similar that of Model 2 anyway, so we prefer Model 1 and select it for final evaluation.
+
+#### Evaluation
+
+
 
 ### Appendix
 
