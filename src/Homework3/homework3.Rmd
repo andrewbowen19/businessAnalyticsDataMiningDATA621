@@ -27,6 +27,7 @@ select <- dplyr::select
 library(glmtoolbox)
 library(cowplot)
 library(pROC)
+library(bestglm)
 
 ```
 
@@ -264,6 +265,36 @@ test_df_trans <- test_df_trans |>
 
 ```
 
+Given the above correlation plot, we attempt to modify Rad and/or Tax variables to try to minimize the strong relationship between the two predictors. When reviewing the Rad distribution more closely it becomes more apparent that this variable may be better served as a dummy variable given the limited potential values in the dataset. We will also test binning property tax ranges, tax, as a means to impact the correlations among the predictors.
+
+```{r rad_review,echo=F}
+ggplot(train_df,aes(x=rad)) +
+    geom_bar()
+```
+
+```{r create_rad_tax_cols,echo=F}
+train_df2 <- train_df |> select(-chas) |> mutate(rad_less5=ifelse(rad<5,1,0)) |> select(-rad) |> relocate(target,.after=last_col()) 
+train_df3 <- train_df|> mutate(least_tax=ifelse(tax<300,1,0),middle_tax=ifelse(tax<400 & tax>=300,1,0)) |> select(-tax) |> relocate(target,.after=last_col())
+
+```
+
+```{r rerun_corplot_rad,echo=F}
+corrplot(cor(train_df2 |> select(-target)), method="color",
+         diag=FALSE,
+         type="lower",
+         addCoef.col = "black",
+         number.cex=0.70)
+```
+```{r rerun_corplot_tax,echo=F}
+corrplot(cor(train_df3 |> select(-target)), method="color",
+         diag=FALSE,
+         type="lower",
+         addCoef.col = "black",
+         number.cex=0.70)
+```
+
+Both binned dummy columns address the correlation concerns that were previously identified and we will see if these predictors can be incorporated into the best fit models in the next section.
+
 ### Build Models
 
 #### Model 1: Stepwise AIC Selection on Untransformed Data 
@@ -381,9 +412,39 @@ summary(model_2)
 ```
 This increased the AIC for Model 2 to 210.28.
 
-#### Model 3: TK
+#### Model 3: Utilizing Dummy Variables with Best Subset
+The backward selection method was already utilized to optimize one model's performance. In this iteration we will use an alternative approach attempting to find the best subset using bestglm package to compare all permutations for model optimization. This package also allows us to use alternative criterion to evaluate the model performance and we will evaluate on both AIC and BIC. It is limited to 15 predictors given the computational power needed for all variations of the model
+```{r model3,echo=F}
+model_3_aic_rad <- bestglm(train_df2,IC="AIC",family=binomial)
+model_3_bic_rad <- bestglm(train_df2,IC="BIC",family=binomial)
+model_3_aic_tax <- bestglm(train_df3,IC="AIC",family=binomial)
+model_3_bic_tax <- bestglm(train_df3,IC="BIC",family=binomial)
 
+```
 
+One nice feature of the bestglm returned output is it includes the best criterion version of each model size, which can allow us to evaluate if certain combinations make intuitive sense.
+
+```{r model3_bestmodels_review,echo=F}
+log_aic_tax$BestModels
+```
+#add more model evaluation; need to determine why bestmodel returns error for mpp function and discussion on coefficients
+
+Let's review the models for any multcollinearity concerns:
+
+``` {r model3_vif,echo=F}
+viz_vif <- function(model_input){
+    barplot(vif(model_input), main = "VIF Values", col = "steelblue",ylim=c(0,7)) #create horizontal bar chart to display each VIF value
+
+abline(h = 5, lwd = 3, lty = 2)
+}
+
+viz_vif(model_3_aic_rad$BestModel)
+viz_vif(model_3_bic_rad$BestModel)
+viz_vif(model_3_aic_tax$BestModel)
+viz_vif(model_3_bic_tax$BestModel)
+
+```
+None of the models have correlation concerns that would require further revision of the underlying selected predictors.
 
 ### Select Models:
 
