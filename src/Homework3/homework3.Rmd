@@ -780,7 +780,9 @@ model_3b_cm$table[2:1, 2:1]
 
 preds <- as.data.frame(cbind(model_1_cm$byClass,model_2_cm$byClass,model_3a_cm$byClass,model_3b_cm$byClass))
 colnames(preds) <-c('Model 1','Model 2','Model 3A','Model 3B')
-knitr::kable(preds, format = "simple")
+preds2 <- rbind(preds,c(model_1_cm$overall[1],model_2_cm$overall[1],model_3a_cm$overall[1],model_3b_cm$overall[1]),c(1-model_1_cm$overall[1],1-model_2_cm$overall[1],1-model_3a_cm$overall[1],1-model_3b_cm$overall[1]),c(roc1$auc,roc2$auc,roc3a$auc,roc3b$auc))
+rownames(preds2)[12:14] <- c('Accuracy','Classification Error Rate','AUC')
+knitr::kable(preds2, format = "simple")
 
 ```
 
@@ -790,7 +792,9 @@ Model 2 has the highest F1 Score, which makes it the best choice to meet the cit
 
 ```{r eval_predict, echo=F}
 eval_pred <- predict(model_2,test_df_trans,type = "response")
-as.data.frame(eval_pred) |> mutate(predictions=ifelse(eval_pred>=0.5,1,0)) |> group_by(predictions) |> summarise(cnt=n())
+eval_pred <- as.data.frame(eval_pred) |> mutate(predictions=ifelse(eval_pred>=0.5,1,0)) 
+write.csv(eval_pred,file='HW 3 Assigned Prediction Probabilities.csv')
+eval_pred |> group_by(predictions) |> summarise(cnt=n())
 ```
 
 The predictions are evenly split at 50% between the two binary responses and that result does not diverge much from the training set. With the available data in the training and test set the model has performed as expected and additional target information would be helpful to further evaluate and refine the underlying model to minimize any overfitting.
