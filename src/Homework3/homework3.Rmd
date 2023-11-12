@@ -33,7 +33,7 @@ library(bestglm)
 
 ## Homework 3 - Logistic Regression
 
-### Overview:
+### Analysis of factors that impact Crime rates:
 
 In this homework assignment, you will explore, analyze and model a data set containing information on crime for various neighborhoods of a major city. Each record has a response variable indicating whether or not the crime rate is above the median crime rate (1) or not (0).
 
@@ -98,7 +98,7 @@ sapply((train_df |> select (-chas, -target)), sd)
 
 We can see the mean, median, standard deviations, etc. for each of the variables in the dataset.
 
-For the `target` variable, there are 229 instances where crime level is above the median level (`target` = 1) and 237 instances where crime is not above the median level (`target` = 0). 
+For the `target` variable, there are 229 instances where crime level is above the median level (`target` = 1) and 237 instances where crime is not above the median level (`target` = 0). Overall this represents a fairly balanced dataset which will not require any resampling to reweight the distributions of each case for the target variable
 
 The minimum, first quantile, and median values for `zn` are all 0. This variable refers to the proportion of residential land zoned for large lots. Most of the neighborhoods in this dataset do not have land that is zoned for large lots. 
 
@@ -376,8 +376,11 @@ colnames(beta_exp) <- cols
 knitr::kable(beta_exp, format = "simple")
 
 ```
+It's interesting that variables that did not have as strong of a linear relationship in the correlation funnel have an estimated larger percentage impact in the model given the exponentiated coefficients outside of nox.
 
 Here, we see that increasing `rad` by 1 unit increases the odds of being above the median crime rate by 106.5 percent, increasing `zn` by 1 unit decreases the odds of being above the median crime rate by 6.6 percent, and so forth. 
+
+It is not so obvious what the perceived strength of the statistical relationship between radial highways and crime might be. Perhaps it has to do with neighborhoods that are closer to locations where a visitor could easily come and go from a city or are more industrial areas that are less desirable places to live due to their proximity to highways.
 
 **More Discussion of These Coefficients/Inference TK**
 
@@ -493,7 +496,7 @@ summary(model_3_bic$BestModel)
 
 ```
 
-The lowest BIC model returned by the `bestglm` function has only six predictors. We will refer to this model as Model 3B: Binned (Best BIC) hereafter. 
+The lowest BIC model returned by the `bestglm` function has only six predictors. We will refer to this model as Model 3B: Binned (Best BIC) hereafter. As expected the BIC criterion measure preferred a model with less predictors than AIC as it's penalty function more heavily penalizes model complexity.
 
 To interpret the model coefficients, we first need to exponentiate them again to discuss how 1 unit increases in each of these predictors would affect the odds of the crime rate being above the median. Since the coefficient for `nox` is again very large, and we know why, we omit it from this discussion.
 
@@ -714,6 +717,82 @@ Model 2 performs best on the training data based on its ROC curve, but the only 
 
 #### Evaluation
 
+```{r eval_creation,echo=F}
+pred1_df <- as.data.frame(predprob1) |> mutate(predicted=as.factor(ifelse(predprob1>0.5,1,0))) |>select(predicted)
+pred2_df <- as.data.frame(predprob2) |> mutate(predicted=as.factor(ifelse(predprob2>0.5,1,0))) |>select(predicted)
+pred3a_df <- as.data.frame(predprob3a) |> mutate(predicted=as.factor(ifelse(predprob3a>0.5,1,0))) |>select(predicted)
+pred3b_df <- as.data.frame(predprob3b) |> mutate(predicted=as.factor(ifelse(predprob3b>0.5,1,0))) |>select(predicted)
+
+model_1_cm <- confusionMatrix(pred1_df$predicted,reference=train_df$target, positive='1')
+model_2_cm <- confusionMatrix(pred2_df$predicted,reference=train_df$target, positive='1')
+model_3a_cm <- confusionMatrix(pred3a_df$predicted,reference=train_df$target, positive='1')
+model_3b_cm <- confusionMatrix(pred3b_df$predicted,reference=train_df$target, positive='1')
+
+```
+
+#### Confusion Tables: 
+
+Model 1:
+```{r model1_table,echo=F}
+model_1_cm$table
+
+```
+
+
+Model 2:
+```{r model2_table,echo=F}
+model_2_cm$table
+```
+
+Model 3a:
+```{r model3a_table,echo=F}
+model_3a_cm$table
+```
+
+Model 3b:
+```{r model3b_table,echo=F}
+model_3b_cm$table
+```
+
+Training Data Evaluation Metrics
+
+```{r eval_review,echo=F}
+
+preds <- as.data.frame(cbind(model_1_cm$byClass,model_2_cm$byClass,model_3a_cm$byClass,model_3b_cm$byClass))
+colnames(preds) <-c('Model 1','Model 2','Model 3a','Model 3b')
+knitr::kable(preds, format = "simple")
+
+```
+
+All of the models appear to perform somewhat similarly although number 2 has the highest AUC, F1 score, precision and accuracy which on that basis would make it seem like the preferred choice to select out of the reviewed approaches.
+
+
+```{r test_dist,echo=F}
+par(mfrow=c(3,4))
+par(mai=c(.3,.3,.3,.3))
+variables <- names(test_df)
+for (i in 1:(length(variables)-1)) {
+    if (variables[i] %in% factors){
+        hist(as.numeric(test_df[[variables[i]]]), main = variables[i],
+             col = "lightblue")
+    }else{
+        hist(test_df[[variables[i]]], main = variables[i], col = "lightblue")
+    }
+}
+```
+
+The evaluation set's distributions appear to be similar enough to the training data that would not prevent the use of transformations to mirror the modeling approach taken in model 2.
+
+
+
+```{r eval_predict, echo=F}
+eval_pred <- predict(model_2,test_df_trans,type = "response")
+as.data.frame(eval_pred) |> mutate(predictions=ifelse(eval_pred>=0.5,1,0)) |> group_by(predictions) |> summarise(cnt=n())
+
+
+```
+
+The predictions are evenly split at 50% between the two binary responses and that result does not diverge much from the training set. With the available data in the training and test set the model has performed as expected and additional target information would be helpful to further evaluate and refine the underlying model to minimize any overfitting.
 
 
 ### Appendix
