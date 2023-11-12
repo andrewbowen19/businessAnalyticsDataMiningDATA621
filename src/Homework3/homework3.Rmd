@@ -786,14 +786,19 @@ knitr::kable(preds2, format = "simple")
 
 ```
 
-Model 2 has the highest F1 Score, which makes it the best choice to meet the city's need to correctly allocate money, resources, and programming to combat crime.
+Model 2 has the highest F1 Score, which makes it the best choice to meet the city's need to correctly allocate money, resources, and programming to combat crime, despite the lack of fit issues noted earlier. We select Model 2 as our final model for predictions.
 
 #### Evaluation
 
 ```{r eval_predict, echo=F}
 eval_pred <- predict(model_2,test_df_trans,type = "response")
-eval_pred <- as.data.frame(eval_pred) |> mutate(predictions=ifelse(eval_pred>=0.5,1,0)) 
-write.csv(eval_pred,file='HW 3 Assigned Prediction Probabilities.csv')
+eval_pred <- as.data.frame(eval_pred) |>
+    mutate(predictions=ifelse(eval_pred>=0.5,1,0)) 
+deliverable <- test_df_trans |>
+    bind_cols(eval_pred)
+colnames(deliverable) <- c(colnames(test_df_trans),
+                           "predprobs", "classification")
+write.csv(deliverable,file='HW 3 Assigned Prediction Probabilities.csv')
 eval_pred |> group_by(predictions) |> summarise(cnt=n())
 ```
 
