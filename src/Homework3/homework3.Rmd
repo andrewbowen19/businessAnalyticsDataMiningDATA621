@@ -385,8 +385,6 @@ Here, we see that increasing `rad` by 1 unit increases the odds of being above t
 
 It is not so obvious what the perceived strength of the statistical relationship between radial highways and crime might be. Perhaps it has to do with neighborhoods that are closer to locations where a visitor could easily come and go from a city or are more industrial areas that are less desirable places to live due to their proximity to highways.
 
-**More Discussion of These Coefficients/Inference TK**
-
 Let's check for possible multicollinearity within this model. 
 
 ```{r check-multicol-model1, echo=F}
@@ -520,6 +518,7 @@ colnames(beta3b_exp) <- cols
 knitr::kable(beta3b_exp, format = "simple")
 
 ```
+The exponentiated coefficients from both Model 3a and 3b show that there is a substantial odds change incorporating binned tax ranges with both AIC and BIC criterion metrics. From the initial exploratory analysis with box-plots the higher crime rate locations had a very large interquartile range. These tax related predictors do not follow expectations given that we expected higher property tax rates to correspond to less crime. That inverse relationship was also present in the linear comparison in EDA so the logistic regression model did not alter the relationship in the dataset, but we wonder how well that would extrapolate to unseen data. Perhaps additional insight into the process for calculating the rate would help explain this relationship further.
 
 Let's review the models for any multicollinearity concerns:
 
@@ -718,7 +717,7 @@ title(main = "Model 3B: ROC")
 
 Model 2 performs best on the training data based on its ROC curve, but the only model for which there was no suggestion of lack of fit in both the marginal models plots and the HL statistics was Model 1. Its ROC curve is very similar that of Model 2 anyway, so we prefer Model 1 and select it for final evaluation.
 
-#### Evaluation
+
 
 ```{r eval_creation,echo=F}
 pred1_df <- as.data.frame(predprob1) |> mutate(predicted=as.factor(ifelse(predprob1>0.5,1,0))) |>select(predicted)
@@ -767,8 +766,11 @@ knitr::kable(preds, format = "simple")
 
 ```
 
-All of the models appear to perform somewhat similarly although number 2 has the highest AUC, F1 score, precision and accuracy which on that basis would make it seem like the preferred choice to select out of the reviewed approaches.
+The `caret` package makes it very easy to calculate the metrics (shown above) needed to evaluate binary logistic regression models and although all of the standard ones from this package are provided we are going to focus on a smaller subset of them for our analysis. We would like select the model that minimizes the risk of incorrectly classifying a neighborhood with elevated crime rates. The reason we are primarily concerned with minimizing false positives is because some of the best ways to combat crime would be to allocate money, resources and programming to that area. There is only so much budget available for city planners and policy makers and therefore it would be best to correctly classify the neighborhoods that will need this assistance to help combat/lower crime.
 
+Based on the criteria stated above it makes most sense to maximize positive prediction values, accuracy, as well as balance precision/recall given those two metrics emphasize the accuracy and completeness of positive predictions. Ultimately the F1 score is used to find a balance between those two metrics and therefore may be slightly easier way to compare the models against one another. Model 2 has the highest F1 Score, accuracy, and AUC which we think makes it the best choice to meet our needs and those of policy makers to identify neighborhoods with above average crime rates.
+
+#### Evaluation
 
 ```{r test_dist,echo=F}
 par(mfrow=c(3,4))
@@ -784,8 +786,7 @@ for (i in 1:(length(variables)-1)) {
 }
 ```
 
-The evaluation set's distributions appear to be similar enough to the training data that would not prevent the use of transformations to mirror the modeling approach taken in model 2.
-
+Given that Model 2 has transformed predictors we plotted the evaluation set distributions to confirm they are similar enough to apply the same transformations. It does seem as though the predictors used in Model 2 have any substantial differences between testing and training sets.
 
 
 ```{r eval_predict, echo=F}
