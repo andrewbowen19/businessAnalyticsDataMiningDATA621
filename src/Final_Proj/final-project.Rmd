@@ -26,7 +26,6 @@ abstract: |
   
   
 keywords          : "Educational Outcomes, School Quality, Education"
-wordcount         : "X"
 
 bibliography      : "r-references.bib"
 
@@ -44,7 +43,9 @@ output            : papaja::apa6_pdf
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
-```{r setup, include = FALSE}
+```{r setup, include = FALSE, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(gridExtra)
 library("papaja")
 r_refs("r-references.bib")
 ```
@@ -53,7 +54,9 @@ r_refs("r-references.bib")
 # Introduction
 The NYC School Survey seeks to collect data to provide an overview of New York City Schools. Beginning in 2005, the survey looks to collect demographic and achievement data for New York City Public Schools, 
 
-The survey has changed over the years. This change has come from recommnedations of public policy analysts in order to more accurately define the quality of schools @redesign-school-survey.
+The survey has changed over the years. This change has come from recommendations of public policy analysts in order to more accurately define the quality of schools @redesign-school-survey.
+
+**Research Question:** This study aims to determine whether the school ratings within the NYC School Quality Survey accurately reflect educational outcomes, or if other variables related to certain schools can be used as a better proxy.
 
 # Literature Review
 
@@ -68,10 +71,66 @@ The survey has changed over the years. This change has come from recommnedations
 df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
 ```
 
+# Methodology
 
 
 
-# Modeling
+```{r, echo=FALSE, warning=FALSE}
+label_cols <- c("dbn", "school_name", "school_type")
+# Convert needed columns to numeric typing
+df <- cbind(df[, label_cols], as.data.frame(lapply(df[,!names(df) %in% label_cols], as.numeric)))
+```
+
+The below plot shows the raw relationship between each 
+
+
+```{r}
+# "n_mean_score_act_engl_all"       
+# [255] "val_mean_score_act_engl_all"      "n_mean_score_act_math_all"       
+# [257] "val_mean_score_act_math_all"      "n_mean_score_act_read_all"       
+# [259] "val_mean_score_act_read_all"      "n_mean_score_act_scie_all"       
+# [261] "val_mean_score_act_scie_all"      "n_mean_score_sat_math_all"       
+# [263] "val_mean_score_sat_math_all"      "n_mean_score_sat_writ_all"    
+```
+
+```{r plot-relationships, warning=FALSE}
+p1 <- ggplot(df, aes(x=survey_pp_CT, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y="Mean ACT Math Score")
+p2 <- ggplot(df, aes(x=survey_pp_ES, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
+p3 <- ggplot(df, aes(x=survey_pp_RI, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
+p4 <- ggplot(df, aes(x=survey_pp_SE, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
+p5 <- ggplot(df, aes(x=survey_pp_SF, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
+p6 <- ggplot(df, aes(x=survey_pp_TR, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
+
+# Plot english scores
+p7 <- ggplot(df, aes(x=survey_pp_CT, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Collaborative Teacher Rating",y="Mean ACT English Score")
+p8 <- ggplot(df, aes(x=survey_pp_ES, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Leadership Rating", y=NULL)
+p9 <- ggplot(df, aes(x=survey_pp_RI, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Rigorous Instruction", y=NULL)
+p10 <- ggplot(df, aes(x=survey_pp_SE, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Supportive environment", y=NULL)
+p11 <- ggplot(df, aes(x=survey_pp_SF, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Family-Community Ties", y=NULL)
+p12 <- ggplot(df, aes(x=survey_pp_TR, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Trust", y=NULL)
+
+# Panel plot
+grid.arrange(
+  p1, p2,
+  p3, p4,
+  p5, p6,
+  p7, p8,
+  p9, p10,
+  p11, p12,
+  nrow=2,
+  ncol=6,
+  top = "ACT Scores vs NYC School Quality Ratings, 2020-2021",
+  bottom="Survey Rating Type"
+)
+
+```
+
+
+# Experimentation and Results
+
+
+
+# Conclusion
 
 
 
@@ -82,3 +141,7 @@ df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=
 
 ::: {#refs custom-style="Bibliography"}
 :::
+
+
+# Appendices
+
