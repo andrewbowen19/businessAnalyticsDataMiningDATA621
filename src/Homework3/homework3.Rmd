@@ -100,6 +100,8 @@ We can see the mean, median, standard deviations, etc. for each of the variables
 
 For the `target` variable, there are 229 instances where crime level is above the median level (`target` = 1) and 237 instances where crime is not above the median level (`target` = 0). Since the response variable is fairly balanced between its two levels, the data will not require any resampling to weight the distributions for each level.
 
+The `tax` variable does not follow our expectations that higher property tax rates would correspond with less crime. 
+
 The minimum, first quantile, and median values for `zn` are all 0. This variable refers to the proportion of residential land zoned for large lots. Most of the neighborhoods in this dataset do not have land that is zoned for large lots. 
 
 For the `age` variable, the median is higher than the mean. This indicates the data is left-skewed, meaning there is a greater proportion of homes that were built prior to 1940 in the dataset. 
@@ -245,7 +247,22 @@ kable(lambdas, format = "simple")
 
 ```
 
-Some of the skewed variables might benefit from transformations, so we create transformed versions of our train and test data. We will incorporate these transformed predictors into one of our models in the next section: Model 2. 
+All of the skewed variables except for `age` might benefit from transformations. We also check whether the distributions for these skewed variables in the test set are similar to their distributions in the training set. 
+
+```{r test_dist,echo=F}
+par(mfrow=c(2,3))
+par(mai=c(.3,.3,.3,.3))
+for (i in 1:length(skewed)) {
+    if (skewed[i] != "age"){
+        hist(test_df[[skewed[i]]], main = skewed[i], col = "lightblue")
+    }
+    else{
+        next
+    }
+}
+```
+
+The distributions in the test set for these skewed variables are similar to the distributions in the training set, so there are no issues transforming these variables. We now create transformed versions of our train and test data, and we will incorporate these transformed predictors into one of our models in the next section: Model 2. 
 
 ```{r trans2, echo=F}
 remove <- c("zn", "dis", "lstat", "nox")
@@ -335,7 +352,7 @@ test_df2 <- test_df2 |>
 
 We build three models. Model 1 will be trained using untransformed data, Model 2 will be trained using transformed data for skewed predictors, and Model 3 will be trained using binned data for highly correlated predictors. For Models 1 and 2, stepwise model selection will be used to pick the model with the lowest AIC. For Model 3, an alternative exhaustive search method will be used to pick two sub-models based on different criteria: one with the lowest AIC and one with the lowest BIC.
 
-#### Model 1: Stepwise AIC Selection on Untransformed Data 
+#### Model 1: Stepwise AIC Selection on Untransformed Data
 
 We start with a full model using the untransformed data and then perform stepwise model selection to select the model with the smallest AIC value using the `stepAIC()` function from the `MASS` package. 
 
@@ -379,11 +396,11 @@ knitr::kable(beta_exp, format = "simple")
 
 ```
 
-It's interesting that variables that did not have as strong of a linear relationship in the correlation funnel have an estimated larger percentage impact in the model given the exponentiated coefficients outside of nox.
+It's interesting that variables that did not have as strong of a linear relationship in the correlation funnel have an estimated larger percentage impact in the model given the exponentiated coefficients outside of `nox`. This is probably due to the scales the variables are measured on.
 
 Here, we see that increasing `rad` by 1 unit increases the odds of being above the median crime rate by 106.5 percent, increasing `zn` by 1 unit decreases the odds of being above the median crime rate by 6.6 percent, and so forth. 
 
-It is not so obvious what the perceived strength of the statistical relationship between radial highways and crime might be. Perhaps it has to do with neighborhoods that are closer to locations where a visitor could easily come and go from a city or are more industrial areas that are less desirable places to live due to their proximity to highways.
+It is not so obvious what the perceived strength of the statistical relationship between access to radial highways and crime might be. Perhaps it has to do with how easily visitors could come and go from a neighborhood that is more proximate to highways.
 
 Let's check for possible multicollinearity within this model. 
 
@@ -448,7 +465,7 @@ model_2 <- update(model_2, ~ . - medv)
 summary(model_2)
 
 ```
-This increased the AIC for Model 2 to 210.28. This is still lower than the AIC from model 1. 
+This increased the AIC for Model 2 to 210.28. This is still lower than the AIC from Model 1. 
 
 #### Model 3: Utilizing Dummy Variables with Best Subset
 
@@ -460,19 +477,13 @@ model_3_bic <- bestglm(train_df2,IC="BIC",family=binomial)
 
 ```
 
-One nice feature of the `bestglm` output is it includes the best criterion version of each model size, which can allow us to evaluate if certain combinations make intuitive sense.
-
-```{r model3_bestmodels_review,echo=F}
-#log_aic_tax$BestModels #commented out since I'm not sure what you want to extract from what object here
-```
-
 ```{r model3_bestmodels_review2, echo=F}
 summary(model_3_aic$BestModel)
 
 ```
-For Model 3, the model with the lowest AIC returned by the `bestglm` function has nine predictors and an AIC of 232.43. We will refer to this model as Model 3A: Binned (Best AIC) hereafter.
+For Model 3, the model with the lowest AIC returned by the `bestglm` function has nine predictors and an AIC of 240.53. We will refer to this model as Model 3A: Binned (Best AIC) hereafter.
 
-To interpret the model coefficients, we first need to exponentiate them again to discuss how 1 unit increases in each of these predictors would affect the odds of the crime rate being above the median. Since the coefficient for `nox` is again very large, and we know why, we omit it from this discussion.
+We will wait to interpret the model coefficients for Model 3A until we've exponentiated them for 3B as well, but the exponentiated coefficients for MOdel 3A are below. (Since the coefficient for `nox` is again very large, and we know why, we will omit it from both summaries.)
 
 ```{r coefs_model3a, echo=F}
 beta3a <- coef(model_3_aic$BestModel)
@@ -497,9 +508,9 @@ summary(model_3_bic$BestModel)
 
 ```
 
-The lowest BIC model returned by the `bestglm` function has only six predictors. We will refer to this model as Model 3B: Binned (Best BIC) hereafter. As expected the BIC criterion measure preferred a model with less predictors than AIC as it's penalty function more heavily penalizes model complexity.
+The lowest BIC model returned by the `bestglm` function has only six predictors. We will refer to this model as Model 3B: Binned (Best BIC) hereafter. As expected, the BIC criterion selection method preferred a model with fewer predictors than AIC, as its penalty function more heavily penalizes model complexity.
 
-To interpret the model coefficients, we first need to exponentiate them again to discuss how 1 unit increases in each of these predictors would affect the odds of the crime rate being above the median. Since the coefficient for `nox` is again very large, and we know why, we omit it from this discussion.
+Below are the exponentiated coefficients for Model 3B, which we can now discuss alongside the coefficients we previously exponentiated for Model 3A.
 
 ```{r coefs_model3b, echo=F}
 beta3b <- coef(model_3_bic$BestModel)
@@ -518,7 +529,8 @@ colnames(beta3b_exp) <- cols
 knitr::kable(beta3b_exp, format = "simple")
 
 ```
-The exponentiated coefficients from both Model 3a and 3b show that there is a substantial odds change incorporating binned tax ranges with both AIC and BIC criterion metrics. From the initial exploratory analysis with box-plots the higher crime rate locations had a very large interquartile range. These tax related predictors do not follow expectations given that we expected higher property tax rates to correspond to less crime. That inverse relationship was also present in the linear comparison in EDA so the logistic regression model did not alter the relationship in the dataset, but we wonder how well that would extrapolate to unseen data. Perhaps additional insight into the process for calculating the rate would help explain this relationship further.
+
+The exponentiated coefficients for Models 3A and 3B show that being in a middle or high tax neighborhood substantially increases the odds of being above the median crime rate whether we choose a model based on AIC or BIC. This highlights the relationship between higher tax rates and higher crime that surprised us in exploratory data analysis. Looking back at the boxplots, higher crime rate neighborhoods had a wide interquartile range for `tax`. By binning this data as we did, we may have lost some of the detail, and we wonder how well this would extrapolate to unseen data.
 
 Let's review the models for any multicollinearity concerns:
 
@@ -539,7 +551,11 @@ Neither Model 3A nor Model 3B has correlation concerns that would require furthe
 
 ### Select Models:
 
-The main criterion we will use to select the model with the best performance is the ROC curve, but we need to check for goodness of fit issues prior to that. We will not select a model with a better ROC curve if we determine there is a suggestion of lack of fit for that model. The main criteria we will use to determine lack of fit are binned residual plots, marginal model plots, and the Hosmer-Lemeshow statistic.
+The main criterion we will use to select the model with the best performance is the F1 Score. We want to minimize both the risk of incorrectly classifying a neighborhood with a lower crime rate as a neighborhood with a higher crime rate (False Positives), as well as the risk of incorrectly classifying a neighborhood with a higher crime rate as a neighborhood with a lower crime rate (False Negatives). We have to balance both of these because our primary concern is that money, resources, and programming are all allocated to combat crime, and a city's budget only goes so far. The more neighborhoods that are incorrectly classified as higher crime neighborhoods, the more resources are wasted combatting crime there. Similarly, the more neighborhoods that are incorrectly classified as lower crime neighborhoods, the more resources they miss out on.
+
+Based on this reasoning, balancing precision (what proportion of neighborhoods classified as high crime are relevant) and recall (what proportion of actual high crime neighborhoods are retrieved) is the way to go, and the F1 Score accomplishes this.
+
+Before we calculate F1 Scores, however, we have some secondary concerns. First, we need to check for goodness of fit issues. The main criteria we will use to determine lack of fit are binned residual plots, marginal model plots, and the Hosmer-Lemeshow statistic. We may or may not reject a model based on any suggestion of fit issues, but we do want to consider them. We will also plot ROC curves to visualize the models' performance even though AUC is not our main selection criterion.
 
 To check for goodness of fit, we first plot the residuals for each model against their fitted values.
 
@@ -654,7 +670,7 @@ p3b
 
 The binned residual plots don't quite eliminate the patterns in the raw residuals as we expected. We refrain from concluding anything determinant about the fit for each model just by looking at these plots.
 
-Next we create marginal model plots for the response and each predictor in each model. (Note that the `mmps` function from the `car` package used to generate these plots skips any factors and interaction terms within the model intentionally. So for Models 3A and 3B, which include dummy variables we created, fewer predictors are plotted than are present within the models.)
+Next we create marginal model plots for the response and each predictor in each model. (Note that the `mmps` function from the `car` package used to generate these plots skips any factors and interaction terms within the models intentionally. So for Models 3A and 3B, which include dummy variables we created, fewer predictors are plotted than are present within the models.)
 
 ```{r marginal_model_plots, echo=F}
 palette <- brewer.pal(n = 12, name = "Paired")
@@ -695,7 +711,7 @@ knitr::kable(hl_tbl, format = "simple")
 
 The moderate p-values here for Models 1 and 3A suggest no lack of fit, while the low p-values for Models 2 and 3B do. This is a little surprising for Models 3A and 3B given the marginal models plots issues for the former and the lack thereof for the latter. Note that this statistic can't tell us whether any of the models are overfitting the data though.
 
-We produce ROC curves for each model to determine which performs better on the training data. 
+We produce ROC curves to visualize how each model performs on the training data. 
 
 ```{r roc_curves, echo=F, warning = FALSE, message = FALSE}
 par(mfrow=c(2,2))
@@ -715,9 +731,7 @@ title(main = "Model 3B: ROC")
 
 ```
 
-Model 2 performs best on the training data based on its ROC curve, but the only model for which there was no suggestion of lack of fit in both the marginal models plots and the HL statistics was Model 1. Its ROC curve is very similar that of Model 2 anyway, so we prefer Model 1 and select it for final evaluation.
-
-
+Model 2 has the highest AUC and performs best on the training data based on its ROC curve, although again this is not our main selection criterion.
 
 ```{r eval_creation,echo=F}
 pred1_df <- as.data.frame(predprob1) |> mutate(predicted=as.factor(ifelse(predprob1>0.5,1,0))) |>select(predicted)
@@ -732,68 +746,51 @@ model_3b_cm <- confusionMatrix(pred3b_df$predicted,reference=train_df$target, po
 
 ```
 
-#### Confusion Tables: 
+Finally, we are ready to produce the confusion matrices and calculate performance metrics for all models (primarily using the `caret` library), including the F1 Score we will use to select our final model.
+
+#### Confusion Matrices
 
 Model 1:
+
 ```{r model1_table,echo=F}
-model_1_cm$table
+model_1_cm$table[2:1, 2:1]
 
 ```
-
-
 Model 2:
+
 ```{r model2_table,echo=F}
-model_2_cm$table
+model_2_cm$table[2:1, 2:1]
 ```
 
-Model 3a:
+Model 3A:
+
 ```{r model3a_table,echo=F}
-model_3a_cm$table
+model_3a_cm$table[2:1, 2:1]
 ```
 
-Model 3b:
+Model 3B:
+
 ```{r model3b_table,echo=F}
-model_3b_cm$table
+model_3b_cm$table[2:1, 2:1]
 ```
 
-Training Data Evaluation Metrics
+#### Training Data Metrics
 
 ```{r eval_review,echo=F}
 
 preds <- as.data.frame(cbind(model_1_cm$byClass,model_2_cm$byClass,model_3a_cm$byClass,model_3b_cm$byClass))
-colnames(preds) <-c('Model 1','Model 2','Model 3a','Model 3b')
+colnames(preds) <-c('Model 1','Model 2','Model 3A','Model 3B')
 knitr::kable(preds, format = "simple")
 
 ```
 
-The `caret` package makes it very easy to calculate the metrics (shown above) needed to evaluate binary logistic regression models and although all of the standard ones from this package are provided we are going to focus on a smaller subset of them for our analysis. We would like select the model that minimizes the risk of incorrectly classifying a neighborhood with elevated crime rates. The reason we are primarily concerned with minimizing false positives is because some of the best ways to combat crime would be to allocate money, resources and programming to that area. There is only so much budget available for city planners and policy makers and therefore it would be best to correctly classify the neighborhoods that will need this assistance to help combat/lower crime.
-
-Based on the criteria stated above it makes most sense to maximize positive prediction values, accuracy, as well as balance precision/recall given those two metrics emphasize the accuracy and completeness of positive predictions. Ultimately the F1 score is used to find a balance between those two metrics and therefore may be slightly easier way to compare the models against one another. Model 2 has the highest F1 Score, accuracy, and AUC which we think makes it the best choice to meet our needs and those of policy makers to identify neighborhoods with above average crime rates.
+Model 2 has the highest F1 Score, which makes it the best choice to meet the city's need to correctly allocate money, resources, and programming to combat crime.
 
 #### Evaluation
-
-```{r test_dist,echo=F}
-par(mfrow=c(3,4))
-par(mai=c(.3,.3,.3,.3))
-variables <- names(test_df)
-for (i in 1:(length(variables)-1)) {
-    if (variables[i] %in% factors){
-        hist(as.numeric(test_df[[variables[i]]]), main = variables[i],
-             col = "lightblue")
-    }else{
-        hist(test_df[[variables[i]]], main = variables[i], col = "lightblue")
-    }
-}
-```
-
-Given that Model 2 has transformed predictors we plotted the evaluation set distributions to confirm they are similar enough to apply the same transformations. It does seem as though the predictors used in Model 2 have any substantial differences between testing and training sets.
-
 
 ```{r eval_predict, echo=F}
 eval_pred <- predict(model_2,test_df_trans,type = "response")
 as.data.frame(eval_pred) |> mutate(predictions=ifelse(eval_pred>=0.5,1,0)) |> group_by(predictions) |> summarise(cnt=n())
-
-
 ```
 
 The predictions are evenly split at 50% between the two binary responses and that result does not diverge much from the training set. With the available data in the training and test set the model has performed as expected and additional target information would be helpful to further evaluate and refine the underlying model to minimize any overfitting.
