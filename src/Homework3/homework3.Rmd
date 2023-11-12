@@ -33,13 +33,13 @@ library(bestglm)
 
 ## Homework 3 - Logistic Regression
 
-### Analysis of factors that impact Crime rates:
+### Analysis of Factors that Influence Crime Rates:
 
-In this homework assignment, you will explore, analyze and model a data set containing information on crime for various neighborhoods of a major city. Each record has a response variable indicating whether or not the crime rate is above the median crime rate (1) or not (0).
+In this homework assignment, we explore, analyze, and model a dataset containing information on crime for various neighborhoods of a major city. Each record has a response variable indicating whether or not the crime rate is above the median crime rate (1) or not (0).
 
-Your objective is to build a binary logistic regression model on the training data set to predict whether the neighborhood will be at risk for high crime levels. You will provide classifications and probabilities for the evaluation data set using your binary logistic regression model. You can only use the variables given to you (or, variables that you derive from the variables provided).
+Our objective is to build a binary logistic regression model on the training dataset to predict whether the neighborhood will be at risk for high crime levels.
 
-Below is a short description of the variables of interest in the data set:
+Below is a short description of the variables of interest in the dataset:
 
 |Column|Description|
 |--|--|
@@ -98,11 +98,11 @@ sapply((train_df |> select (-chas, -target)), sd)
 
 We can see the mean, median, standard deviations, etc. for each of the variables in the dataset.
 
-For the `target` variable, there are 229 instances where crime level is above the median level (`target` = 1) and 237 instances where crime is not above the median level (`target` = 0). Overall this represents a fairly balanced dataset which will not require any resampling to reweight the distributions of each case for the target variable
+For the `target` variable, there are 229 instances where crime level is above the median level (`target` = 1) and 237 instances where crime is not above the median level (`target` = 0). Since the response variable is fairly balanced between its two levels, the data will not require any resampling to weight the distributions for each level.
 
 The minimum, first quantile, and median values for `zn` are all 0. This variable refers to the proportion of residential land zoned for large lots. Most of the neighborhoods in this dataset do not have land that is zoned for large lots. 
 
-For the `age` variable, the median is higher than the mean. This would indicate a skew to the left in the data, and that there are greater proportions of homes that built prior to 1940. 
+For the `age` variable, the median is higher than the mean. This indicates the data is left-skewed, meaning there is a greater proportion of homes that were built prior to 1940 in the dataset. 
 
 There do not appear to be any missing values to address. Let's validate this. 
 
@@ -113,7 +113,7 @@ sum(is.na(train_df))
 
 There are in fact no missing values in the dataset.
 
-To check whether the predictor variables are correlated to the target variable, we produce a correlation funnel that visualizes the strength of the relationships between our predictors and our response. 
+To check whether the predictor variables are correlated with the target variable, we produce a correlation funnel that visualizes the strength of the relationships between our predictors and our response. 
 
 ```{r correlation_funnel, echo=F}
 train_df_binarized <- train_df |>
@@ -206,11 +206,13 @@ train_df |>
 
 ```
 
-For certain predictors, the variance between the two categories of the response variable differs largely: `age`, `dis`, `nox`, `rad`, and `tax`.
+For certain predictors, the variance between the two categories of the response variable differs largely: `age`, `dis`, `nox`, `rad`, `indus`, and `zn`. Many of these variables also have almost no overlap in the interquartile ranges for each level of the response.
+
+We also see some outliers in one or both levels of the response for some variables. We have no reason to conclude the outliers represent anything other than accurately recorded information that could be important to our model.
 
 ### Data Preparation:
 
-We confirmed earlier that there are no missing values to impute and no near-zero variance variables to remove. 
+We confirmed earlier that there are no missing values to impute and no near-zero variance variables to remove. We also decided against [winsorizing](https://towardsdatascience.com/detecting-and-treating-outliers-in-python-part-3-dcb54abaf7b0) the outliers, which is a method of outlier imputation that replaces any value of a variable above or below percentile $k$ with the value of the $k^{th}$ percentile itself. (We tested building a model using winsorized data, and it did not result in a model with different predictors or coefficients than building a model with non-winsorized data, so we scrapped it.)
 
 We check whether our predictor variables with skewed distributions would benefit from transformations.
 
@@ -309,9 +311,9 @@ corrplot(cor(train_df2 |> select(-target) |> mutate(chas = as.numeric(chas),
              number.cex=0.70)
 ```
 
-Both binned dummy columns address the correlation concerns that were previously identified. We will attempt to incorporate these binned predictors into one of our models in the next section: Model 3. 
+Both binned dummy columns address the correlation concerns that were previously identified. We will attempt to incorporate these binned predictors into one of our models in the next section: Model 3.
 
-Before we build the models, we have decided that none of the models will be trained on the variable `chas`, as we have deemed this predictor irrelevant based on the earlier conclusion that its correlation with the response variable is very low.
+Before we build the models in the next section, we have decided that none of the models will be trained on the variable `chas`, as we have deemed this predictor irrelevant based on the earlier conclusion that its correlation with the response variable is very low.
 
 ```{r remove_chas, echo=F}
 train_df <- train_df |>
@@ -376,6 +378,7 @@ colnames(beta_exp) <- cols
 knitr::kable(beta_exp, format = "simple")
 
 ```
+
 It's interesting that variables that did not have as strong of a linear relationship in the correlation funnel have an estimated larger percentage impact in the model given the exponentiated coefficients outside of nox.
 
 Here, we see that increasing `rad` by 1 unit increases the odds of being above the median crime rate by 106.5 percent, increasing `zn` by 1 unit decreases the odds of being above the median crime rate by 6.6 percent, and so forth. 
@@ -453,7 +456,7 @@ This increased the AIC for Model 2 to 210.28. This is still lower than the AIC f
 
 The stepwise lowest-AIC selection method was utilized to optimize the previous two models' performance. For Model 3, we will use an alternative approach, the `bestglm` function from the `bestglm` package, which attempts to find the best subset model by comparing all permutations for model optimization. This package also allows us to use an alternative criterion to evaluate the model performance. So we will evaluate using AIC in one iteration and BIC in another. (This function has a limitation of 15 predictors given the computational power needed for all variations of the model.)
 
-```{r model3,echo=F}
+```{r model3,echo=F, warning = F, message = F}
 model_3_aic <- bestglm(train_df2,IC="AIC",family=binomial)
 model_3_bic <- bestglm(train_df2,IC="BIC",family=binomial)
 
@@ -533,7 +536,7 @@ viz_vif(model_3_bic$BestModel, "Model 3B: Binned (Best BIC) VIF")
 
 ```
 
-None of the models have correlation concerns that would require further revision of the underlying selected predictors.
+Neither Model 3A nor Model 3B has correlation concerns that would require further revision of the underlying selected predictors.
 
 ### Select Models:
 
@@ -793,7 +796,6 @@ as.data.frame(eval_pred) |> mutate(predictions=ifelse(eval_pred>=0.5,1,0)) |> gr
 ```
 
 The predictions are evenly split at 50% between the two binary responses and that result does not diverge much from the training set. With the available data in the training and test set the model has performed as expected and additional target information would be helpful to further evaluate and refine the underlying model to minimize any overfitting.
-
 
 ### Appendix
 
