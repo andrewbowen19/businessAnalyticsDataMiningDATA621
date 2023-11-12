@@ -91,15 +91,20 @@ Let's take a look at the summary statistics for the variables in the dataset.
 ```{r summary-stats1, echo=F}
 summary(train_df)
 
+# standard deviation
+sapply((train_df |> select (-chas, -target)), sd)
+
 ```
 
-We can see the mean, median, standard deviations, ranges, etc. for each of the variables in the dataset.
+We can see the mean, median, standard deviations, etc. for each of the variables in the dataset.
 
-There are 229 instances where crime level is above the median level and 237 instances where crime is not above the median level.
+For the `target` variable, there are 229 instances where crime level is above the median level (`target` = 1) and 237 instances where crime is not above the median level (`target` = 0). 
 
-**More discussion of interesting summary stats within the dataset TK**
+The minimum, first quantile, and median values for `zn` are all 0. This variable refers to the proportion of residential land zoned for large lots. Most of the neighborhoods in this dataset do not have land that is zoned for large lots. 
 
-Each predictor has 466 values, which matches the number of observations in our dataset, so there do not appear to be any missing values to address. Let's validate this. 
+For the `age` variable, the median is higher than the mean. This would indicate a skew to the left in the data, and that there are greater proportions of homes that built prior to 1940. 
+
+There do not appear to be any missing values to address. Let's validate this. 
 
 ```{r, echo=F}
 sum(is.na(train_df))
@@ -269,7 +274,7 @@ test_df_trans <- test_df_trans |>
 
 We now consider modifying the `rad` and `tax` variables in an attempt to minimize the very high correlation we identified earlier between these two predictors. First, we look at the `rad` distribution more closely.
 
-```{r rad_review,echo=F}
+```{r rad_review,echo=F, fig.show='hold', fig.align='center', out.width='70%'}
 ggplot(train_df,aes(x=rad)) +
     geom_bar()
 ```
@@ -292,7 +297,7 @@ test_df2 <- test_df |>
 
 ```
 
-```{r rerun_corplot_rad_tax,echo=F}
+```{r rerun_corplot_rad_tax,echo=F, fig.show='hold', fig.align='center', out.width='90%'}
 corrplot(cor(train_df2 |> select(-target) |> mutate(chas = as.numeric(chas),
                                                     rad_less5 = as.numeric(rad_less5),
                                                     high_tax = as.numeric(high_tax),
@@ -439,7 +444,7 @@ model_2 <- update(model_2, ~ . - medv)
 summary(model_2)
 
 ```
-This increased the AIC for Model 2 to 210.28.
+This increased the AIC for Model 2 to 210.28. This is still lower than the AIC from model 1. 
 
 #### Model 3: Utilizing Dummy Variables with Best Subset
 
@@ -533,7 +538,7 @@ The main criterion we will use to select the model with the best performance is 
 
 To check for goodness of fit, we first plot the residuals for each model against their fitted values.
 
-```{r residuals, echo=F}
+```{r residuals, echo=F,  fig.show='hold', fig.align='center', out.width='90%'}
 linpred1 <- predict(model_1)
 predprob1 <- predict(model_1, type = "response")
 rawres1 <- residuals(model_1, type = "response")
