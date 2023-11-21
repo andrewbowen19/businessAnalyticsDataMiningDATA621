@@ -81,17 +81,8 @@ label_cols <- c("dbn", "school_name", "school_type")
 df <- cbind(df[, label_cols], as.data.frame(lapply(df[,!names(df) %in% label_cols], as.numeric)))
 ```
 
-The below plot shows the raw relationship between each 
+The below plot shows the raw relationship between each survey rating (*Collaborative Teaching*, *Trust*, etc) and the response variables of interest: *Average English/Math SAT scores* per school. 
 
-
-```{r}
-# "n_mean_score_act_engl_all"       
-# [255] "val_mean_score_act_engl_all"      "n_mean_score_act_math_all"       
-# [257] "val_mean_score_act_math_all"      "n_mean_score_act_read_all"       
-# [259] "val_mean_score_act_read_all"      "n_mean_score_act_scie_all"       
-# [261] "val_mean_score_act_scie_all"      "n_mean_score_sat_math_all"       
-# [263] "val_mean_score_sat_math_all"      "n_mean_score_sat_writ_all"    
-```
 
 ```{r plot-relationships, warning=FALSE}
 p1 <- ggplot(df, aes(x=survey_pp_CT, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y="Mean ACT Math Score")
@@ -127,7 +118,17 @@ grid.arrange(
 
 
 # Experimentation and Results
+First, we can construct a linear model
 
+```{r}
+english_formula <- val_mean_score_act_engl_all ~ survey_pp_RI + survey_pp_CT + survey_pp_RI + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
+
+math_formula <-  val_mean_score_act_math_all ~ survey_pp_RI + survey_pp_CT + survey_pp_RI + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
+
+# Create lineaer model to predict english and math scores based on sruvey ratings
+lm_english <- lm(english_formula, data=df)
+lm_math <- lm(math_formula, data=df)
+```
 
 
 # Conclusion

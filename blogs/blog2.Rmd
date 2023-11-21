@@ -15,7 +15,7 @@ library(tidymodels)
 ```
 
 
-We can use the built-in `iris` dataset, which is a good sampel dataset for classification tasks. In this case, we'll want to predict the multiclass `Species` variable
+We can use the built-in `iris` dataset, which is a good sample dataset for classification tasks. In this case, we'll want to predict the multiclass `Species` variable
 ```{r}
 data("iris")
 head(iris)
