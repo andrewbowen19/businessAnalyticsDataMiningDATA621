@@ -71,6 +71,8 @@ The survey has changed over the years. This change has come from recommendations
 df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
 ```
 
+
+
 # Methodology
 
 
@@ -80,6 +82,17 @@ label_cols <- c("dbn", "school_name", "school_type")
 # Convert needed columns to numeric typing
 df <- cbind(df[, label_cols], as.data.frame(lapply(df[,!names(df) %in% label_cols], as.numeric)))
 ```
+
+We'll create a 20% holdout set of data to perfomr model evaluation on later
+```{r train-test-split}
+set.seed(42)
+
+# Adding a 20% holdout of our input data for model evaluation later
+train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
+
+test  <- dplyr::anti_join(df, train, by = 'dbn')
+```
+
 
 The below plot shows the raw relationship between each survey rating (*Collaborative Teaching*, *Trust*, etc) and the response variables of interest: *Average English/Math SAT scores* per school. 
 
@@ -121,13 +134,37 @@ grid.arrange(
 First, we can construct a linear model
 
 ```{r}
-english_formula <- val_mean_score_act_engl_all ~ survey_pp_RI + survey_pp_CT + survey_pp_RI + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
+english_formula <- val_mean_score_act_engl_all ~ survey_pp_RI + survey_pp_CT + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
 
-math_formula <-  val_mean_score_act_math_all ~ survey_pp_RI + survey_pp_CT + survey_pp_RI + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
+math_formula <-  val_mean_score_act_math_all ~ survey_pp_RI + survey_pp_CT + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
 
 # Create lineaer model to predict english and math scores based on sruvey ratings
-lm_english <- lm(english_formula, data=df)
-lm_math <- lm(math_formula, data=df)
+lm_english <- lm(english_formula, data=train)
+lm_math <- lm(math_formula, data=train)
+```
+
+
+As we see from summary stats below $Rating \rightarrow English/Math$ models perform decently well at predicting ACT English and Math scores, respectively.
+
+```{r}
+summary(lm_english)
+```
+
+
+```{r}
+summary(lm_math)
+```
+
+
+We can use two variables as a proxy for the school's survey rating
+
+- Percent in Temp Housing (`temp_housing_pct`) - percentage of students at a given school living in NYC temporary housing
+- Economic Need Index (`eni_hs_pct_912`) - this is a measure of the percent of students facing economic hardship at a school
+
+```{r}
+proxy_formula <- val_mean_score_act_engl_all ~ eni_hs_pct_912 + temp_housing_pct
+lm_proxy <- lm(proxy_formula, data=train)
+summary(lm_proxy)
 ```
 
 
