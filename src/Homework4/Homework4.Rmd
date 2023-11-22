@@ -31,7 +31,7 @@ We load an auto insurance company dataset containing 8,161 records. Each record 
 
 ```{r data1}
 my_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/insurance_training_data.csv"
-train_df <- read.csv(my_url, na.strings = "")
+df <- read.csv(my_url, na.strings = "")
 
 ```
 
@@ -64,13 +64,17 @@ train_df <- read.csv(my_url, na.strings = "")
 |`URBANICITY`|Home/Work Area|
 |`YOJ`|Years on Job|
 
+## Data Exploration
+
 We remove the identification variable `INDEX` and take a look at a summary of the dataset's completeness.
 
 ```{r data2}
-train_df <- train_df |>
+train_df <- df |>
     select(-INDEX)
+
 remove <- c("discrete_columns", "continuous_columns", "total_observations",
             "memory_usage")
+
 completeness <- introduce(train_df) |>
     select(-all_of(remove))
 knitr::kable(t(completeness), format = "simple")
@@ -93,6 +97,43 @@ p1
 ```
 
 A very small percentage of observations contain missing `AGE` values. The `INCOME`, `YOJ`, `HOME_VAL`, `CAR_AGE`, and `JOB` variables are each missing around 5.5 to 6.5 percent of values. There are no variables containing such extreme proportions of missing values that removal would be warranted on that basis alone.
+
+Let's take a look at the summary statistics for each variable.
+
+```{r desc-stats, echo=F}
+summary(train_df)
+
+```
+
+There are 6 NAs in `AGE`, 454 in `YOJ`, and 510 in `CAR_AGE`. 
+
+The variables are a mixture of categorical and numerical. 
+
+`TARGET_FLAG` is a dummy variable for whether or not the car was involved in an accident. Let's make this variable a factor data type.
+
+```{r factor-target-flag}
+train_df$TARGET_FLAG <- as.factor(train_df$TARGET_FLAG)
+
+```
+
+Let's take a look at the distributions of the variables.
+
+```{r}
+# just numeric variables
+numeric_train <- train_df[,sapply(train_df, is.numeric)]
+
+par(mfrow=c(3,3))
+par(mai=c(.3,.3,.3,.3))
+
+variables <- names(numeric_train)
+
+for (i in 1:(length(variables)-1)) {
+  hist(numeric_train[[variables[i]]], main = variables[i], col = "lightblue")
+}
+
+```
+
+
 
 ### Appendix: Report Code
 
