@@ -64,17 +64,37 @@ df <- read.csv(my_url, na.strings = "")
 |`URBANICITY`|Home/Work Area|
 |`YOJ`|Years on Job|
 
-## Data Exploration
+We take a look at the classes of our variables. 
+
+```{r data_classes}
+classes <- as.data.frame(unlist(lapply(df, class))) |>
+    rownames_to_column()
+cols <- c("Variable", "Class")
+colnames(classes) <- cols
+classes_summary <- classes |>
+    group_by(Class) |>
+    summarize(Count = n(),
+              Variables = paste(sort(unique(Variable)),collapse=", "))
+knitr::kable(classes_summary, format = "simple")
+
+```
+
+`INCOME`, `HOME_VAL`, `BLUEBOOK`, and `OLDCLAIM` are all character columns that need to be recoded as integers. `TARGET_FLAG` and the remaining character columns will all need to be recoded as factors. 
+
+```{r data_char_int_recode}
+vars <- c("INCOME", "HOME_VAL", "BLUEBOOK", "OLDCLAIM")
+df <- df |>
+    mutate(across(all_of(vars), ~gsub("\\$|,", "", .) |> as.integer()))
+
+```
 
 We remove the identification variable `INDEX` and take a look at a summary of the dataset's completeness.
 
 ```{r data2}
 train_df <- df |>
     select(-INDEX)
-
-remove <- c("discrete_columns", "continuous_columns", "total_observations",
-            "memory_usage")
-
+remove <- c("discrete_columns", "continuous_columns",
+            "total_observations", "memory_usage")
 completeness <- introduce(train_df) |>
     select(-all_of(remove))
 knitr::kable(t(completeness), format = "simple")
@@ -98,6 +118,47 @@ p1
 
 A very small percentage of observations contain missing `AGE` values. The `INCOME`, `YOJ`, `HOME_VAL`, `CAR_AGE`, and `JOB` variables are each missing around 5.5 to 6.5 percent of values. There are no variables containing such extreme proportions of missing values that removal would be warranted on that basis alone.
 
+We have 14 numerical variables and 11 categorical variables (including the dummy variable `TARGET_FLAG`). We recode the categorical variables as factors and list the possible ranges or values for each variable in the breakdown below:
+
+```{r data_cont_vs_disc}
+output <- split_columns(train_df, binary_as_factor = TRUE)
+num <- data.frame(Variable = names(output$continuous),
+                   Type = rep("Numeric", ncol(output$continuous)))
+cat <- data.frame(Variable = names(output$discrete),
+                   Type = rep("Categorical", ncol(output$discrete)))
+ranges <- as.data.frame(t(sapply(train_df |> select(-names(output$discrete)),
+                                 range, na.rm = TRUE)))
+factors <- names(output$discrete)
+train_df <- train_df |> 
+    mutate(across(all_of(factors), ~as.factor(.)))
+values <- as.data.frame(t(sapply(train_df |> select(all_of(factors)),
+                                 levels)))
+values <- values |>
+    mutate(across(all_of(factors), ~toString(unlist(.))))
+values <- as.data.frame(t(values)) |>
+    rownames_to_column()
+cols <- c("Variable", "Values")
+colnames(values) <- cols
+remove <- c("V1", "V2")
+ranges <- ranges |>
+    rownames_to_column() |>
+    group_by(rowname) |>
+    mutate(Values = toString(c(V1, " - ", round(V2, 1))),
+           Values = str_replace_all(Values, ",", "")) |>
+    select(-all_of(remove))
+colnames(ranges) <- cols
+num <- num |>
+    merge(ranges)
+cat <- cat |>
+    merge(values)
+num_vs_cat <- num |>
+    bind_rows(cat)
+knitr::kable(num_vs_cat, format = "simple")
+
+```
+
+**TK: Some of the factor levels are named inconsistently, so we rename those.**
+
 Let's take a look at the summary statistics for each variable.
 
 ```{r desc-stats, echo=F}
@@ -107,33 +168,59 @@ summary(train_df)
 
 There are 6 NAs in `AGE`, 454 in `YOJ`, and 510 in `CAR_AGE`. 
 
-The variables are a mixture of categorical and numerical. 
-
-`TARGET_FLAG` is a dummy variable for whether or not the car was involved in an accident. Let's make this variable a factor data type.
-
-```{r factor-target-flag}
-train_df$TARGET_FLAG <- as.factor(train_df$TARGET_FLAG)
-
-```
-
-Let's take a look at the distributions of the variables.
+Let's take a look at the distributions of the numeric variables.
 
 ```{r}
 # just numeric variables
 numeric_train <- train_df[,sapply(train_df, is.numeric)]
-
-par(mfrow=c(3,3))
+par(mfrow=c(4,4))
 par(mai=c(.3,.3,.3,.3))
-
 variables <- names(numeric_train)
-
-for (i in 1:(length(variables)-1)) {
+for (i in 1:(length(variables))) {
   hist(numeric_train[[variables[i]]], main = variables[i], col = "lightblue")
 }
 
 ```
 
+Let's also take a look at the distributions of the categorical variables. First, we look at the distributions for categorical variables with only two levels. 
 
+```{r cat_dist}
+cat_pivot <- train_df |>
+    select(all_of(factors)) |>
+    pivot_longer(cols = all_of(factors),
+                 names_to = "Variable",
+                 values_to = "Value") |>
+    group_by(Variable, Value) |>
+    summarize(Count = n()) |>
+    group_by(Variable) |>
+    mutate(Levels = n()) |>
+    ungroup()
+p2 <- cat_pivot |>
+    filter(Levels == 2) |>
+    ggplot(aes(x = Value, y = Count)) +
+    geom_col(fill = "lightblue", color = "black") +
+    facet_wrap(vars(Variable), ncol = 4, scales = "free_x") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p2
+
+```
+
+Next we look at the distributions for the categorical variables with more than two levels.
+
+```{r }
+p3 <- cat_pivot |>
+    filter(Levels > 2) |>
+    ggplot(aes(x = Value, y = Count)) +
+    geom_col(fill = "lightblue", color = "black") +
+    coord_flip() + 
+    facet_wrap(vars(Variable), ncol = 1, scales = "free")
+p3
+
+```
+
+### Data Preparation
+
+**TK: MICE Imputation**
 
 ### Appendix: Report Code
 
