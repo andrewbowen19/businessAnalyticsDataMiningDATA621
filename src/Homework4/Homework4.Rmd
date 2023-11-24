@@ -17,6 +17,8 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(DataExplorer)
 library(knitr)
+library(mice)
+library(cowplot)
 
 ```
 
@@ -31,7 +33,7 @@ We load an auto insurance company dataset containing 8,161 records. Each record 
 
 ```{r data1}
 my_url <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/insurance_training_data.csv"
-df <- read.csv(my_url, na.strings = "")
+main_df <- read.csv(my_url, na.strings = "")
 
 ```
 
@@ -67,7 +69,7 @@ df <- read.csv(my_url, na.strings = "")
 We take a look at the classes of our variables. 
 
 ```{r data_classes}
-classes <- as.data.frame(unlist(lapply(df, class))) |>
+classes <- as.data.frame(unlist(lapply(main_df, class))) |>
     rownames_to_column()
 cols <- c("Variable", "Class")
 colnames(classes) <- cols
@@ -83,7 +85,7 @@ knitr::kable(classes_summary, format = "simple")
 
 ```{r data_char_int_recode}
 vars <- c("INCOME", "HOME_VAL", "BLUEBOOK", "OLDCLAIM")
-df <- df |>
+main_df <- main_df |>
     mutate(across(all_of(vars), ~gsub("\\$|,", "", .) |> as.integer()))
 
 ```
@@ -91,11 +93,11 @@ df <- df |>
 We remove the identification variable `INDEX` and take a look at a summary of the dataset's completeness.
 
 ```{r data2}
-train_df <- df |>
+main_df <- main_df |>
     select(-INDEX)
 remove <- c("discrete_columns", "continuous_columns",
             "total_observations", "memory_usage")
-completeness <- introduce(train_df) |>
+completeness <- introduce(main_df) |>
     select(-all_of(remove))
 knitr::kable(t(completeness), format = "simple")
 
@@ -104,7 +106,7 @@ knitr::kable(t(completeness), format = "simple")
 None of our columns are completely devoid of data. There are 6,045 complete rows in the dataset, which is about 74% of our observations. There are 2,405 total missing values. We take a look at which variables contain these missing values and what the spread is.
 
 ```{r data3, include = FALSE}
-p1 <- plot_missing(train_df, missing_only = TRUE,
+p1 <- plot_missing(main_df, missing_only = TRUE,
                    ggtheme = theme_classic(), title = "Missing Values")
 
 ```
@@ -121,17 +123,17 @@ A very small percentage of observations contain missing `AGE` values. The `INCOM
 We have 14 numerical variables and 11 categorical variables (including the dummy variable `TARGET_FLAG`). We recode the categorical variables as factors and list the possible ranges or values for each variable in the breakdown below:
 
 ```{r data_cont_vs_disc}
-output <- split_columns(train_df, binary_as_factor = TRUE)
+output <- split_columns(main_df, binary_as_factor = TRUE)
 num <- data.frame(Variable = names(output$continuous),
                    Type = rep("Numeric", ncol(output$continuous)))
 cat <- data.frame(Variable = names(output$discrete),
                    Type = rep("Categorical", ncol(output$discrete)))
-ranges <- as.data.frame(t(sapply(train_df |> select(-names(output$discrete)),
+ranges <- as.data.frame(t(sapply(main_df |> select(-names(output$discrete)),
                                  range, na.rm = TRUE)))
 factors <- names(output$discrete)
-train_df <- train_df |> 
+main_df <- main_df |> 
     mutate(across(all_of(factors), ~as.factor(.)))
-values <- as.data.frame(t(sapply(train_df |> select(all_of(factors)),
+values <- as.data.frame(t(sapply(main_df |> select(all_of(factors)),
                                  levels)))
 values <- values |>
     mutate(across(all_of(factors), ~toString(unlist(.))))
@@ -162,7 +164,7 @@ knitr::kable(num_vs_cat, format = "simple")
 Let's take a look at the summary statistics for each variable.
 
 ```{r desc-stats, echo=F}
-summary(train_df)
+summary(main_df)
 
 ```
 
@@ -172,7 +174,7 @@ Let's take a look at the distributions of the numeric variables.
 
 ```{r}
 # just numeric variables
-numeric_train <- train_df[,sapply(train_df, is.numeric)]
+numeric_train <- main_df[,sapply(main_df, is.numeric)]
 par(mfrow=c(4,4))
 par(mai=c(.3,.3,.3,.3))
 variables <- names(numeric_train)
@@ -184,8 +186,8 @@ for (i in 1:(length(variables))) {
 
 Let's also take a look at the distributions of the categorical variables. First, we look at the distributions for categorical variables with only two levels. 
 
-```{r cat_dist}
-cat_pivot <- train_df |>
+```{r cat_dist, warning = FALSE, message = FALSE}
+cat_pivot <- main_df |>
     select(all_of(factors)) |>
     pivot_longer(cols = all_of(factors),
                  names_to = "Variable",
@@ -220,7 +222,169 @@ p3
 
 ### Data Preparation
 
-**TK: MICE Imputation**
+We split the data into a train and test set. 
+
+```{r }
+set.seed(202)
+rows <- sample(nrow(main_df))
+main_df <- main_df[rows, ]
+sample <- sample(c(TRUE, FALSE), nrow(main_df), replace=TRUE,
+                 prob=c(0.7,0.3))
+train_df <- main_df[sample, ]
+test_df <- main_df[!sample, ]
+
+```
+
+We impute missing data in the train and test sets using the `mice` package for five numeric variables (`AGE`, `INCOME`, `YOJ`, `HOME_VAL`, and `CAR_AGE`) and one categorical variable (`JOB`). For the numeric variables, we use the package's `pmm` (predictive mean matching) method, and for the categorical variable, we use the package's `polyreg` (polytomous, i.e. multinomial, logistic regression) method.
+
+```{r imputation, warning = FALSE, message = FALSE}
+#Start with train_df
+init = mice(train_df, maxit=0) 
+meth = init$method
+predM = init$predictorMatrix
+
+#Skip variables without missing data
+missing <- c("AGE", "INCOME", "YOJ", "HOME_VAL", "CAR_AGE", "JOB")
+x <- names(main_df)
+not_missing <- x[!x %in% missing]
+meth[not_missing] = ""
+
+#Set different imputation methods for each of the variables with missing data
+meth[c("AGE")] = "pmm" #Predictive mean matching
+meth[c("INCOME")] = "pmm"
+meth[c("YOJ")] = "pmm"
+meth[c("HOME_VAL")] = "pmm"
+meth[c("CAR_AGE")] = "pmm"
+meth[c("JOB")] = "polyreg" #Polytomous (multinomial) logistic regression
+
+#Impute
+imputed = mice(train_df, method=meth, predictorMatrix=predM, m=5,
+               printFlag = FALSE)
+train_df_imputed <- complete(imputed)
+
+#Repeat for test_df
+init = mice(test_df, maxit=0) 
+meth = init$method
+predM = init$predictorMatrix
+meth[not_missing] = ""
+meth[c("AGE")] = "pmm"
+meth[c("INCOME")] = "pmm"
+meth[c("YOJ")] = "pmm"
+meth[c("HOME_VAL")] = "pmm"
+meth[c("CAR_AGE")] = "pmm"
+meth[c("JOB")] = "polyreg"
+imputed = mice(test_df, method=meth, predictorMatrix=predM, m=5,
+               printFlag = FALSE)
+test_df_imputed <- complete(imputed)
+
+```
+
+We confirm there are no longer any missing values in the train or test datasets. 
+
+```{r na_check}
+x <- sapply(train_df_imputed, function(x) sum(is.na(x)))
+y <- sapply(test_df_imputed, function(x) sum(is.na(x)))
+sum(x, y) == 0
+
+```
+
+We take a look at the distributions for our imputed variables to see if the distributions of these variables in the train and test sets differ from what we originally observed or between sets. 
+
+First, we examine the five numerical variables we imputed.
+
+```{r imp_dist_check1}
+job <- c("JOB")
+imp_train_num <- train_df_imputed |>
+    select(all_of(missing[!missing %in% job])) |>
+    mutate(Set = "Train")
+imp_test_num <- test_df_imputed |>
+    select(all_of(missing[!missing %in% job])) |>
+    mutate(Set = "Test")
+imp_num <- imp_train_num |>
+    bind_rows(imp_test_num)
+imp_num_pivot <- imp_num |>
+    pivot_longer(!Set, names_to = "Variable", values_to = "Value")
+p4a <- imp_num_pivot |>
+    filter(Variable == "AGE") |>
+    ggplot(aes(x = Value)) +
+    geom_histogram(fill = "lightblue", color = "black", binwidth = 5) +
+    labs(y = "Count") +
+    facet_grid(rows = vars(Variable), cols = vars(Set),
+               switch = "y")
+p4b <- imp_num_pivot |>
+    filter(Variable == "INCOME") |>
+    ggplot(aes(x = Value)) +
+    geom_histogram(fill = "lightblue", color = "black", binwidth = 25000) +
+    labs(y = "Count") +
+    facet_grid(rows = vars(Variable), cols = vars(Set),
+               switch = "y")
+p4c <- imp_num_pivot |>
+    filter(Variable == "YOJ") |>
+    ggplot(aes(x = Value)) +
+    geom_histogram(fill = "lightblue", color = "black", binwidth = 2) +
+    labs(y = "Count") +
+    facet_grid(rows = vars(Variable), cols = vars(Set),
+               switch = "y")
+p4d <- imp_num_pivot |>
+    filter(Variable == "HOME_VAL") |>
+    ggplot(aes(x = Value)) +
+    geom_histogram(fill = "lightblue", color = "black", binwidth = 50000) +
+    labs(y = "Count") +
+    facet_grid(rows = vars(Variable), cols = vars(Set),
+               switch = "y")
+p4e <- imp_num_pivot |>
+    filter(Variable == "CAR_AGE") |>
+    ggplot(aes(x = Value)) +
+    geom_histogram(fill = "lightblue", color = "black", binwidth = 2) +
+    labs(y = "Count") +
+    facet_grid(rows = vars(Variable), cols = vars(Set),
+               switch = "y")
+p4a
+p4b
+p4c
+p4d
+p4e
+
+```
+
+Next we look at the single categorical variable we imputed. 
+
+```{r imp_dist_check2, warning = FALSE, message = FALSE}
+imp_train_pivot_cat <- train_df_imputed |>
+    select(all_of(missing)) |>
+    pivot_longer(cols = all_of(job),
+                 names_to = "Variable",
+                 values_to = "Value") |>
+    group_by(Variable, Value) |>
+    summarize(Count = n()) |>
+    mutate(Set = "Train")
+imp_test_pivot_cat <- test_df_imputed |>
+    select(all_of(missing)) |>
+    pivot_longer(cols = all_of(job),
+                 names_to = "Variable",
+                 values_to = "Value") |>
+    group_by(Variable, Value) |>
+    summarize(Count = n()) |>
+    mutate(Set = "Test")
+imp_pivot_cat <- imp_train_pivot_cat |>
+    bind_rows(imp_test_pivot_cat)
+p4f <- imp_pivot_cat |>
+    ggplot(aes(x = Value, y = Count)) +
+    geom_col(fill = "lightblue", color = "black") +
+    labs(x = "Job") + 
+    coord_flip() +
+    facet_wrap(vars(Set), ncol = 2)
+p4f
+
+```
+
+### Build Models
+
+
+
+### Select Models
+
+
 
 ### Appendix: Report Code
 
