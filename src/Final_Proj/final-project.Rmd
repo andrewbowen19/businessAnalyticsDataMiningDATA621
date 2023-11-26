@@ -46,6 +46,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```{r setup, include = FALSE, echo=FALSE, message=FALSE}
 library(tidyverse)
 library(gridExtra)
+library(glue)
 library("papaja")
 r_refs("r-references.bib")
 ```
@@ -68,9 +69,8 @@ The survey has changed over the years. This change has come from recommendations
 ```{r data-read-in}
 # Read in our dataset from GitHub
 # https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch
-df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
+df <- read.csv("../../data/school-quality-2020-2021.csv") #"https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
 ```
-
 
 
 # Methodology
@@ -81,6 +81,9 @@ df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=
 label_cols <- c("dbn", "school_name", "school_type")
 # Convert needed columns to numeric typing
 df <- cbind(df[, label_cols], as.data.frame(lapply(df[,!names(df) %in% label_cols], as.numeric)))
+
+df$college_rate <- df$val_persist3_4yr_all
+df$economic_need <- df$eni_hs_pct_912
 ```
 
 We'll create a 20% holdout set of data to perfomr model evaluation on later
@@ -89,6 +92,7 @@ set.seed(42)
 
 # Adding a 20% holdout of our input data for model evaluation later
 train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
+
 
 test  <- dplyr::anti_join(df, train, by = 'dbn')
 ```
@@ -131,7 +135,7 @@ grid.arrange(
 
 
 # Experimentation and Results
-First, we can construct a linear model
+First, we construct a basic linear model to predict both English and Math ACT average scores for a given school. 
 
 ```{r}
 english_formula <- val_mean_score_act_engl_all ~ survey_pp_RI + survey_pp_CT + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
@@ -144,7 +148,10 @@ lm_math <- lm(math_formula, data=train)
 ```
 
 
-As we see from summary stats below $Rating \rightarrow English/Math$ models perform decently well at predicting ACT English and Math scores, respectively.
+As we see from summary stats below $Rating \rightarrow English/Math$ models perform decently well at predicting ACT English and Math scores, respectively. We see adjusted $R^2$ values for each academic subject below:
+
+- *English:* 0.76
+- *Math:* 0.493
 
 ```{r}
 summary(lm_english)
@@ -156,15 +163,42 @@ summary(lm_math)
 ```
 
 
-We can use two variables as a proxy for the school's survey rating
+We can use two variables as a proxy for the school's survey rating in predicting college persistence:
 
 - Percent in Temp Housing (`temp_housing_pct`) - percentage of students at a given school living in NYC temporary housing
 - Economic Need Index (`eni_hs_pct_912`) - this is a measure of the percent of students facing economic hardship at a school
 
 ```{r}
-proxy_formula <- val_mean_score_act_engl_all ~ eni_hs_pct_912 + temp_housing_pct
-lm_proxy <- lm(proxy_formula, data=train)
-summary(lm_proxy)
+hist(train$college_rate)
+```
+
+```{r}
+ggplot(train, aes(x=temp_housing_pct)) + geom_histogram() + labs(x="% of Students in Temporary Housing", y="Number of NYC Schools")
+```
+
+First, we should check an assumption of linearity between our predictor and response variables.
+```{r}
+
+ggplot(train, aes(x=temp_housing_pct, y=college_rate)) + geom_point() + labs(x="% of Students in Temporary Housing", y="4-year College Persistence Rate")
+```
+
+We see a general linear relationship for schools with lower rates of students in temp housing. However, this linear relationship does **not** visually hold for schools with hisgher rates of temp housing use. 
+
+Plotting the relationship below between a school's economic need index
+```{r}
+
+ggplot(train, aes(x=economic_need, y=college_rate)) + geom_point() +
+  labs(x="Average Economic Need Index per School", y="4-year College Persistence Rate")
+```
+Again, we see a non-linear relationship between our predictor (*Economic Need Index*) and Outcome Variable (*College Persistence Rate*)
+
+```{r}
+proxy_lm <- lm(college_rate ~ temp_housing_pct + economic_need, train)
+```
+
+
+```{r}
+plot(proxy_lm)
 ```
 
 
@@ -172,6 +206,8 @@ summary(lm_proxy)
 
 
 
+## TODO
+- Merge/Join in ACT/SAT information by DBN
 
 \newpage
 
