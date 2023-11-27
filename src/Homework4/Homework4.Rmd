@@ -120,7 +120,7 @@ p1
 
 A very small percentage of observations contain missing `AGE` values. The `INCOME`, `YOJ`, `HOME_VAL`, `CAR_AGE`, and `JOB` variables are each missing around 5.5 to 6.5 percent of values. There are no variables containing such extreme proportions of missing values that removal would be warranted on that basis alone.
 
-We have 14 numerical variables and 11 categorical variables (including the dummy variable `TARGET_FLAG`). We recode the categorical variables as factors and list the possible ranges or values for each variable in the breakdown below:
+We have 14 numeric variables and 11 categorical variables (including the dummy variable `TARGET_FLAG`). We recode the categorical variables as factors and list the possible ranges or values for each variable in the breakdown below:
 
 ```{r data_cont_vs_disc}
 output <- split_columns(main_df, binary_as_factor = TRUE)
@@ -159,7 +159,7 @@ knitr::kable(num_vs_cat, format = "simple")
 
 ```
 
-**TK: Some of the factor levels are named inconsistently, so we rename those.**
+Some of the factor levels are named and leveled inconsistently, so we will rename and relevel them in the next section.
 
 Let's take a look at the summary statistics for each variable.
 
@@ -222,7 +222,42 @@ p3
 
 ### Data Preparation
 
-We split the data into a train and test set. 
+First, we rename and relevel the inconsistently named and leveled factor variables we noted earlier.
+
+```{r rename_relevel_factors}
+x <- main_df$CAR_TYPE
+main_df$CAR_TYPE <- case_match(x, "z_SUV" ~ "SUV", .default = x)
+main_df$CAR_TYPE <- factor(main_df$CAR_TYPE,
+                           levels = c("SUV", "Minivan", "Panel Truck",
+                                      "Pickup", "Sports Car", "Van"))
+x <- main_df$EDUCATION
+main_df$EDUCATION <- case_match(x, "z_High School" ~ "High School", .default = x)
+main_df$EDUCATION <- factor(main_df$EDUCATION,
+                             levels = c("<High School", "High School",
+                                        "Bachelors", "Masters", "PhD"))
+x <- main_df$JOB
+main_df$JOB <- case_match(x, "z_Blue Collar" ~ "Blue Collar", .default = x)
+main_df$JOB <- factor(main_df$JOB, levels = c("Blue Collar", "Clerical",
+                                              "Doctor", "Home Maker","Lawyer",
+                                              "Manager", "Professional", "Student"))
+x <- main_df$MSTATUS
+main_df$MSTATUS <- case_match(x, "z_No" ~ "No", .default = x)
+main_df$MSTATUS <- factor(main_df$MSTATUS, levels = c("No", "Yes"))
+x <- main_df$RED_CAR
+main_df$RED_CAR <- case_match(x, "no" ~ "No", "yes" ~ "Yes", .default = x)
+main_df$RED_CAR <- factor(main_df$RED_CAR, levels = c("Yes", "No"))
+levels(main_df$REVOKED) <- c("Yes", "No")
+x <- main_df$SEX
+main_df$SEX <- case_match(x, "M" ~ "Male", "z_F" ~ "Female", .default = x)
+main_df$SEX <- factor(main_df$SEX, levels = c("Male", "Female"))
+x <- main_df$URBANICITY
+main_df$URBANICITY <- case_match(x, "Highly Urban/ Urban" ~ "Urban",
+                                 "z_Highly Rural/ Rural" ~ "Rural", .default = x)
+main_df$URBANICITY <- factor(main_df$URBANICITY, levels = c("Rural", "Urban"))
+
+```
+
+We then split the data into a train and test set. 
 
 ```{r }
 set.seed(202)
@@ -238,44 +273,75 @@ test_df <- main_df[!sample, ]
 We impute missing data in the train and test sets using the `mice` package for five numeric variables (`AGE`, `INCOME`, `YOJ`, `HOME_VAL`, and `CAR_AGE`) and one categorical variable (`JOB`). For the numeric variables, we use the package's `pmm` (predictive mean matching) method, and for the categorical variable, we use the package's `polyreg` (polytomous, i.e. multinomial, logistic regression) method.
 
 ```{r imputation, warning = FALSE, message = FALSE}
-#Start with train_df
-init = mice(train_df, maxit=0) 
-meth = init$method
-predM = init$predictorMatrix
-
-#Skip variables without missing data
+col_classes <- unlist(lapply(train_df, class))
 missing <- c("AGE", "INCOME", "YOJ", "HOME_VAL", "CAR_AGE", "JOB")
-x <- names(main_df)
+x <- names(col_classes)
 not_missing <- x[!x %in% missing]
-meth[not_missing] = ""
+#Since the imputation process is a little slow, we only do the imputations once, save the results as .csv files once, and load those .csv files moving forward, making sure the levels of the factors stay the same. 
+if (file.exists("train_df_imputed.csv") & file.exists("test_df_imputed.csv")){
+    train_df_imputed <- read.csv("train_df_imputed.csv", na.strings = "",
+                                 colClasses = col_classes)
+    test_df_imputed <- read.csv("test_df_imputed.csv", na.strings = "",
+                                 colClasses = col_classes)
+}else{
+    #Start with train_df
+    init = mice(train_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    
+    #Skip variables without missing data
+    meth[not_missing] = ""
+    
+    #Set different imputation methods for each of the variables with missing data
+    meth[c("AGE")] = "pmm" #Predictive mean matching
+    meth[c("INCOME")] = "pmm"
+    meth[c("YOJ")] = "pmm"
+    meth[c("HOME_VAL")] = "pmm"
+    meth[c("CAR_AGE")] = "pmm"
+    meth[c("JOB")] = "polyreg" #Polytomous (multinomial) logistic regression
+    
+    #Impute
+    imputed = mice(train_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    train_df_imputed <- complete(imputed)
+    write.csv(train_df_imputed, "train_df_imputed.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+    
+    #Repeat for test_df
+    init = mice(test_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    meth[not_missing] = ""
+    meth[c("AGE")] = "pmm"
+    meth[c("INCOME")] = "pmm"
+    meth[c("YOJ")] = "pmm"
+    meth[c("HOME_VAL")] = "pmm"
+    meth[c("CAR_AGE")] = "pmm"
+    meth[c("JOB")] = "polyreg"
+    imputed = mice(test_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    test_df_imputed <- complete(imputed)
+    write.csv(test_df_imputed, "test_df_imputed.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+}
 
-#Set different imputation methods for each of the variables with missing data
-meth[c("AGE")] = "pmm" #Predictive mean matching
-meth[c("INCOME")] = "pmm"
-meth[c("YOJ")] = "pmm"
-meth[c("HOME_VAL")] = "pmm"
-meth[c("CAR_AGE")] = "pmm"
-meth[c("JOB")] = "polyreg" #Polytomous (multinomial) logistic regression
-
-#Impute
-imputed = mice(train_df, method=meth, predictorMatrix=predM, m=5,
-               printFlag = FALSE)
-train_df_imputed <- complete(imputed)
-
-#Repeat for test_df
-init = mice(test_df, maxit=0) 
-meth = init$method
-predM = init$predictorMatrix
-meth[not_missing] = ""
-meth[c("AGE")] = "pmm"
-meth[c("INCOME")] = "pmm"
-meth[c("YOJ")] = "pmm"
-meth[c("HOME_VAL")] = "pmm"
-meth[c("CAR_AGE")] = "pmm"
-meth[c("JOB")] = "polyreg"
-imputed = mice(test_df, method=meth, predictorMatrix=predM, m=5,
-               printFlag = FALSE)
-test_df_imputed <- complete(imputed)
+#Make sure the levels stay the same
+levels(train_df_imputed$CAR_TYPE) <- levels(main_df$CAR_TYPE)
+levels(train_df_imputed$EDUCATION) <- levels(main_df$EDUCATION)
+levels(train_df_imputed$JOB) <- levels(main_df$JOB)
+levels(train_df_imputed$MSTATUS) <- levels(main_df$MSTATUS)
+levels(train_df_imputed$RED_CAR) <- levels(main_df$RED_CAR)
+levels(train_df_imputed$REVOKED) <- levels(main_df$REVOKED)
+levels(train_df_imputed$SEX) <- levels(main_df$SEX)
+levels(train_df_imputed$URBANICITY) <- levels(main_df$URBANICITY)
+levels(test_df_imputed$CAR_TYPE) <- levels(main_df$CAR_TYPE)
+levels(test_df_imputed$EDUCATION) <- levels(main_df$EDUCATION)
+levels(test_df_imputed$JOB) <- levels(main_df$JOB)
+levels(test_df_imputed$MSTATUS) <- levels(main_df$MSTATUS)
+levels(test_df_imputed$RED_CAR) <- levels(main_df$RED_CAR)
+levels(test_df_imputed$REVOKED) <- levels(main_df$REVOKED)
+levels(test_df_imputed$SEX) <- levels(main_df$SEX)
+levels(test_df_imputed$URBANICITY) <- levels(main_df$URBANICITY)
 
 ```
 
@@ -288,64 +354,50 @@ sum(x, y) == 0
 
 ```
 
+We reduce the scale of the `INCOME` and `HOME_VAL` variables to thousands of dollars so the figures will be more readable when visualized. The replacement variables are `INCOME_THOU` AND `HOME_VAL_THOU`.
+
+```{r }
+drop <- c("INCOME", "HOME_VAL")
+train_df_imputed <- train_df_imputed |>
+    mutate(INCOME_THOU = INCOME / 1000,
+           HOME_VAL_THOU = HOME_VAL / 1000) |>
+    select(-all_of(drop))
+test_df_imputed <- test_df_imputed |>
+    mutate(INCOME_THOU = INCOME / 1000,
+           HOME_VAL_THOU = HOME_VAL / 1000) |>
+    select(-all_of(drop))
+    
+```
+
 We take a look at the distributions for our imputed variables to see if the distributions of these variables in the train and test sets differ from what we originally observed or between sets. 
 
-First, we examine the five numerical variables we imputed.
+First, we examine the five numeric variables we imputed.
 
 ```{r imp_dist_check1}
+missing <- c("AGE", "INCOME_THOU", "YOJ", "HOME_VAL_THOU", "CAR_AGE", "JOB")
 job <- c("JOB")
+keep <- missing[!missing %in% job]
 imp_train_num <- train_df_imputed |>
-    select(all_of(missing[!missing %in% job])) |>
+    select(all_of(keep)) |>
     mutate(Set = "Train")
 imp_test_num <- test_df_imputed |>
-    select(all_of(missing[!missing %in% job])) |>
+    select(all_of(keep)) |>
     mutate(Set = "Test")
 imp_num <- imp_train_num |>
     bind_rows(imp_test_num)
 imp_num_pivot <- imp_num |>
     pivot_longer(!Set, names_to = "Variable", values_to = "Value")
-p4a <- imp_num_pivot |>
-    filter(Variable == "AGE") |>
+p4 <- imp_num_pivot |>
     ggplot(aes(x = Value)) +
-    geom_histogram(fill = "lightblue", color = "black", binwidth = 5) +
-    labs(y = "Count") +
-    facet_grid(rows = vars(Variable), cols = vars(Set),
-               switch = "y")
-p4b <- imp_num_pivot |>
-    filter(Variable == "INCOME") |>
-    ggplot(aes(x = Value)) +
-    geom_histogram(fill = "lightblue", color = "black", binwidth = 25000) +
-    labs(y = "Count") +
-    facet_grid(rows = vars(Variable), cols = vars(Set),
-               switch = "y")
-p4c <- imp_num_pivot |>
-    filter(Variable == "YOJ") |>
-    ggplot(aes(x = Value)) +
-    geom_histogram(fill = "lightblue", color = "black", binwidth = 2) +
-    labs(y = "Count") +
-    facet_grid(rows = vars(Variable), cols = vars(Set),
-               switch = "y")
-p4d <- imp_num_pivot |>
-    filter(Variable == "HOME_VAL") |>
-    ggplot(aes(x = Value)) +
-    geom_histogram(fill = "lightblue", color = "black", binwidth = 50000) +
-    labs(y = "Count") +
-    facet_grid(rows = vars(Variable), cols = vars(Set),
-               switch = "y")
-p4e <- imp_num_pivot |>
-    filter(Variable == "CAR_AGE") |>
-    ggplot(aes(x = Value)) +
-    geom_histogram(fill = "lightblue", color = "black", binwidth = 2) +
-    labs(y = "Count") +
-    facet_grid(rows = vars(Variable), cols = vars(Set),
-               switch = "y")
-p4a
-p4b
-p4c
-p4d
-p4e
+    geom_density(fill = "lightblue", color = "black") +
+    labs(y = "Density") +
+    facet_grid(rows = vars(Set), cols = vars(Variable),
+               switch = "y", scales = "free_x")
+p4
 
 ```
+
+The distributions in the train and test sets for the five imputed numeric variables are all similar to each other, and none of them are dissimilar from the distributions of the original data.
 
 Next we look at the single categorical variable we imputed. 
 
@@ -368,15 +420,17 @@ imp_test_pivot_cat <- test_df_imputed |>
     mutate(Set = "Test")
 imp_pivot_cat <- imp_train_pivot_cat |>
     bind_rows(imp_test_pivot_cat)
-p4f <- imp_pivot_cat |>
+p5 <- imp_pivot_cat |>
     ggplot(aes(x = Value, y = Count)) +
     geom_col(fill = "lightblue", color = "black") +
     labs(x = "Job") + 
     coord_flip() +
     facet_wrap(vars(Set), ncol = 2)
-p4f
+p5
 
 ```
+
+The distributions in the train and test sets for the single imputed categorical variable are similar to each other, and the rankings of most frequent to least frequent occupation here are similar to the rankings of the original distribution. We note that the "Professional" and "Manager" occupations are more tied in the rankings here than they were in the original distribution, however. 
 
 ### Build Models
 
