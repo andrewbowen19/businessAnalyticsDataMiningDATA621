@@ -1,0 +1,86 @@
+---
+title: 'DATA 621: Blog 4'
+author: "Andrew Bowen"
+date: "2023-11-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Blog 4: Box-Cox Transformation
+```{r library message=FALSE, echo=FALSE}
+library(ggplot2)
+library(MASS)
+```
+
+```{r}
+data("rock")
+```
+
+
+
+## Box-Cox Transformation
+The Box-Cox Transformation is used to transform either the response or predictor variables 
+
+
+## Modeling
+First, let's construct a linear model to predict our `perm` variable, which measures permeability in milli-Darcies per rock in the sample
+```{r}
+model <- lm(perm ~ area + peri + shape, rock)
+
+hist(residuals(model))
+```
+
+
+Our residuals vs fitted plot above does show normality in our residuals. However, let's create some other diagnostic plots for our model.
+
+```{r}
+plot(model)
+```
+
+We see a general pattern form our *Residuals vs Fitted Values* plot above.
+
+```{r}
+summary(model)
+```
+
+
+## Transformation
+
+
+Now, we can run a Box-Cox transformation on our linear model to find the value of $\lambda$. 
+```{r}
+# Run Box-Cox 
+bc <- boxcox(model)
+
+lambda <- bc$x[which.max(bc$y)]
+
+```
+
+
+```{r}
+model_transformed <- lm((perm**lambda) ~ area + peri + shape, rock )
+summary(model_transformed)
+```
+
+```{r}
+plot(model_transformed)
+```
+
+We see a generally better fit from our diagnostic plots above, with less of a noticeable pattern in our *Residuals vs Fitted* plot above (though stil not ideal).
+
+
+Using our log-likelihood measures (with the goal of *minimizing* this criteria)
+```{r}
+# Log-Likelihood for each model
+print(logLik(model))
+print(logLik(model_transformed))
+```
+
+We can see that our Box-Cox transformed model shows a marked improvement in this criterion for our transformed model. This implies a better fit and a "simpler" model, despire 
+
+
+

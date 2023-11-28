@@ -36,6 +36,46 @@
   \KOMAoptions{parskip=half}}
 \makeatother
 \usepackage{xcolor}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
 \usepackage{graphicx}
 \makeatletter
 \def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
@@ -173,14 +213,14 @@
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \urlstyle{same}
 \hypersetup{
-  pdftitle={Department of Education},
+  pdftitle={An Analysis of the Department of Education Quality Survey and Its Efficacy},
   pdfauthor={Andrew Bowen1, Glen Dale Davis1, Josh Forster1, Shoshana Farber1, \& Charles Ugiagbe1},
   pdflang={en-EN},
   pdfkeywords={Educational Outcomes, School Quality, Education},
   hidelinks,
   pdfcreator={LaTeX via pandoc}}
 
-\title{Department of Education}
+\title{An Analysis of the Department of Education Quality Survey and Its Efficacy}
 \author{Andrew Bowen\textsuperscript{1}, Glen Dale Davis\textsuperscript{1}, Josh Forster\textsuperscript{1}, Shoshana Farber\textsuperscript{1}, \& Charles Ugiagbe\textsuperscript{1}}
 \date{}
 
@@ -201,14 +241,16 @@ Abstract coming soon!
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
 
-The NYC School Survey seeks to collect data to provide an overview of New York City Schools. Beginning in 2005, the survey looks to collect demographic and achievement data for New York City Public Schools,
+The NYC School Survey seeks to collect data to provide an overview of New York City Schools. Beginning in 2005, the survey looks to collect demographic and achievement data for New York City Public Schools, and provide a standardized rating of various elements of school quality.
 
-The survey has changed over the years. This change has come from recommendations of public policy analysts in order to more accurately define the quality of schools New York City Schools (2018).
+The survey has changed over the years. This change has come from recommendations of public policy analysts in order to more accurately define the quality of schools \emph{New York City Schools (2018)}. The 2020-21 academic year report provides a robust dataset defined at the school level with academic and socioeconomic data provided.
 
 \textbf{Research Question:} This study aims to determine whether the school ratings within the NYC School Quality Survey accurately reflect educational outcomes, or if other variables related to certain schools can be used as a better proxy.
 
 \hypertarget{literature-review}{%
 \section{Literature Review}\label{literature-review}}
+
+Measuring the input variables that impact educational outcomes is a difficult task. With so many confounding variables, it can be difficult to determine direct causal relationships that have an outsized impact
 
 \hypertarget{data-sourcing}{%
 \section{Data Sourcing}\label{data-sourcing}}
@@ -222,17 +264,115 @@ The survey has changed over the years. This change has come from recommendations
 \hypertarget{methodology}{%
 \section{Methodology}\label{methodology}}
 
-The below plot shows the raw relationship between each
+We create a 20\% holdout set of data to be used later on in order to evaluate the efficacy of our model's predictive capability. The remaining 80\% of the data is to be used for model training and exploratory data analysis (EDA).
+
+The below plot shows the raw relationship between each survey rating (\emph{Collaborative Teaching}, \emph{Trust}, etc) and the response variables of interest: \emph{Average English/Math SAT scores} per school.
 
 \includegraphics{final-project_files/figure-latex/plot-relationships-1.pdf}
 
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
 
-First, we can construct a linear model
+First, we construct a basic linear model to predict both English and Math ACT average scores for a given school.
+
+As we see from summary stats below \(Rating \rightarrow English/Math\) models perform decently well at predicting ACT English and Math scores, respectively. We see adjusted \(R^2\) values for each academic subject below:
+
+\begin{itemize}
+\tightlist
+\item
+  \emph{English:} 0.76
+\item
+  \emph{Math:} 0.493
+\end{itemize}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = english_formula, data = train)
+## 
+## Residuals:
+##      39      90     128     132     147     193     257     259 
+##  2.1072  0.1175 -0.1037 -0.7313 -0.6176  0.1158  0.7941 -1.6820 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(>|t|)
+## (Intercept)   -154.76      88.19  -1.755    0.330
+## survey_pp_RI   118.97      32.77   3.630    0.171
+## survey_pp_CT    43.29      40.36   1.073    0.478
+## survey_pp_ES  -223.10     144.88  -1.540    0.367
+## survey_pp_SE   -23.08     130.37  -0.177    0.888
+## survey_pp_SF   -73.85      49.68  -1.486    0.377
+## survey_pp_TR   370.05     271.36   1.364    0.403
+## 
+## Residual standard error: 2.976 on 1 degrees of freedom
+##   (382 observations deleted due to missingness)
+## Multiple R-squared:  0.966,  Adjusted R-squared:  0.7618 
+## F-statistic:  4.73 on 6 and 1 DF,  p-value: 0.3381
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = math_formula, data = train)
+## 
+## Residuals:
+##      39      90     128     132     147     193     257     259 
+##  2.9350  0.1636 -0.1444 -1.0186 -0.8602  0.1613  1.1060 -2.3428 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(>|t|)
+## (Intercept)   -134.18     122.84  -1.092    0.472
+## survey_pp_RI    81.91      45.65   1.794    0.324
+## survey_pp_CT    46.38      56.22   0.825    0.561
+## survey_pp_ES  -171.25     201.80  -0.849    0.552
+## survey_pp_SE    40.36     181.58   0.222    0.861
+## survey_pp_SF  -101.32      69.20  -1.464    0.381
+## survey_pp_TR   296.15     377.97   0.784    0.577
+## 
+## Residual standard error: 4.145 on 1 degrees of freedom
+##   (382 observations deleted due to missingness)
+## Multiple R-squared:  0.9276, Adjusted R-squared:  0.493 
+## F-statistic: 2.135 on 6 and 1 DF,  p-value: 0.4808
+\end{verbatim}
+
+We can use two variables as a proxy for the school's survey rating in predicting college persistence:
+
+\begin{itemize}
+\tightlist
+\item
+  Percent in Temp Housing (\texttt{temp\_housing\_pct}) - percentage of students at a given school living in NYC temporary housing
+\item
+  Economic Need Index (\texttt{eni\_hs\_pct\_912}) - this is a measure of the percent of students facing economic hardship at a school
+\end{itemize}
+
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-5-1.pdf}
+
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-6-1.pdf}
+
+First, we should check an assumption of linearity between our predictor and response variables.
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-7-1.pdf}
+
+We see a general linear relationship for schools with lower rates of students in temp housing. However, this linear relationship does \textbf{not} visually hold for schools with hisgher rates of temp housing use.
+
+Plotting the relationship below between a school's economic need index
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-8-1.pdf}
+Again, we see a non-linear relationship between our predictor (\emph{Economic Need Index}) and Outcome Variable (\emph{College Persistence Rate})
+
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-10-1.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-10-2.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-10-3.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-10-4.pdf}
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
+
+\hypertarget{todo}{%
+\subsection{TODO}\label{todo}}
+
+\begin{itemize}
+\tightlist
+\item
+  Merge/Join in ACT/SAT information by DBN
+\item
+  Model Selection
+\end{itemize}
 
 \newpage
 
@@ -248,6 +388,82 @@ New York City Schools, T. R. A. for. (2018). \emph{{R}edesigning the {A}nnual {N
 
 \hypertarget{appendices}{%
 \section{Appendices}\label{appendices}}
+
+Below is the code used to generate this report. It's also available on \href{https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main}{GitHub here}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{knitr}\SpecialCharTok{::}\NormalTok{opts\_chunk}\SpecialCharTok{$}\FunctionTok{set}\NormalTok{(}\AttributeTok{echo =} \ConstantTok{FALSE}\NormalTok{, }\AttributeTok{warning =} \ConstantTok{FALSE}\NormalTok{, }\AttributeTok{message =} \ConstantTok{FALSE}\NormalTok{)}
+\FunctionTok{library}\NormalTok{(tidyverse)}
+\FunctionTok{library}\NormalTok{(gridExtra)}
+\FunctionTok{library}\NormalTok{(glue)}
+\FunctionTok{library}\NormalTok{(}\StringTok{"papaja"}\NormalTok{)}
+\FunctionTok{r\_refs}\NormalTok{(}\StringTok{"r{-}references.bib"}\NormalTok{)}
+\CommentTok{\# Read in our dataset from GitHub}
+\CommentTok{\# https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v{-}cvch}
+\NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{(}\StringTok{"../../data/school{-}quality{-}2020{-}2021.csv"}\NormalTok{) }\CommentTok{\#"https://data.cityofnewyork.us/api/views/26je{-}vkp6/rows.csv?date=20231108")}
+\NormalTok{label\_cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"dbn"}\NormalTok{, }\StringTok{"school\_name"}\NormalTok{, }\StringTok{"school\_type"}\NormalTok{)}
+\CommentTok{\# Convert needed columns to numeric typing}
+\NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(df[, label\_cols], }\FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{lapply}\NormalTok{(df[,}\SpecialCharTok{!}\FunctionTok{names}\NormalTok{(df) }\SpecialCharTok{\%in\%}\NormalTok{ label\_cols], as.numeric)))}
+
+\NormalTok{df}\SpecialCharTok{$}\NormalTok{college\_rate }\OtherTok{\textless{}{-}}\NormalTok{ df}\SpecialCharTok{$}\NormalTok{val\_persist3\_4yr\_all}
+\NormalTok{df}\SpecialCharTok{$}\NormalTok{economic\_need }\OtherTok{\textless{}{-}}\NormalTok{ df}\SpecialCharTok{$}\NormalTok{eni\_hs\_pct\_912}
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{42}\NormalTok{)}
+
+\CommentTok{\# Adding a 20\% holdout of our input data for model evaluation later}
+\NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{subset}\NormalTok{(df[}\FunctionTok{sample}\NormalTok{(}\DecValTok{1}\SpecialCharTok{:}\FunctionTok{nrow}\NormalTok{(df)), ]) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{sample\_frac}\NormalTok{(}\FloatTok{0.8}\NormalTok{)}
+
+
+\NormalTok{test  }\OtherTok{\textless{}{-}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{anti\_join}\NormalTok{(df, train, }\AttributeTok{by =} \StringTok{\textquotesingle{}dbn\textquotesingle{}}\NormalTok{)}
+\NormalTok{p1 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_CT, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\StringTok{"Mean ACT Math Score"}\NormalTok{)}
+\NormalTok{p2 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_ES, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p3 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_RI, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p4 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SE, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p5 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SF, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p6 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_TR, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+
+\CommentTok{\# Plot english scores}
+\NormalTok{p7 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_CT, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Collaborative Teacher Rating"}\NormalTok{,}\AttributeTok{y=}\StringTok{"Mean ACT English Score"}\NormalTok{)}
+\NormalTok{p8 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_ES, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Leadership Rating"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p9 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_RI, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Rigorous Instruction"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p10 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SE, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Supportive environment"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p11 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SF, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Family{-}Community Ties"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+\NormalTok{p12 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_TR, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Trust"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
+
+\CommentTok{\# Panel plot}
+\FunctionTok{grid.arrange}\NormalTok{(}
+\NormalTok{  p1, p2,}
+\NormalTok{  p3, p4,}
+\NormalTok{  p5, p6,}
+\NormalTok{  p7, p8,}
+\NormalTok{  p9, p10,}
+\NormalTok{  p11, p12,}
+  \AttributeTok{nrow=}\DecValTok{2}\NormalTok{,}
+  \AttributeTok{ncol=}\DecValTok{6}\NormalTok{,}
+  \AttributeTok{top =} \StringTok{"ACT Scores vs NYC School Quality Ratings, 2020{-}2021"}\NormalTok{,}
+  \AttributeTok{bottom=}\StringTok{"Survey Rating Type"}
+\NormalTok{)}
+
+\NormalTok{english\_formula }\OtherTok{\textless{}{-}}\NormalTok{ val\_mean\_score\_act\_engl\_all }\SpecialCharTok{\textasciitilde{}}\NormalTok{ survey\_pp\_RI }\SpecialCharTok{+}\NormalTok{ survey\_pp\_CT }\SpecialCharTok{+}\NormalTok{ survey\_pp\_ES }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SE }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SF }\SpecialCharTok{+}\NormalTok{ survey\_pp\_TR}
+
+\NormalTok{math\_formula }\OtherTok{\textless{}{-}}\NormalTok{  val\_mean\_score\_act\_math\_all }\SpecialCharTok{\textasciitilde{}}\NormalTok{ survey\_pp\_RI }\SpecialCharTok{+}\NormalTok{ survey\_pp\_CT }\SpecialCharTok{+}\NormalTok{ survey\_pp\_ES }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SE }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SF }\SpecialCharTok{+}\NormalTok{ survey\_pp\_TR}
+
+\CommentTok{\# Create lineaer model to predict english and math scores based on sruvey ratings}
+\NormalTok{lm\_english }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(english\_formula, }\AttributeTok{data=}\NormalTok{train)}
+\NormalTok{lm\_math }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(math\_formula, }\AttributeTok{data=}\NormalTok{train)}
+\FunctionTok{summary}\NormalTok{(lm\_english)}
+\FunctionTok{summary}\NormalTok{(lm\_math)}
+\FunctionTok{hist}\NormalTok{(train}\SpecialCharTok{$}\NormalTok{college\_rate)}
+\FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct)) }\SpecialCharTok{+} \FunctionTok{geom\_histogram}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% of Students in Temporary Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Number of NYC Schools"}\NormalTok{)}
+
+\FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct, }\AttributeTok{y=}\NormalTok{college\_rate)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% of Students in Temporary Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"4{-}year College Persistence Rate"}\NormalTok{)}
+
+\FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{economic\_need, }\AttributeTok{y=}\NormalTok{college\_rate)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Average Economic Need Index per School"}\NormalTok{, }\AttributeTok{y=}\StringTok{"4{-}year College Persistence Rate"}\NormalTok{)}
+\NormalTok{proxy\_lm }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need, train)}
+\FunctionTok{plot}\NormalTok{(proxy\_lm)}
+\end{Highlighting}
+\end{Shaded}
 
 
 \end{document}

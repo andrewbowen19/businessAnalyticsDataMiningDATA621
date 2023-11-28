@@ -1,5 +1,5 @@
 ---
-title             : "Department of Education"
+title             : "An Analysis of the Department of Education Quality Survey and Its Efficacy"
 shorttitle        : "DATA621 Final Project"
 
 author: 
@@ -53,13 +53,16 @@ r_refs("r-references.bib")
 
 
 # Introduction
-The NYC School Survey seeks to collect data to provide an overview of New York City Schools. Beginning in 2005, the survey looks to collect demographic and achievement data for New York City Public Schools, 
+The NYC School Survey seeks to collect data to provide an overview of New York City Schools. Beginning in 2005, the survey looks to collect demographic and achievement data for New York City Public Schools, and provide a standardized rating of various elements of school quality. 
 
-The survey has changed over the years. This change has come from recommendations of public policy analysts in order to more accurately define the quality of schools @redesign-school-survey.
+The survey has changed over the years. This change has come from recommendations of public policy analysts in order to more accurately define the quality of schools *@redesign-school-survey*. The 2020-21 academic year report provides a robust dataset defined at the school level with academic and socioeconomic data provided. 
+
+
 
 **Research Question:** This study aims to determine whether the school ratings within the NYC School Quality Survey accurately reflect educational outcomes, or if other variables related to certain schools can be used as a better proxy.
 
 # Literature Review
+Measuring the input variables that impact educational outcomes is a difficult task. With so many confounding variables, it can be difficult to determine direct causal relationships that have an outsized impact 
 
 
 # Data Sourcing
@@ -86,7 +89,7 @@ df$college_rate <- df$val_persist3_4yr_all
 df$economic_need <- df$eni_hs_pct_912
 ```
 
-We'll create a 20% holdout set of data to perfomr model evaluation on later
+We create a 20% holdout set of data to be used later on in order to evaluate the efficacy of our model's predictive capability. The remaining 80% of the data is to be used for model training and exploratory data analysis (EDA).
 ```{r train-test-split}
 set.seed(42)
 
@@ -102,6 +105,7 @@ The below plot shows the raw relationship between each survey rating (*Collabora
 
 
 ```{r plot-relationships, warning=FALSE}
+
 p1 <- ggplot(df, aes(x=survey_pp_CT, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y="Mean ACT Math Score")
 p2 <- ggplot(df, aes(x=survey_pp_ES, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
 p3 <- ggplot(df, aes(x=survey_pp_RI, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
@@ -208,6 +212,7 @@ plot(proxy_lm)
 
 ## TODO
 - Merge/Join in ACT/SAT information by DBN
+- Model Selection
 
 \newpage
 
@@ -218,4 +223,10 @@ plot(proxy_lm)
 
 
 # Appendices
+
+Below is the code used to generate this report. It's also available on [GitHub here](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main)
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
+
 
