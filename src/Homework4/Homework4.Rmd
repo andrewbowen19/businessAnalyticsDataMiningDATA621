@@ -4,7 +4,6 @@ author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugia
 date: "2023-10-30"
 output:
   pdf_document: default
-  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -21,6 +20,12 @@ library(cowplot)
 library(finalfit)
 library(correlationfunnel)
 library(ggcorrplot)
+library(RColorBrewer)
+library(naniar)
+library(mice)
+library(MASS)
+select <- dplyr::select
+library(kableExtra)
 
 ```
 
@@ -127,9 +132,7 @@ A very small percentage of observations contain missing `AGE` values. The `INCOM
 
 To check whether the predictor variables are correlated with the binary response variable, we produce a correlation funnel that visualizes the strength of the relationships between our predictors and `TARGET_FLAG`. This correlation funnel will not include variables for which there are any missing values. 
 
-**This plot needs to be improved. Data point overlap issues.**
-
-```{r correlation_funnel}
+```{r correlation_funnel, warning = FALSE, message = FALSE}
 exclude <- c("TARGET_AMT", "AGE", "INCOME", "YOJ", "HOME_VAL", "CAR_AGE", "JOB")
 main_df_binarized <- main_df |>
     select(-all_of(exclude)) |>
@@ -142,27 +145,69 @@ main_df_corr |>
 
 ```
 
-To check whether the predictor variables are correlated with the numeric response variable, we produce correlation plots that visualize the strength of the relationships between our predictors and `TARGET_AMT`. First we look at numeric predictors only, and then we look at non-numeric predictors only.
+The predictor variables without missing values that are most correlated with getting into a car crash are `CLM_FREQ`, `URBANICITY`, `MVR_PTS`, `OLDCLAIM`, `PARENT1`, `REVOKED`, and `CAR_USE`. Some of this is unsurprising. Increased claim frequency, increased numbers of traffic tickets, increased past payouts, having your license previously revoked, and using your car commercially all positively correlate with getting into a car crash, as we expected they would. We did not expect `URBANICITY` to be so relevant, but urban areas can often be more difficult to drive through and have more traffic, so that combination could reasonably make urban-dwellers more likely to get into car crashes, as the correlation suggests. We also did not expect `PARENT1` to be so relevant, but the correlation between being a single parent and getting into a car crash is very similar to that of having your license previously revoked and getting into a car crash. 
+
+The predictor variables without missing values that are least correlated with getting into a car crash are `SEX` and `RED_CAR`. Being a woman has a very slight positive correlation with getting into a car crash, and driving a red car has a slightly negative correlation with getting into a car crash. These are contrary to urban legend, and more importantly they probably won't be useful when modeling. 
+
+To check whether the predictor variables are correlated with the numeric response variable, we produce correlation plots that visualize the strength of the relationships between our predictors and `TARGET_AMT` (only when observations involve a car crash, as otherwise we know `TARGET_AMT` = 0). For readability, first we look at numeric predictors only.
 
 ```{r correlation_plot1, fig.show='hold', out.width='90%'}
-exclude <- c("TARGET_FLAG", "JOB", "CAR_TYPE", "CAR_USE", "EDUCATION",
+palette <- brewer.pal(n = 7, name = "RdBu")[c(1, 4, 7)]
+excl <- c("TARGET_FLAG", "JOB", "CAR_TYPE", "CAR_USE", "EDUCATION",
              "MSTATUS", "PARENT1", "RED_CAR", "REVOKED", "SEX", "URBANICITY")
-model.matrix(~0+., data = main_df |> select(-all_of(exclude))) |>
+model.matrix(~0+., data = main_df |> filter(TARGET_FLAG == 1) |>select(-all_of(excl))) |>
     cor(use = "pairwise.complete.obs") |>
-    ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2)
+    ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2.5,
+               tl.cex = 8, tl.srt = 90,
+               colors = palette, outline.color = "white")
 
 ```
 
-**This plot will have to be improved, probably by splitting factors with two levels into one plot and factors with more than two levels into another plot.**
+It's worth noting that `BLUEBOOK` is the single numeric variable most correlated with an increased `TARGET_AMT`, which is sensible. Cars that are currently still more valuable can be more expensive to fix. We expected `CAR_AGE` to be more negatively correlated with `TARGET_AMT`. 
+
+Next we look at two-level factors.
 
 ```{r correlation_plot2, fig.show='hold', out.width='90%'}
-include <- c("TARGET_AMT", "JOB", "CAR_TYPE", "CAR_USE", "EDUCATION",
-             "MSTATUS", "PARENT1", "RED_CAR", "REVOKED", "SEX", "URBANICITY")
-model.matrix(~0+., data = main_df |> select(all_of(include))) |>
+incl <- c("TARGET_AMT", "CAR_USE", "MSTATUS", "PARENT1", "RED_CAR",
+             "REVOKED", "SEX", "URBANICITY")
+model.matrix(~0+., data = main_df |> filter(TARGET_FLAG == 1) |> select(all_of(incl))) |>
     cor(use = "pairwise.complete.obs") |>
-    ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2)
+    ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 3,
+               tl.cex = 8, tl.srt = 90,
+               colors = palette, outline.color = "white")
 
 ```
+
+We see a small positive correlation between using your car commercially and `TARGET_AMT`. But we see an equally large negative correlation between being female and `TARGET_AMT`. The former is more logical than the latter, so neither may be a good predictor of `TARGET_AMT` ultimately.
+
+Finally we look at factors with more than two levels.
+
+```{r correlation_plot3, fig.show='hold', out.width='90%'}
+incl <- c("TARGET_AMT", "JOB", "CAR_TYPE", "EDUCATION")
+model.matrix(~0+., data = main_df |> filter(TARGET_FLAG == 1) |> select(all_of(incl))) |>
+    cor(use = "pairwise.complete.obs") |>
+    ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 1.75,
+               tl.cex = 8, tl.srt = 90,
+               colors = palette, outline.color = "white")
+
+```
+
+The various car types don't have as high of a correlation (either positively or negatively) with `TARGET_AMT` as expected, but we still believe `CAR_TYPE` will be somewhat useful for modeling.
+
+Because we have so many variables, it would be difficult to check for and visualize collinearity for our responses and predictors all at the same time without setting a threshold. So we will set a correlation threshold of 0.45 (in absolute value) and only visualize variables with any correlation values at or above that level.
+
+```{r correlation_plot4}
+r <- model.matrix(~0+., data = main_df) |>
+    cor(use = "pairwise.complete.obs")
+is.na(r) <- abs(r) < 0.45
+r |>
+    ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2.5,
+               tl.cex = 8, tl.srt = 90,
+               colors = palette, outline.color = "white")
+
+```
+
+We see some expected collinearity. `KIDSDRIV` and `HOMEKIDS` are moderately positively correlated because teenagers driving your car depends on you having kids at all, but the number of teens driving your car won't always exactly match the number of kids you have. `HOME_VAL` and `INCOME` are pretty positively correlated, as higher incomes lead to the ability to purchase higher valued homes. Not being married is also moderately negatively correlated with `HOME_VAL`, likely because married people often have two incomes instead of one and can therefore purchase higher valued homes. Having a PhD is equally correlated with being a doctor or lawyer, which makes sense because those jobs require them. Working a blue collar job is logically pretty negatively correlated with driving your car privately since driving your car commercially is itself a blue collar job. Being a woman is very negatively correlated with driving a red car. Lastly of note, claim frequency is moderately correlated with higher past payouts, which adds up.
 
 We have 14 numeric variables and 11 categorical variables (including the dummy variable `TARGET_FLAG`). We list the possible ranges or values for each variable in the breakdown below:
 
@@ -204,9 +249,10 @@ knitr::kable(num_vs_cat, "latex", booktabs = T)|>
 
 ```
 
-The ranges for `TARGET_AMT`, `HOME_VAL`, `INCOME`, `KIDSDRIV`, `HOMEKIDS`, and `OLDCLAIM` all include zero, and recoding these zero values as `NA` will make analyzing summary statistics for these variables more meaningful than if we included zeroes in their calculations.
+The ranges for `TARGET_AMT`, `HOME_VAL`, `INCOME`, `KIDSDRIV`, and `HOMEKIDS` all include zero, and recoding these zero values as `NA` will make analyzing summary statistics for these variables more meaningful than if we included zeroes in their calculations. (We will maintain a separate copy of the data, in which we do not introduce additional `NA` values, for later use when creating the fully imputed dataset that some of our models will rely on for completeness.)
 
 ```{r target_amt_zero_to_na}
+alt_df <- main_df
 main_df <- main_df |>
     mutate(TARGET_AMT = case_when(as.numeric(as.character(TARGET_FLAG)) < 1 ~ NA,
                                TRUE ~ TARGET_AMT),
@@ -217,9 +263,7 @@ main_df <- main_df |>
            KIDSDRIV = case_when(KIDSDRIV < 1 ~ NA,
                               TRUE ~ KIDSDRIV),
            HOMEKIDS = case_when(HOMEKIDS < 1 ~ NA,
-                              TRUE ~ HOMEKIDS),
-           OLDCLAIM = case_when(OLDCLAIM < 1 ~ NA,
-                              TRUE ~ OLDCLAIM))
+                              TRUE ~ HOMEKIDS))
 
 ```
 
@@ -229,10 +273,13 @@ The range for `CAR_AGE` includes -3. Since the variable can only take positive o
 main_df <- main_df |>
     mutate(CAR_AGE = case_when(CAR_AGE < 0 ~ CAR_AGE * -1,
                                TRUE ~ CAR_AGE))
+alt_df <- alt_df |>
+    mutate(CAR_AGE = case_when(CAR_AGE < 0 ~ CAR_AGE * -1,
+                               TRUE ~ CAR_AGE))
 
 ```
 
-Some of the factor levels are named inconsistently, so we will rename them in the next section. We will also set the reference level for each factor to be the level that we assume increases the risk of getting into a car crash the most. That way, no matter what factor we're looking at later when we're modeling, we should expect negative coefficients for all levels other than the reference level. If we assume nothing regarding how the factor affects the risk of getting into a car crash, then the reference level for that factor will simply be the first level alphabetically after any renaming we do.
+Some of the factor levels are named inconsistently, so we will rename and relevel them in the next section. 
 
 Let's take a look at the summary statistics for each variable.
 
@@ -243,11 +290,85 @@ summary(main_df)
 
 The majority of observations live/work in a highly urban or urban area. There are more married than unmarried observations, and there are also more female than male observations. The average observation has a median age of 45 years old, has been in their job for a median of 11 years, and has a median income of roughly \$58,500.00. Most cars in the dataset are driven for private use rather than commercially, and the median car age is 8 years. 
 
-6,008 observations, which is the majority of observations, do not involve car crashes, and we now correctly record 6,008 `NA` observations for `TARGET_AMT`. (Since we introduced `NA` values for `TARGET_AMT` on purpose, we will not impute them in the next section.)
+6,008 observations, which is the majority of observations, do not involve car crashes, and we now correctly record 6,008 `NA` observations for `TARGET_AMT`. (Since we introduced `NA` values for `TARGET_AMT` on purpose, we will not consider imputing them.)
 
-There are 6 `NA` values in `AGE` and 510 in `CAR_AGE` that we can consider Missing at Random (MAR), and we will impute them in the next section.
+There are 6 `NA` values in `AGE`, 510 in `CAR_AGE`, 454 in `YOJ`, 1,060 in `INCOME`, 2,758 in `HOME_VAL`, and 526 in `JOB`. In the next section, we will impute all these missing values in an alternate version of our dataset, as we mentioned earlier, and in the main version of our dataset, we will only impute the variables if we determine their data is at least Missing at Random (MAR), and there's no other evidence we should exclude them from imputation. 
 
-There are 454 `NA` values in `YOJ`, 1,060 in `INCOME`, 2,758 in `HOME_VAL`, and 526 in `JOB` that we cannot necessarily consider MAR. It's reasonable to assume that the missing values in `YOJ`, `HOME_VAL`, `INCOME` and `JOB` might all be related because money, employment, and assets are interconnected. Therefore the missingness of one or more of these variables might be dependent on the missingness of one or more of the others. Let's look at the overlap of observations with missing values for these variables using the `missing_plot` function from the `finalfit` package.
+We check whether there is evidence that the data are Missing Completely at Random (MCAR), a higher standard than MAR, using the `mcar_test` function from the `naniar` package. Meeting this standard is unlikely with real data, but still worth checking.
+
+```{r missing_completely_at_random}
+littles_test <- main_df |>
+    mcar_test()
+knitr::kable(littles_test, format = "simple")
+
+```
+
+The low p-value provides evidence that missing data on these variables are **not** MCAR.
+
+Excluding `AGE` since the number of missing values is so small for that variable, and we plan to impute it anyway, let's check whether missingness in any of the others is associated with any of the other predictors or the response variables using the `missing_compare` function from the `finalfit` package. Due to the large number of variables, we exclude any observed variables that could not account for a variable's missingness in the output by setting a p-value threshold of 0.05. 
+
+```{r missing_compare}
+x <- colnames(main_df)
+dep = c("CAR_AGE")
+exp = x[!x %in% dep]
+missing_comp1 <- main_df |>
+    missing_compare(explanatory = exp, dependent = dep) |>
+    mutate(p = as.numeric(case_when(p == "<0.001" ~ "0.001",
+                                    TRUE ~ p))) |>
+    mutate(Dependant = dep)
+colnames(missing_comp1) <- c("Explanatory", "Ref", "Not Missing", "Missing", "p",
+                             "Dependant")
+dep = c("YOJ")
+exp = x[!x %in% dep]
+missing_comp2 <- main_df |>
+    missing_compare(explanatory = exp, dependent = dep) |>
+    mutate(p = as.numeric(case_when(p == "<0.001" ~ "0.001",
+                                    TRUE ~ p))) |>
+    mutate(Dependant = dep)
+colnames(missing_comp2) <- c("Explanatory", "Ref", "Not Missing", "Missing", "p",
+                             "Dependant")
+dep = c("INCOME")
+exp = x[!x %in% dep]
+missing_comp3 <- main_df |>
+    missing_compare(explanatory = exp, dependent = dep) |>
+    mutate(p = as.numeric(case_when(p == "<0.001" ~ "0.001",
+                                    TRUE ~ p))) |>
+    mutate(Dependant = dep)
+colnames(missing_comp3) <- c("Explanatory", "Ref", "Not Missing", "Missing", "p",
+                             "Dependant")
+dep = c("HOME_VAL")
+exp = x[!x %in% dep]
+missing_comp4 <- main_df |>
+    missing_compare(explanatory = exp, dependent = dep) |>
+    mutate(p = as.numeric(case_when(p == "<0.001" ~ "0.001",
+                                    TRUE ~ p))) |>
+    mutate(Dependant = dep)
+colnames(missing_comp4) <- c("Explanatory", "Ref", "Not Missing", "Missing", "p",
+                             "Dependant")
+dep = c("JOB")
+exp = x[!x %in% dep]
+missing_comp5 <- main_df |>
+    missing_compare(explanatory = exp, dependent = dep) |>
+    mutate(p = as.numeric(case_when(p == "<0.001" ~ "0.001",
+                                    TRUE ~ p))) |>
+    mutate(Dependant = dep)
+colnames(missing_comp5) <- c("Explanatory", "Ref", "Not Missing", "Missing", "p",
+                             "Dependant")
+missing_comp <- missing_comp1 |>
+    bind_rows(missing_comp2, missing_comp3, missing_comp4, missing_comp5) |>
+    mutate(Explanatory = case_when(is.na(p) ~ NA,
+                                   TRUE ~ Explanatory)) |>
+    fill(Explanatory, .direction = "down") |>
+    group_by(Dependant, Explanatory) |>
+    filter(any(p < 0.05)) |>
+    select(Dependant, everything())
+knitr::kable(missing_comp, format = "simple")
+
+```
+
+There is evidence that some of the missingness for `INCOME`, `HOME_VAL`, and `JOB` can be explained by other observed information, so they could be considered Missing at Random (MAR). There is no evidence missing values for `CAR_AGE` or `YOJ` can be explained by other observed information, so we will no longer consider imputing them in the main version of our dataset.
+
+It's reasonable to assume that the missing values in `YOJ`, `HOME_VAL`, `INCOME` and `JOB` might all be related because money, employment, and assets are interconnected. Therefore the missingness of one or more of these variables might be dependent on the missingness of one or more of the others. Let's look at the overlap of observations with missing values for these variables using the `missing_plot` function from the `finalfit` package.
 
 ```{r missing_values_map}
 show <- c("YOJ", "INCOME", "HOME_VAL", "JOB")
@@ -269,11 +390,11 @@ p3 <- main_df |>
 
 ```
 
-Here, we see several patterns of missingness worth noting. 814 observations are missing two out of these four variables, and 49 observations are missing three. Of the observations that are missing `HOME_VAL`, 483 are also missing `INCOME`, 154 are also missing `JOB`, and 109 are also missing `YOJ`. Due to these patterns of related missingness, we choose not to impute these variables. Doing so would introduce bias.
+Here, we see several patterns of missingness worth noting. 814 observations are missing two out of these four variables, and 49 observations are missing three. Of the observations that are missing `HOME_VAL`, 483 are also missing `INCOME`, 154 are also missing `JOB`, and 109 are also missing `YOJ`. Due to these patterns of related missingness, we will no longer consider imputing these variables in the main version of our dataset.
 
 Let's take a look at the distributions of the numeric variables.
 
-```{r fig.show='hold', out.width='90%', fig.align='center'}
+```{r num_hist, fig.show='hold', out.width='90%', fig.align='center'}
 # just numeric variables
 numeric_train <- main_df[,sapply(main_df, is.numeric)]
 par(mfrow=c(4,4))
@@ -285,11 +406,11 @@ for (i in 1:(length(variables))) {
 
 ```
 
-The distributions for `AGE` is approximately normal. The distribution for `YOJ` is left-skewed. The distributions for `TARGET_AMT`, `KIDSDRIV`, `HOMEKIDS`, `INCOME`, `HOME_VAL`, `TRAVTIME`, `BLUEBOOK`, `TIF`, `OLDCLAIM`, `CLM_FREQ`, `MVR_PTS`, and `CAR_AGE` are all right-skewed. 75% of observations for `TARGET_AMT` are at or below \$5,787.00, but the maximum value recorded is \$107,586.14.
+The distribution for `AGE` is approximately normal. The distribution for `YOJ` is left-skewed. The distributions for `TARGET_AMT`, `KIDSDRIV`, `HOMEKIDS`, `INCOME`, `HOME_VAL`, `TRAVTIME`, `BLUEBOOK`, `TIF`, `OLDCLAIM`, `CLM_FREQ`, `MVR_PTS`, and `CAR_AGE` are all right-skewed. 75% of observations for `TARGET_AMT` are at or below \$5,787.00, but the maximum value recorded is \$107,586.14.
 
 Let's also take a look at the distributions of the categorical variables. First, we look at the distributions for categorical variables with only two levels. 
 
-```{r cat_dist, warning = FALSE, message = FALSE, fig.show='hold', out.width='90%', fig.align='center'}
+```{r cat_dist1, warning = FALSE, message = FALSE, fig.show='hold', out.width='90%', fig.align='center'}
 cat_pivot <- main_df |>
     select(all_of(factors)) |>
     pivot_longer(cols = all_of(factors),
@@ -314,7 +435,7 @@ Looking at `PARENT1` and `REVOKED`, we can see that single parents represent rel
 
 Next we look at the distributions for the categorical variables with more than two levels.
 
-```{r fig.show='hold', out.width='90%', fig.align='center'}
+```{r cat_dist2, fig.show='hold', out.width='90%', fig.align='center'}
 p5 <- cat_pivot |>
     filter(Levels > 2) |>
     ggplot(aes(x = Value, y = Count)) +
@@ -329,13 +450,18 @@ The most common profession represented in the observations is blue collar, and t
 
 ### Data Preparation
 
-First, we rename and relevel the inconsistently named and leveled factor variables we noted earlier. A summary of only the factors we changed the levels for is below, with the first level in each list always being the reference level. For variables which have "Yes" or "No", we will replace with a dummy variable 1/0 (1 = Yes, 0 = No). 
+First, we rename and relevel the inconsistently named and leveled factor variables we noted earlier. A summary of only the factors we changed the levels for is below, with the first level in each list always being the reference level. For variables which have "Yes" and "No" values, we will replace these with 1/0 (1 = "Yes", 0 = "No"). 
 
 ```{r rename_relevel_factors}
 # car type
 x <- main_df$CAR_TYPE
 main_df$CAR_TYPE <- case_match(x, "z_SUV" ~ "SUV", .default = x)
 main_df$CAR_TYPE <- factor(main_df$CAR_TYPE,
+                           levels = c("Minivan", "Panel Truck",
+                                      "Pickup", "Sports Car", "SUV", "Van"))
+x <- alt_df$CAR_TYPE
+alt_df$CAR_TYPE <- case_match(x, "z_SUV" ~ "SUV", .default = x)
+alt_df$CAR_TYPE <- factor(alt_df$CAR_TYPE,
                            levels = c("Minivan", "Panel Truck",
                                       "Pickup", "Sports Car", "SUV", "Van"))
 
@@ -345,6 +471,11 @@ main_df$EDUCATION <- case_match(x, "z_High School" ~ "High School", .default = x
 main_df$EDUCATION <- factor(main_df$EDUCATION,
                              levels = c("<High School", "High School",
                                         "Bachelors", "Masters", "PhD"))
+x <- alt_df$EDUCATION
+alt_df$EDUCATION <- case_match(x, "z_High School" ~ "High School", .default = x)
+alt_df$EDUCATION <- factor(alt_df$EDUCATION,
+                             levels = c("<High School", "High School",
+                                        "Bachelors", "Masters", "PhD"))
 
 # job
 x <- main_df$JOB
@@ -352,8 +483,16 @@ main_df$JOB <- case_match(x, "z_Blue Collar" ~ "Blue Collar", .default = x)
 main_df$JOB <- factor(main_df$JOB, levels = c("Blue Collar", "Clerical",
                                               "Doctor", "Home Maker","Lawyer",
                                               "Manager", "Professional", "Student"))
+x <- alt_df$JOB
+alt_df$JOB <- case_match(x, "z_Blue Collar" ~ "Blue Collar", .default = x)
+alt_df$JOB <- factor(alt_df$JOB, levels = c("Blue Collar", "Clerical",
+                                              "Doctor", "Home Maker","Lawyer",
+                                              "Manager", "Professional", "Student"))
+
 # single parent
 main_df <- main_df |>
+  mutate(PARENT1 = as.factor(ifelse(PARENT1 == "Yes", 1, 0)))
+alt_df <- alt_df |>
   mutate(PARENT1 = as.factor(ifelse(PARENT1 == "Yes", 1, 0)))
 
 # marital status
@@ -361,21 +500,34 @@ x <- main_df$MSTATUS
 main_df$MSTATUS <- case_match(x, "z_No" ~ "No", .default = x)
 main_df <- main_df |>
   mutate(MSTATUS = as.factor(ifelse(MSTATUS == "Yes", 1, 0)))
+x <- alt_df$MSTATUS
+alt_df$MSTATUS <- case_match(x, "z_No" ~ "No", .default = x)
+alt_df <- alt_df |>
+  mutate(MSTATUS = as.factor(ifelse(MSTATUS == "Yes", 1, 0)))
 
 # red car
 x <- main_df$RED_CAR
 main_df$RED_CAR <- case_match(x, "no" ~ "No", "yes" ~ "Yes", .default = x)
 main_df <- main_df |>
   mutate(RED_CAR = as.factor(ifelse(RED_CAR == "Yes", 1, 0)))
+x <- alt_df$RED_CAR
+alt_df$RED_CAR <- case_match(x, "no" ~ "No", "yes" ~ "Yes", .default = x)
+alt_df <- alt_df |>
+  mutate(RED_CAR = as.factor(ifelse(RED_CAR == "Yes", 1, 0)))
 
 # revoked
 main_df <- main_df |>
+  mutate(REVOKED = as.factor(ifelse(REVOKED == "Yes", 1, 0)))
+alt_df <- alt_df |>
   mutate(REVOKED = as.factor(ifelse(REVOKED == "Yes", 1, 0)))
 
 # sex 
 x <- main_df$SEX
 main_df$SEX <- case_match(x, "M" ~ "Male", "z_F" ~ "Female", .default = x)
 main_df$SEX <- factor(main_df$SEX, levels = c("Male", "Female"))
+x <- alt_df$SEX
+alt_df$SEX <- case_match(x, "M" ~ "Male", "z_F" ~ "Female", .default = x)
+alt_df$SEX <- factor(alt_df$SEX, levels = c("Male", "Female"))
 
 # urban city - 1 if urban, 0 if rural
 x <- main_df$URBANICITY
@@ -383,18 +535,24 @@ main_df$URBANICITY <- case_match(x, "Highly Urban/ Urban" ~ "Urban",
                                  "z_Highly Rural/ Rural" ~ "Rural", .default = x)
 main_df <- main_df |>
   mutate(URBANICITY = as.factor(ifelse(URBANICITY == "Urban", 1, 0)))
+x <- alt_df$URBANICITY
+alt_df$URBANICITY <- case_match(x, "Highly Urban/ Urban" ~ "Urban",
+                                 "z_Highly Rural/ Rural" ~ "Rural", .default = x)
+alt_df <- alt_df |>
+  mutate(URBANICITY = as.factor(ifelse(URBANICITY == "Urban", 1, 0)))
 
-vars <- c("CAR_TYPE", "EDUCATION", "JOB", "MSTATUS", "RED_CAR", "REVOKED",
-          "SEX", "URBANICITY")
+vars <- c("CAR_TYPE", "EDUCATION", "JOB", "PARENT1", "MSTATUS", "RED_CAR",
+          "REVOKED", "SEX", "URBANICITY")
 
 levs <- c("Minivan, Panel Truck, Pickup, Sports Car, SUV, Van",
           "<High School, High School, Bachelors, Masters, PhD",
           "Blue Collar, Clerical, Doctor, Home Maker, Lawyer, Manager, Professional, Student",
-          "1, 0",
-          "1, 0",
-          "1, 0",
-          "1, 0",
-          "1, 0")
+          "0, 1",
+          "0, 1",
+          "0, 1",
+          "0, 1",
+          "Male, Female",
+          "0, 1")
 
 vars_levs <- as.data.frame(cbind(vars, levs))
 colnames(vars_levs) <- c("Factor", "New Levels")
@@ -410,6 +568,10 @@ main_df <- main_df |>
     mutate(INCOME_THOU = INCOME / 1000,
            HOME_VAL_THOU = HOME_VAL / 1000) |>
     select(-all_of(drop))
+alt_df <- alt_df |>
+    mutate(INCOME_THOU = INCOME / 1000,
+           HOME_VAL_THOU = HOME_VAL / 1000) |>
+    select(-all_of(drop))
     
 ```
 
@@ -419,66 +581,103 @@ Some observations list `Student` as their occupation as well as a value for `YOJ
 main_df <- main_df |>
     mutate(YOJ = case_when(JOB == "Student" ~ NA,
                            TRUE ~ YOJ))
+alt_df <- alt_df |>
+    mutate(YOJ = case_when(JOB == "Student" ~ 0,
+                           TRUE ~ YOJ))
 
 ```
 
-Based on the descriptions of some of the variables and their theoretical effects on the target variables, and to handle the variables that have missing data that we chose not to impute, including those for which we replaced zero or incorrect values with `NA` values, we create several dummy variables that we believe will be helpful when building models:
+Based on the descriptions of some of the variables and their theoretical effects on the target variables, and to handle the variables that have missing data that we chose not to impute, including those for which we replaced zero or incorrect values with `NA` values, we create several factors that we believe will be helpful when building models:
 
-* `HOMEOWNER` (1 = `HOME_VAL_THOU` $ amount not NA)
+* `HOME_VAL_CAT` (Levels based on `HOME_VAL_THOU` = "<=250K", "251-500K", "501-750K", "751K+", "<NA>")
 
-* `NUM_KIDSDRIV` (new variable for `KIDSDRIV`; fill in with 0 if NA)
+* `HOMEOWNER` (1 = `HOME_VAL_THOU` not NA)
 
-* `KIDSDRIV` (1 = `NUM_KIDSDRIV` number of children not 0)
+* `INCOME_CAT` (Levels based on `INCOME` = "<=50K", "51-100K", "101-150K", "151K+", "<NA>")
 
-* `EMPLOYED` (1 = `JOB` neither NA nor Student nor Home Maker or `YOJ` greater than 0/not NA)
+* `INCOME_FLAG` (1 = `INCOME_THOU` not NA)
 
-* `WHITE_COLLAR` (1 = `JOB` not NA nor Student nor Home Maker nor Blue Collar)
+* `KIDSDRIV_FLAG` (1 = `KIDSDRIV` number of children not `NA`)
 
-```{r dummy_vars}
+* `HOMEKIDS_FLAG` (1 = `HOMEKIDS` number of children not `NA`)
+
+* `EMPLOYED` (1 = `JOB` not NA/Student/Home Maker)
+
+* `CAR_AGE_CAT` (Levels based on `CAR_AGE` = "<=4", "5-8", "9-12", "13+", "<NA>")
+
+* `WHITE_COLLAR` (1 = `JOB` not NA/Student/Home Maker/Blue Collar)
+
+```{r new_factors}
+exclude1 <- c("Student", "Homemaker")
+exclude2 <- c(exclude1, "Blue Collar")
 main_df <- main_df |>
-  mutate('EMPLOYED' = as.factor(ifelse(JOB %in% c('Student', 'Home Maker') | is.na(JOB), 0, 1)),
-         'WHITE_COLLAR' = as.factor(ifelse(JOB %in% c('Student', 'Home Maker', 'Blue Collar') | is.na(JOB), 0, 1)),
-         'HOMEOWNER' = as.factor(ifelse(is.na(HOME_VAL_THOU), 0, 1)),
-         'NUM_KIDSDRIV' = ifelse(is.na(KIDSDRIV), 0, KIDSDRIV),
-         'KIDSDRIV' = as.factor(ifelse(NUM_KIDSDRIV != 0, 0, 1)),
-         'INCOME' = as.factor(ifelse(is.na(INCOME_THOU), 0, 1)))
+    mutate(HOME_VAL_CAT = factor(case_when(HOME_VAL_THOU < 251 ~ "<=250K",
+                                        HOME_VAL_THOU < 501 ~ "251-500K",
+                                        HOME_VAL_THOU < 751 ~ "501-750K",
+                                        TRUE ~ "751K+"),
+                              ordered = TRUE,
+                              levels = c("<=250K", "251-500K", "501-750K", "751K+"),
+                              exclude = NULL),
+           HOMEOWNER = as.factor(ifelse(is.na(HOME_VAL_THOU), 0, 1)),
+           INCOME_CAT = factor(case_when(INCOME_THOU < 51 ~ "<=50K",
+                                          INCOME_THOU < 101 ~ "51-100K",
+                                          INCOME_THOU < 151 ~ "101-150K",
+                                          TRUE ~ "151K+"),
+                                ordered = TRUE,
+                                levels = c("<=50K", "51-100K", "101-150K", "151K+"),
+                                exclude = NULL),
+           INCOME_FLAG = as.factor(ifelse(is.na(INCOME_THOU), 0, 1)),
+           KIDSDRIV_FLAG = as.factor(case_when(!is.na(KIDSDRIV) ~ 1,
+                                               TRUE ~ 0)),
+           HOMEKIDS_FLAG = as.factor(case_when(!is.na(HOMEKIDS) ~ 1,
+                                               TRUE ~ 0)),
+           EMPLOYED = as.factor(ifelse(JOB %in% exclude1 | is.na(JOB),
+                                       0, 1)),
+           CAR_AGE_CAT = factor(case_when(CAR_AGE < 5 ~ "<=4",
+                                           CAR_AGE < 9 ~ "5-8",
+                                           CAR_AGE < 13 ~ "9-12",
+                                           TRUE ~ "13+"),
+                                 ordered = TRUE,
+                                 levels = c("<=4", "5-8", "9-12", "13+"),
+                                 exclude = NULL),
+           WHITE_COLLAR = as.factor(ifelse(JOB %in% exclude2 | is.na(JOB),
+                                           0, 1)))
+main_df$JOB <- factor(main_df$JOB, exclude = NULL)
 
 ```
 
-We then split the data into a train and test set. 
+We then split both the main version of our dataset and the alternate version we created earlier into train and test sets. The main version will have all the derived variables we just created, imputed values for the `AGE` variable, and any transformations we make. The alternate version will not include any derived variables or transformations, but it will include imputed values for all variables with missing values. 
 
 ```{r train_test_split}
 set.seed(202)
 rows <- sample(nrow(main_df))
 main_df <- main_df[rows, ]
+alt_df <- alt_df[rows, ]
 sample <- sample(c(TRUE, FALSE), nrow(main_df), replace=TRUE,
                  prob=c(0.7,0.3))
 train_df <- main_df[sample, ]
 test_df <- main_df[!sample, ]
+alt_train_df <- alt_df[sample, ]
+alt_test_df <- alt_df[!sample, ]
 
 ```
 
-We impute missing data in the train and test sets for two numeric variables. For `AGE`, we replace `NA` values with the mean value since it is normally distributed. For `CAR_AGE`, we replace `NA` values with the median value since its distribution is left-skewed. 
+We impute missing data in the main train and test sets for one numeric variable, `AGE`, using the mean value since it is normally distributed.
 
-```{r imputation}
+```{r imputation_main}
 train_df_imputed <- train_df |>
     mutate(AGE = case_when(is.na(AGE) ~ mean(AGE, na.rm = TRUE),
-                           TRUE ~ AGE),
-           CAR_AGE = case_when(is.na(CAR_AGE) ~ median(CAR_AGE, na.rm = TRUE),
-                               TRUE ~ CAR_AGE))
-
+                           TRUE ~ AGE))
 test_df_imputed <- test_df |>
     mutate(AGE = case_when(is.na(AGE) ~ mean(AGE, na.rm = TRUE),
-                           TRUE ~ AGE),
-           CAR_AGE = case_when(is.na(CAR_AGE) ~ median(CAR_AGE, na.rm = TRUE),
-                               TRUE ~ CAR_AGE))
+                           TRUE ~ AGE))
 
 ```
 
-We take a look at the distributions for our imputed variables to see if the distributions of these variables in the train and test sets differ from what we originally observed or between sets. 
+We take a look at the distributions for our imputed variable to see if the distributions of this variable in the train and test sets differ from what we originally observed or between sets. 
 
-```{r imp_dist_check1, }
-missing <- c("AGE", "CAR_AGE")
+```{r imp_main_dist_check}
+missing <- c("AGE")
 imp_train_num <- train_df_imputed |>
     select(all_of(missing)) |>
     mutate(Set = "Train")
@@ -499,37 +698,360 @@ p6
 
 ```
 
-The distributions in the train and test sets for are similar to each other, and neither of them are dissimilar from the distributions of the original data.
+The distributions in the train and test sets for `AGE` are similar to each other and to its original distribution. 
+
+We impute missing data in the alternate train and test sets for all variables with missing values using the `mice` package.
+
+```{r imputation_alt}
+col_classes <- unlist(lapply(alt_train_df, class))
+missing <- c("AGE", "INCOME_THOU", "YOJ", "HOME_VAL_THOU", "CAR_AGE", "JOB")
+x <- names(col_classes)
+not_missing <- x[!x %in% missing]
+#Since the imputation process is a little slow, we only do the imputations once, save the results as .csv files once, and load those .csv files moving forward, making sure the levels of the factors stay the same. 
+if (file.exists("alt_train_df_imputed.csv") & file.exists("alt_test_df_imputed.csv")){
+    alt_train_df_imputed <- read.csv("alt_train_df_imputed.csv", na.strings = "",
+                                 colClasses = col_classes)
+    alt_test_df_imputed <- read.csv("alt_test_df_imputed.csv", na.strings = "",
+                                 colClasses = col_classes)
+}else{
+    #Start with alt_train_df
+    init = mice(alt_train_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    
+    #Skip variables without missing data
+    meth[not_missing] = ""
+    
+    #Set different imputation methods for each of the variables with missing data
+    meth[c("AGE")] = "pmm" #Predictive mean matching
+    meth[c("INCOME_THOU")] = "pmm"
+    meth[c("YOJ")] = "pmm"
+    meth[c("HOME_VAL_THOU")] = "pmm"
+    meth[c("CAR_AGE")] = "pmm"
+    meth[c("JOB")] = "polyreg" #Polytomous (multinomial) logistic regression
+    
+    #Impute
+    imputed = mice(alt_train_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    alt_train_df_imputed <- complete(imputed)
+    write.csv(alt_train_df_imputed, "alt_train_df_imputed.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+    
+    #Repeat for alt_test_df
+    init = mice(alt_test_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    meth[not_missing] = ""
+    meth[c("AGE")] = "pmm"
+    meth[c("INCOME_THOU")] = "pmm"
+    meth[c("YOJ")] = "pmm"
+    meth[c("HOME_VAL_THOU")] = "pmm"
+    meth[c("CAR_AGE")] = "pmm"
+    meth[c("JOB")] = "polyreg"
+    imputed = mice(alt_test_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    alt_test_df_imputed <- complete(imputed)
+    write.csv(alt_test_df_imputed, "alt_test_df_imputed.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+}
+
+#Make sure the levels stay the same
+levels(alt_train_df_imputed$CAR_TYPE) <- levels(main_df$CAR_TYPE)
+levels(alt_train_df_imputed$EDUCATION) <- levels(main_df$EDUCATION)
+levels(alt_train_df_imputed$JOB) <- levels(main_df$JOB)
+levels(alt_train_df_imputed$SEX) <- levels(main_df$SEX)
+levels(alt_test_df_imputed$CAR_TYPE) <- levels(main_df$CAR_TYPE)
+levels(alt_test_df_imputed$EDUCATION) <- levels(main_df$EDUCATION)
+levels(alt_test_df_imputed$JOB) <- levels(main_df$JOB)
+levels(alt_test_df_imputed$SEX) <- levels(main_df$SEX)
+
+```
+
+We confirm there are no longer any missing values in the alternate train or test datasets. 
+
+```{r alt_na_check}
+x <- sapply(alt_train_df_imputed, function(x) sum(is.na(x)))
+y <- sapply(alt_test_df_imputed, function(x) sum(is.na(x)))
+sum(x, y) == 0
+
+```
+
+We take a look at the distributions for the imputed numeric variables to see if their distributions in the alternate train and test sets differ from what we originally observed or between sets. 
+
+```{r imp_alt_dist_check_num, warning = FALSE, message = FALSE}
+missing_num <- c("AGE", "INCOME_THOU", "YOJ", "HOME_VAL_THOU", "CAR_AGE")
+imp_alt_train_num <- alt_train_df_imputed |>
+    select(all_of(missing_num)) |>
+    mutate(Set = "Train")
+imp_alt_test_num <- alt_test_df_imputed |>
+    select(all_of(missing_num)) |>
+    mutate(Set = "Test")
+imp_alt_num <- imp_alt_train_num |>
+    bind_rows(imp_alt_test_num)
+imp_alt_num_pivot <- imp_alt_num |>
+    pivot_longer(!Set, names_to = "Variable", values_to = "Value")
+p7 <- imp_alt_num_pivot |>
+    ggplot(aes(x = Value)) +
+    geom_density(fill = "lightblue", color = "black") +
+    labs(y = "Density") +
+    facet_grid(rows = vars(Set), cols = vars(Variable),
+               switch = "y", scales = "free_x")
+p7
+
+```
+
+The distributions for the imputed numeric variables don't differ between the alternate train and test sets or from what we originally observed.
+
+We also perform the same check for the single categorical variable we imputed in the alternate train and test sets: `JOB`.
+
+```{r imp_alt_dist_check_cat, warning = FALSE, message = FALSE}
+missing_cat <- c("JOB")
+imp_alt_train_cat <- alt_train_df_imputed |>
+    select(all_of(missing_cat)) |>
+    pivot_longer(cols = all_of(missing_cat),
+                 names_to = "Variable",
+                 values_to = "Value") |>
+    group_by(Variable, Value) |>
+    summarize(Count = n()) |>
+    mutate(Set = "Train")
+imp_alt_test_cat <- alt_test_df_imputed |>
+    select(all_of(missing_cat)) |>
+    pivot_longer(cols = all_of(missing_cat),
+                 names_to = "Variable",
+                 values_to = "Value") |>
+    group_by(Variable, Value) |>
+    summarize(Count = n()) |>
+    mutate(Set = "Test")
+imp_alt_pivot_cat <- imp_alt_train_cat |>
+    bind_rows(imp_alt_test_cat)
+p8 <- imp_alt_pivot_cat |>
+    ggplot(aes(x = Value, y = Count)) +
+    geom_col(fill = "lightblue", color = "black") +
+    labs(x = "Job") + 
+    coord_flip() +
+    facet_wrap(vars(Set), ncol = 2)
+p8
+
+```
+
+The distributions in the alternate train and test sets for the single imputed categorical variable, `JOB`, are similar to each other, and the rankings of most frequent to least frequent occupation here are similar to the rankings of the original distribution. We note that the "Professional" and "Manager" occupations are more tied in the rankings here than they were in the original distribution, however. 
+
+Since the distributions of some of our numeric variables are skewed, we transform the data for some of them in the main dataset, but not the alternate dataset. We exclude any numeric variables with missing values that we decided not to impute in the main dataset and for which we have already created factors. We exclude the response variable `TARGET_AMT` as well.
+
+Below is a breakdown of the variables, the ideal labmdas proposed by Box-Cox, and the reasonable alternative transformations we have chosen to make instead:
+
+```{r transformations1}
+skewed <- c("TRAVTIME", "BLUEBOOK", "TIF", "OLDCLAIM", "CLM_FREQ", "MVR_PTS")
+train_df_trans <- train_df_imputed
+for (i in 1:(length(skewed))){
+    #Add a small constant to columns with any 0 values
+    if (sum(train_df_trans[[skewed[i]]] == 0) > 0){
+        train_df_trans[[skewed[i]]] <-
+            train_df_trans[[skewed[i]]] + 0.001
+    }
+}
+for (i in 1:(length(skewed))){
+    if (i == 1){
+        lambdas <- c()
+    }
+    bc <- boxcox(lm(train_df_trans[[skewed[i]]] ~ 1),
+                 lambda = seq(-2, 2, length.out = 81),
+                 plotit = FALSE)
+    lambda <- bc$x[which.max(bc$y)]
+    lambdas <- append(lambdas, lambda)
+}
+lambdas <- as.data.frame(cbind(skewed, lambdas))
+adj <- c("no transformation", "square root", "log", "log", "log", "log")
+lambdas <- cbind(lambdas, adj)
+cols <- c("Skewed Variable", "Ideal Lambda Proposed by Box-Cox", "Reasonable Alternative Transformation")
+colnames(lambdas) <- cols
+knitr::kable(lambdas, format = "simple")
+
+```
+
+```{r transformations2}
+remove <- c("BLUEBOOK", "TIF", "OLDCLAIM", "CLM_FREQ", "MVR_PTS")
+train_df_trans <- train_df_trans |>
+    mutate(BLUEBOOK_SQRT = BLUEBOOK^0.5,
+           TIF_LOG = log(TIF),
+           OLDCLAIM_LOG = log(OLDCLAIM),
+           CLM_FREQ_LOG = log(CLM_FREQ),
+           MVR_PTS_LOG = log(MVR_PTS)) |>
+    select(-all_of(remove))
+test_df_trans <- test_df_imputed
+for (i in 1:(length(skewed))){
+    #Add a small constant to columns with any 0 values
+    if (sum(test_df_trans[[skewed[i]]] == 0) > 0){
+        test_df_trans[[skewed[i]]] <-
+            test_df_trans[[skewed[i]]] + 0.001
+    }
+}
+test_df_trans <- test_df_trans |>
+    mutate(BLUEBOOK_SQRT = BLUEBOOK^0.5,
+           TIF_LOG = log(TIF),
+           OLDCLAIM_LOG = log(OLDCLAIM),
+           CLM_FREQ_LOG = log(CLM_FREQ),
+           MVR_PTS_LOG = log(MVR_PTS)) |>
+    select(-all_of(remove))
+
+```
+
+We check whether the distributions of the transformed variables now differ between the train and test sets.
+
+```{r transformations3}
+transformed <- c("BLUEBOOK_SQRT", "TIF_LOG", "OLDCLAIM_LOG", "CLM_FREQ_LOG",
+                 "MVR_PTS_LOG")
+train_df_trans_set <- train_df_trans |>
+    select(all_of(transformed)) |>
+    mutate(Set = "Train")
+test_df_trans_set <- test_df_trans |>
+    select(all_of(transformed)) |>
+    mutate(Set = "Test")
+trans_sets <- train_df_trans_set |>
+    bind_rows(test_df_trans_set)
+trans_sets_pivot <- trans_sets |>
+    pivot_longer(!Set, names_to = "Variable", values_to = "Value")
+p9 <- trans_sets_pivot |>
+    ggplot(aes(x = Value)) +
+    geom_density(fill = "lightblue", color = "black") +
+    labs(y = "Density") +
+    facet_grid(rows = vars(Set), cols = vars(Variable),
+               switch = "y", scales = "free_x")
+p9
+
+```
+
+They do not.
 
 ### Build Models
 
-#### Linear Models
+#### Binary Logistic Regression Models
 
-**_Full Model_**:
+#### Model BLR:1 - Full Model Using Original, Untransformed Variables, with All Missing Values Imputed
 
-**Model with all variables?**
+We create Model BLR:1, our baseline binary logistic regression model based on all the original, untransformed variables, with all missing values imputed so that no observations or predictors have to be excluded from the model. That way, it can truly be considered the full binary logistic regression model.
 
-**_Select Model_**:
+A summary of Model BLR:1 is below:
 
-Based on the definitions and theories of some of the variables, let's create a linear model using select variables from the dataset. 
+```{r blr_model1a}
+dat <- alt_train_df_imputed |>
+    select(-TARGET_AMT)
+model_blr_1 <- glm(TARGET_FLAG ~ ., family = 'binomial', data = dat)
+summary(model_blr_1)
 
-```{r}
-lm2 <- lm(TARGET_AMT ~ BLUEBOOK + CAR_AGE + CAR_TYPE + INCOME + RED_CAR + URBANICITY + MVR_PTS + REVOKED, data=train_df_imputed)
-lm2 <- step(lm2, trace=0)
-summary(lm2)
+```
+
+The AIC of Model BLR:1 is 5179.5.
+
+#### Model BLR:2 - Select Model Using Original & Derived, but Untransformed Variables, with Only `AGE` Values Imputed
+
+We create Model BLR:2, a second binary logistic regression model based on variables we believe will be the best predictors of `TARGET_FLAG`, including some original variables and some variables we derived from other variables, but no transformed variables. The only value we've imputed for this model is `AGE`.
+
+A summary of Model BLR:2 is below:
+
+```{r blr_model2a}
+model_blr_2 <- glm(TARGET_FLAG ~ AGE + CLM_FREQ + HOMEOWNER + INCOME_FLAG + EMPLOYED + WHITE_COLLAR + MSTATUS + PARENT1 + RED_CAR + REVOKED + SEX + TRAVTIME,
+                   data=train_df_imputed, family='binomial')
+model_blr_2 <- step(model_blr_2, trace=0)
+summary(model_blr_2)
 
 ```
 
-#### Logistic Models
+The AIC of Model BLR:2 is 6017.
 
-**_Select Model_**:
+#### Model BLR:3 - Select Model Using Original, Derived, & Transformed Variables, with Only `AGE` Values Imputed
 
-```{r}
-glm2 <- glm(TARGET_FLAG ~ AGE + CLM_FREQ + HOMEOWNER + INCOME + EMPLOYED + WHITE_COLLAR + MSTATUS + PARENT1 + RED_CAR + REVOKED + SEX + TRAVTIME, data=train_df_imputed, family='binomial')
-glm2 <- step(glm2, trace=0)
-summary(glm2)
+We create Model BLR:3, a third binary logistic regression model based on variables we believe will be the best predictors of `TARGET_FLAG`, including some original variables, some variables we derived from other variables, and some variables we transformed. The only value we've imputed for this model is `AGE`.
+
+```{r blr_model3a}
+choices <- c("AGE", "CLM_FREQ_LOG", "URBANICITY", "MVR_PTS_LOG", "OLDCLAIM_LOG", "PARENT1", "REVOKED", "CAR_USE", "CAR_TYPE", "MSTATUS", "EDUCATION", "KIDSDRIV_FLAG", "INCOME_CAT", "EMPLOYED")
+print(choices)
 
 ```
+
+In choosing some of these variables, we excluded others for which collinearity might be an issue. That is, our factor describing income was chosen over the home value factor, the kids driving factor was chosen over the kids at home factor, and the education factor was chosen over the job factor. 
+
+A summary of Model BLR:3 is below:
+
+```{r blr_model3b}
+sel <- c("TARGET_FLAG", choices)
+dat <- train_df_trans |>
+    select(all_of(sel))
+model_blr_3 <- glm(TARGET_FLAG ~ ., family = 'binomial', data = dat)
+summary(model_blr_3)
+
+```
+
+We remove the only statistically insignificant variable, `EMPLOYED`, and print a new summary.
+
+```{r blr_model3c}
+model_blr_3 <- update(model_blr_3, ~ . - EMPLOYED)
+summary(model_blr_3)
+
+```
+
+The AIC of Model BLR:3 is 5386.5.
+
+#### Multiple Linear Regression Models
+
+#### Model MLR:1 - Full Model Using Original, Untransformed Variables, with All Missing Values Imputed
+
+We create Model MLR:1, our baseline multiple linear regression model based on all the original, untransformed variables, with all missing values imputed so that no observations or predictors have to be excluded from the model. That way, it can truly be considered the full multiple linear regression model.
+
+A summary of Model MLR:1 is below:
+
+```{r mlr_model1a}
+dat <- alt_train_df_imputed |>
+    select(-TARGET_FLAG)
+model_mlr_1 <- lm(TARGET_AMT ~ ., data = dat)
+summary(model_mlr_1)
+
+```
+
+#### Model MLR:2 - Select Model Using Original & Derived, but Untransformed Variables, with Only `AGE` Values Imputed
+
+We create Model MLR:2, a second multiple linear regression model based on variables we believe will be the best predictors of `TARGET_AMT` due to their definitions and theories regarding their impact, including some original variables, some variables we derived from other variables, but no transformed or imputed variables.
+
+A summary of Model MLR:2 is below:
+
+```{r mlr_model2a}
+model_mlr_2 <- lm(TARGET_AMT ~ BLUEBOOK + CAR_AGE_CAT + CAR_TYPE + INCOME_FLAG + RED_CAR + URBANICITY + MVR_PTS + REVOKED, data=train_df_imputed)
+model_mlr_2 <- step(model_mlr_2, trace=0)
+summary(model_mlr_2)
+
+```
+
+#### Model MLR:3 - Select Model Using Original, Derived, & Transformed Variables, with No Imputed Variables
+
+We create Model MLR:3, a third multiple linear regression model based on variables we believe will be the best predictors of `TARGET_AMT`, including some original variables, some variables we derived from other variables, some variables we transformed, and some variables we imputed.
+
+```{r mlr_model3a}
+choices <- c("BLUEBOOK_SQRT", "CAR_AGE_CAT", "CAR_TYPE", "CAR_USE", "OLDCLAIM_LOG")
+print(choices) 
+
+```
+
+A summary of Model MLR:3 is below:
+
+```{r mlr_model3b}
+sel <- c("TARGET_AMT", choices)
+dat <- train_df_trans |>
+    filter(!is.na(TARGET_AMT)) |>
+    select(all_of(sel))
+model_mlr_3 <- lm(TARGET_AMT ~ ., data = dat)
+summary(model_mlr_3)
+
+```
+
+`BLUEBOOK_SQRT` might be the only significant predictor of `TARGET_AMT`. We perform stepwise backward selection to confirm and reduce the model. 
+
+```{r mlr_model3c}
+model_mlr_3 <- step(model_mlr_3, direction="backward", trace = 0)
+summary(model_mlr_3)
+
+```
+
+`CAR_USE` is close to what we generally consider significant to the model, so we will leave it in. Still, this model explains very little of the variation in `TARGET_AMT`. 
 
 ### Select Models
 
