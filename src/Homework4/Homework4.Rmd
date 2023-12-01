@@ -26,6 +26,9 @@ library(mice)
 library(MASS)
 select <- dplyr::select
 library(kableExtra)
+library(car)
+library(glmtoolbox)
+library(pROC)
 
 ```
 
@@ -249,7 +252,7 @@ knitr::kable(num_vs_cat, "latex", booktabs = T)|>
 
 ```
 
-The ranges for `TARGET_AMT`, `HOME_VAL`, `INCOME`, `KIDSDRIV`, and `HOMEKIDS` all include zero, and recoding these zero values as `NA` will make analyzing summary statistics for these variables more meaningful than if we included zeroes in their calculations. (We will maintain a separate copy of the data, in which we do not introduce additional `NA` values, for later use when creating the fully imputed dataset that some of our models will rely on for completeness.)
+The ranges for `TARGET_AMT`, `HOME_VAL`, and `INCOME` all include zero, and recoding these zero values as `NA` will make analyzing summary statistics for these variables more meaningful than if we included zeroes in their calculations. (We will maintain a separate copy of the data, in which we do not introduce additional `NA` values, for later use when creating the fully imputed dataset that some of our models will rely on for completeness.)
 
 ```{r target_amt_zero_to_na}
 alt_df <- main_df
@@ -259,11 +262,7 @@ main_df <- main_df |>
            HOME_VAL = case_when(HOME_VAL < 1 ~ NA,
                                TRUE ~ HOME_VAL),
            INCOME = case_when(INCOME < 1 ~ NA,
-                              TRUE ~ INCOME),
-           KIDSDRIV = case_when(KIDSDRIV < 1 ~ NA,
-                              TRUE ~ KIDSDRIV),
-           HOMEKIDS = case_when(HOMEKIDS < 1 ~ NA,
-                              TRUE ~ HOMEKIDS))
+                              TRUE ~ INCOME))
 
 ```
 
@@ -597,9 +596,9 @@ Based on the descriptions of some of the variables and their theoretical effects
 
 * `INCOME_FLAG` (1 = `INCOME_THOU` not NA)
 
-* `KIDSDRIV_FLAG` (1 = `KIDSDRIV` number of children not `NA`)
+* `KIDSDRIV_FLAG` (1 = `KIDSDRIV` number of children > 0)
 
-* `HOMEKIDS_FLAG` (1 = `HOMEKIDS` number of children not `NA`)
+* `HOMEKIDS_FLAG` (1 = `HOMEKIDS` number of children > 0)
 
 * `EMPLOYED` (1 = `JOB` not NA/Student/Home Maker)
 
@@ -627,9 +626,9 @@ main_df <- main_df |>
                                 levels = c("<=50K", "51-100K", "101-150K", "151K+"),
                                 exclude = NULL),
            INCOME_FLAG = as.factor(ifelse(is.na(INCOME_THOU), 0, 1)),
-           KIDSDRIV_FLAG = as.factor(case_when(!is.na(KIDSDRIV) ~ 1,
+           KIDSDRIV_FLAG = as.factor(case_when(KIDSDRIV > 0 ~ 1,
                                                TRUE ~ 0)),
-           HOMEKIDS_FLAG = as.factor(case_when(!is.na(HOMEKIDS) ~ 1,
+           HOMEKIDS_FLAG = as.factor(case_when(HOMEKIDS > 0 ~ 1,
                                                TRUE ~ 0)),
            EMPLOYED = as.factor(ifelse(JOB %in% exclude1 | is.na(JOB),
                                        0, 1)),
@@ -836,9 +835,9 @@ p8
 
 The distributions in the alternate train and test sets for the single imputed categorical variable, `JOB`, are similar to each other, and the rankings of most frequent to least frequent occupation here are similar to the rankings of the original distribution. We note that the "Professional" and "Manager" occupations are more tied in the rankings here than they were in the original distribution, however. 
 
-Since the distributions of some of our numeric variables are skewed, we transform the data for some of them in the main dataset, but not the alternate dataset. We exclude any numeric variables with missing values that we decided not to impute in the main dataset and for which we have already created factors. We exclude the response variable `TARGET_AMT` as well.
+Since the distributions of some of our numeric variables are skewed, we transform the data for some of them. In the main dataset, we exclude any numeric variables with missing values that we decided not to impute and for which we have already created factors, as well as the response variable `TARGET_AMT`. We also use the alternate dataset, which as a reminder has no missing values, as the basis for a third version of the data, in which every skewed numeric predictor and the response variable `TARGET_AMT` have all been transformed. 
 
-Below is a breakdown of the variables, the ideal labmdas proposed by Box-Cox, and the reasonable alternative transformations we have chosen to make instead:
+Below is a breakdown of the variables, the ideal labmdas proposed by Box-Cox, and the reasonable alternative transformations we have chosen to make in the main dataset:
 
 ```{r transformations1}
 skewed <- c("TRAVTIME", "BLUEBOOK", "TIF", "OLDCLAIM", "CLM_FREQ", "MVR_PTS")
@@ -923,48 +922,191 @@ p9
 
 They do not.
 
+Below is a breakdown of the variables, the ideal labmdas proposed by Box-Cox, and the reasonable alternative transformations we have chosen to make in the third version of the data.
+
+```{r transformations4}
+skewed <- c("TARGET_AMT", "YOJ", "TRAVTIME", "KIDSDRIV", "HOMEKIDS", "BLUEBOOK",
+            "TIF", "OLDCLAIM", "CLM_FREQ", "MVR_PTS", "INCOME_THOU",
+            "HOME_VAL_THOU", "CAR_AGE")
+alt_train_df_trans <- alt_train_df_imputed
+for (i in 1:(length(skewed))){
+    #Add a small constant to columns with any 0 values
+    if (sum(alt_train_df_trans[[skewed[i]]] == 0) > 0){
+        alt_train_df_trans[[skewed[i]]] <-
+            alt_train_df_trans[[skewed[i]]] + 0.001
+    }
+}
+for (i in 1:(length(skewed))){
+    if (i == 1){
+        lambdas <- c()
+    }
+    bc <- boxcox(lm(alt_train_df_trans[[skewed[i]]] ~ 1),
+                 lambda = seq(-2, 2, length.out = 81),
+                 plotit = FALSE)
+    lambda <- bc$x[which.max(bc$y)]
+    lambdas <- append(lambdas, lambda)
+}
+lambdas <- as.data.frame(cbind(skewed, lambdas))
+adj <- c("log", "no transformation", "no transformation", "inverse", "log",
+         "square root", "log", "log", "log", "log", "square root", "log",
+         "square root")
+lambdas <- cbind(lambdas, adj)
+cols <- c("Skewed Variable", "Ideal Lambda Proposed by Box-Cox", "Reasonable Alternative Transformation")
+colnames(lambdas) <- cols
+knitr::kable(lambdas, format = "simple")
+
+```
+
+```{r transformations5}
+remove <- c("TARGET_AMT", "KIDSDRIV", "HOMEKIDS", "BLUEBOOK",
+            "TIF", "OLDCLAIM", "CLM_FREQ", "MVR_PTS", "INCOME_THOU",
+            "HOME_VAL_THOU", "CAR_AGE")
+alt_train_df_trans <- alt_train_df_trans |>
+    mutate(TARGET_AMT_LOG = log(TARGET_AMT),
+           KIDSDRIV_INV = KIDSDRIV^-1,
+           HOMEKIDS_LOG = log(HOMEKIDS),
+           BLUEBOOK_SQRT = BLUEBOOK^0.5,
+           TIF_LOG = log(TIF),
+           OLDCLAIM_LOG = log(OLDCLAIM),
+           CLM_FREQ_LOG = log(CLM_FREQ),
+           MVR_PTS_LOG = log(MVR_PTS),
+           INCOME_THOU_SQRT = INCOME_THOU^0.5,
+           HOME_VAL_THOU_LOG = log(HOME_VAL_THOU),
+           CAR_AGE_SQRT = CAR_AGE^0.5) |>
+    select(-all_of(remove))
+alt_test_df_trans <- alt_test_df_imputed
+for (i in 1:(length(skewed))){
+    #Add a small constant to columns with any 0 values
+    if (sum(alt_test_df_trans[[skewed[i]]] == 0) > 0){
+        alt_test_df_trans[[skewed[i]]] <-
+            alt_test_df_trans[[skewed[i]]] + 0.001
+    }
+}
+alt_test_df_trans <- alt_test_df_trans |>
+    mutate(TARGET_AMT_LOG = log(TARGET_AMT),
+           KIDSDRIV_INV = KIDSDRIV^-1,
+           HOMEKIDS_LOG = log(HOMEKIDS),
+           BLUEBOOK_SQRT = BLUEBOOK^0.5,
+           TIF_LOG = log(TIF),
+           OLDCLAIM_LOG = log(OLDCLAIM),
+           CLM_FREQ_LOG = log(CLM_FREQ),
+           MVR_PTS_LOG = log(MVR_PTS),
+           INCOME_THOU_SQRT = INCOME_THOU^0.5,
+           HOME_VAL_THOU_LOG = log(HOME_VAL_THOU),
+           CAR_AGE_SQRT = CAR_AGE^0.5) |>
+    select(-all_of(remove))
+
+```
+
 ### Build Models
 
 #### Binary Logistic Regression Models
 
-#### Model BLR:1 - Full Model Using Original, Untransformed Variables, with All Missing Values Imputed
+#### Model BLR:1 - Full Model Using Original, Untransformed Variables, with All Missing Values Imputed - Reduced via Stepwise AIC Model Selection
 
-We create Model BLR:1, our baseline binary logistic regression model based on all the original, untransformed variables, with all missing values imputed so that no observations or predictors have to be excluded from the model. That way, it can truly be considered the full binary logistic regression model.
+We create Model BLR:1, our baseline binary logistic regression model based on all the original, untransformed variables, with all missing values imputed so that no observations or predictors have to be excluded from the model. Then we perform stepwise model selection to select the model with the smallest AIC value using the `stepAIC()` function from the `MASS` package. 
 
 A summary of Model BLR:1 is below:
 
 ```{r blr_model1a}
-dat <- alt_train_df_imputed |>
-    select(-TARGET_AMT)
-model_blr_1 <- glm(TARGET_FLAG ~ ., family = 'binomial', data = dat)
+model_blr_1 <- glm(TARGET_FLAG ~ . - TARGET_AMT, family = 'binomial',
+                   data = alt_train_df_imputed)
+model_blr_1 <- stepAIC(model_blr_1, trace = 0)
 summary(model_blr_1)
 
 ```
 
-The AIC of Model BLR:1 is 5179.5.
+The AIC of Model BLR:1 is 5173.1. 
 
-#### Model BLR:2 - Select Model Using Original & Derived, but Untransformed Variables, with Only `AGE` Values Imputed
+```{r coefs_blr_model1}
+beta <- coef(model_blr_1)
+beta_exp <- as.data.frame(exp(beta)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta_exp) <- cols
+beta_exp <- beta_exp |>
+    filter(Feature != "(Intercept)")
+beta_exp <- beta_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds of Car Crash")
+colnames(beta_exp) <- cols
+knitr::kable(beta_exp, format = "simple")
 
-We create Model BLR:2, a second binary logistic regression model based on variables we believe will be the best predictors of `TARGET_FLAG`, including some original variables and some variables we derived from other variables, but no transformed variables. The only value we've imputed for this model is `AGE`.
+```
+
+The coefficients for Model BLR:1 mostly match expectations. Using your car privately is one of the biggest reducers of the odds of a car crash. While we expected more educated people to drive more safely, having a high school education is the level that reduces the odds of a car crash the most. All non-blue collar jobs reduce the odds of a car crash, with doctor and manager seeing the largest reductions. The biggest increaser of the odds of a car crash is living/working in an urban area. Some other notable increasers are driving anything other than a minivan, especially a sports car; having had your license revoked; and having teenagers driving your car. 
+
+We check for possible multicollinearity within this model. 
+
+```{r multicol_blr_model1}
+vif(model_blr_1)
+
+```
+
+`EDUCATION` and `JOB` have variance inflation factors greater than five. We remove the `EDUCATION` factor here since it is the less influential of the two in this model. We don't reprint a summary, but the new AIC is 5174.7, and none of the variables have variance inflation factors greater than five any longer.
+
+```{r }
+model_blr_1 <- update(model_blr_1, ~ . - EDUCATION)
+
+```
+
+#### Model BLR:2 - Select Model Using Original & Derived, but Untransformed Variables, with Only `AGE` Values Imputed - Reduced via Stepwise AIC Model Selection
+
+We create Model BLR:2, a second binary logistic regression model based on one combination of variables we believe could be the best predictors of `TARGET_FLAG`, including some original variables and some variables we derived from other variables, but no transformed variables. The only value we've imputed for this model is `AGE`.
 
 A summary of Model BLR:2 is below:
 
 ```{r blr_model2a}
 model_blr_2 <- glm(TARGET_FLAG ~ AGE + CLM_FREQ + HOMEOWNER + INCOME_FLAG + EMPLOYED + WHITE_COLLAR + MSTATUS + PARENT1 + RED_CAR + REVOKED + SEX + TRAVTIME,
                    data=train_df_imputed, family='binomial')
-model_blr_2 <- step(model_blr_2, trace=0)
+model_blr_2 <- stepAIC(model_blr_2, trace=0)
 summary(model_blr_2)
 
 ```
 
 The AIC of Model BLR:2 is 6017.
 
-#### Model BLR:3 - Select Model Using Original, Derived, & Transformed Variables, with Only `AGE` Values Imputed
+```{r coefs_blr_model2}
+beta <- coef(model_blr_2)
+beta_exp <- as.data.frame(exp(beta)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta_exp) <- cols
+beta_exp <- beta_exp |>
+    filter(Feature != "(Intercept)")
+beta_exp <- beta_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds of Car Crash")
+colnames(beta_exp) <- cols
+knitr::kable(beta_exp, format = "simple")
 
-We create Model BLR:3, a third binary logistic regression model based on variables we believe will be the best predictors of `TARGET_FLAG`, including some original variables, some variables we derived from other variables, and some variables we transformed. The only value we've imputed for this model is `AGE`.
+```
+
+In Model BLR:2, the largest reducer of the odds of being in a car crash is working a white collar job, and the largest odds increaser is having your license revoked. Being employed at all, i.e. having any job other than student or homemaker, strangely increases the odds. Since we understand the effects of the `WHITE_COLLAR` factor better than we understand the effects of the `EMPLOYED` factor, and they both describe the same information, we favor the `WHITE_COLLAR` factor here and remove the `EMPLOYED` factor. We don't reprint a summary, but the new AIC is 6034.6. We've mentioned before that we don't understand being a single parent's correlation with increased car crash odds, but it is worth noting it's the second largest increaser of odds in this subset of predictors. Lastly, being a woman also slightly increases the odds of a car crash despite our prior expectations. 
+
+
+```{r }
+model_blr_2 <- update(model_blr_2, ~ . - EMPLOYED)
+
+```
+
+We check for possible multicollinearity within this model. 
+
+```{r multicol_blr_model2}
+vif(model_blr_2)
+
+```
+
+All of the variance inflation factors are less than five, so there are no issues of multicollinearity within this model.
+
+#### Model BLR:3 - Select Model Using Original, Derived, & Transformed Variables, with Only `AGE` Values Imputed - Reduced via Stepwise AIC Model Selection
+
+We create Model BLR:3, a third binary logistic regression model based on another combination of variables we believe could be the best predictors of `TARGET_FLAG`, including some original variables, some variables we derived from other variables, and some variables we transformed. The only value we've imputed for this model is `AGE`.
 
 ```{r blr_model3a}
-choices <- c("AGE", "CLM_FREQ_LOG", "URBANICITY", "MVR_PTS_LOG", "OLDCLAIM_LOG", "PARENT1", "REVOKED", "CAR_USE", "CAR_TYPE", "MSTATUS", "EDUCATION", "KIDSDRIV_FLAG", "INCOME_CAT", "EMPLOYED")
+choices <- c("AGE", "CLM_FREQ_LOG", "URBANICITY", "MVR_PTS_LOG", "OLDCLAIM_LOG", "PARENT1", "REVOKED", "CAR_USE", "CAR_TYPE", "MSTATUS", "EDUCATION", "KIDSDRIV_FLAG", "INCOME_CAT", "EMPLOYED", "HOMEOWNER", "WHITE_COLLAR")
 print(choices)
 
 ```
@@ -974,41 +1116,72 @@ In choosing some of these variables, we excluded others for which collinearity m
 A summary of Model BLR:3 is below:
 
 ```{r blr_model3b}
-sel <- c("TARGET_FLAG", choices)
-dat <- train_df_trans |>
-    select(all_of(sel))
-model_blr_3 <- glm(TARGET_FLAG ~ ., family = 'binomial', data = dat)
+model_blr_3 <- glm(TARGET_FLAG ~ AGE + CLM_FREQ_LOG + URBANICITY + MVR_PTS_LOG +  OLDCLAIM_LOG + PARENT1 + REVOKED + CAR_USE + CAR_TYPE + MSTATUS + EDUCATION + KIDSDRIV_FLAG + INCOME_CAT + EMPLOYED + HOMEOWNER + WHITE_COLLAR,
+                   family = 'binomial', data = train_df_trans)
 summary(model_blr_3)
 
 ```
 
-We remove the only statistically insignificant variable, `EMPLOYED`, and print a new summary.
+We remove the least statistically significant variable, `WHITE_COLLAR`, check the new summary, remove the only remaining statistically insignificant variable, `EMPLOYED`, and reprint only the final summary. We're slightly surprised these variables were significant to the previous model, but not this one. However, that could be because the `INCOME_CAT` factor supersedes both in this model.
 
 ```{r blr_model3c}
+model_blr_3 <- update(model_blr_3, ~ . - WHITE_COLLAR)
 model_blr_3 <- update(model_blr_3, ~ . - EMPLOYED)
 summary(model_blr_3)
 
 ```
 
-The AIC of Model BLR:3 is 5386.5.
+The AIC of Model BLR:3 is 5380.9.
+
+```{r coefs_blr_model3}
+beta <- coef(model_blr_3)
+beta_exp <- as.data.frame(exp(beta)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta_exp) <- cols
+beta_exp <- beta_exp |>
+    filter(Feature != "(Intercept)")
+beta_exp <- beta_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds of Car Crash")
+colnames(beta_exp) <- cols
+knitr::kable(beta_exp, format = "simple")
+
+```
+
+Interestingly, in Model BLR:3, education levels do reduce the odds of a car crash in the order expected. That is, having a PhD decreases the odds more than a Master's, having a Master's decreases the odds more than a Bachelor's, and having a Bachelor's decreases the odds more than having a High School Diploma. Otherwise, coefficients follow similar patterns to what we discussed with the first model. Private car use is one of the biggest car crash odds reducers; the biggest increaser of the odds of a car crash is living/working in an urban area; and driving anything other than a minivan, having had your license revoked, and having teenagers driving your car all big odds increasers as well. The `INCOME_CAT` factor has the opposite effect we were expecting. Perhaps the reason higher income categories are associated with higher car crash odds is incomes are usually higher in urban areas, and urban areas are very associated with higher car crash odds.
+
+We check for possible multicollinearity within this model. 
+
+```{r multicol_blr_model3}
+vif(model_blr_3)
+
+```
+
+`OLDCLAIM_LOG` and `CLM_FREQ_LOG` have variance inflation factors greater than five. Since we believe claim frequency has more to do with `TARGET_FLAG`, and past claim amounts have more to do with `TARGET_AMT`, we choose to remove `OLDCLAIM_LOG` from this model. We don't reprint a summary, but the new AIC is 5385.1, and none of the variables have variance inflation factors greater than five any longer.
+
+```{r }
+model_blr_3 <- update(model_blr_3, ~ . - OLDCLAIM_LOG)
+
+```
 
 #### Multiple Linear Regression Models
 
-#### Model MLR:1 - Full Model Using Original, Untransformed Variables, with All Missing Values Imputed
+#### Model MLR:1 - Full Model Using Original, Untransformed Variables, with All Missing Values Imputed - Reduced via Stepwise Model Selection
 
-We create Model MLR:1, our baseline multiple linear regression model based on all the original, untransformed variables, with all missing values imputed so that no observations or predictors have to be excluded from the model. That way, it can truly be considered the full multiple linear regression model.
+We create Model MLR:1, our baseline multiple linear regression model based on all the original, untransformed variables, with all missing values imputed so that no observations or predictors have to be excluded from the model. Then we perform stepwise model selection.
 
 A summary of Model MLR:1 is below:
 
 ```{r mlr_model1a}
-dat <- alt_train_df_imputed |>
-    select(-TARGET_FLAG)
-model_mlr_1 <- lm(TARGET_AMT ~ ., data = dat)
+model_mlr_1 <- lm(TARGET_AMT ~ . - TARGET_FLAG, data = alt_train_df_imputed)
+model_mlr_1 <- step(model_mlr_1, trace=0)
 summary(model_mlr_1)
 
 ```
 
-#### Model MLR:2 - Select Model Using Original & Derived, but Untransformed Variables, with Only `AGE` Values Imputed
+#### Model MLR:2 - Select Model Using Original & Derived, but Untransformed Variables, with Only `AGE` Values Imputed - Reduced via Stepwise Model Selection
 
 We create Model MLR:2, a second multiple linear regression model based on variables we believe will be the best predictors of `TARGET_AMT` due to their definitions and theories regarding their impact, including some original variables, some variables we derived from other variables, but no transformed or imputed variables.
 
@@ -1021,12 +1194,13 @@ summary(model_mlr_2)
 
 ```
 
-#### Model MLR:3 - Select Model Using Original, Derived, & Transformed Variables, with No Imputed Variables
+#### Model MLR:3 - Select Model Using Original, Derived, & Transformed Variables, with No Imputed Variables - Reduced via Backward Selection
 
 We create Model MLR:3, a third multiple linear regression model based on variables we believe will be the best predictors of `TARGET_AMT`, including some original variables, some variables we derived from other variables, some variables we transformed, and some variables we imputed.
 
 ```{r mlr_model3a}
-choices <- c("BLUEBOOK_SQRT", "CAR_AGE_CAT", "CAR_TYPE", "CAR_USE", "OLDCLAIM_LOG")
+choices <- c("BLUEBOOK_SQRT", "CAR_AGE_CAT", "CAR_TYPE", "CAR_USE", "OLDCLAIM_LOG",
+             "URBANICITY", "KIDSDRIV_FLAG")
 print(choices) 
 
 ```
@@ -1034,11 +1208,8 @@ print(choices)
 A summary of Model MLR:3 is below:
 
 ```{r mlr_model3b}
-sel <- c("TARGET_AMT", choices)
-dat <- train_df_trans |>
-    filter(!is.na(TARGET_AMT)) |>
-    select(all_of(sel))
-model_mlr_3 <- lm(TARGET_AMT ~ ., data = dat)
+model_mlr_3 <- lm(TARGET_AMT ~ BLUEBOOK_SQRT + CAR_AGE_CAT + CAR_TYPE + CAR_USE + OLDCLAIM_LOG + URBANICITY + KIDSDRIV_FLAG,
+                  data = train_df_trans)
 summary(model_mlr_3)
 
 ```
@@ -1053,9 +1224,122 @@ summary(model_mlr_3)
 
 `CAR_USE` is close to what we generally consider significant to the model, so we will leave it in. Still, this model explains very little of the variation in `TARGET_AMT`. 
 
+#### Model MLR:4 - Full Model Using Original and Transformed Variables, with All Missing Values Imputed - Reduced via Stepwise Model Selection
+
+We create Model MLR:4, a fourth multiple linear regression model using original and transformed variables (including the response variable), with all missing values imputed so that no observations or predictors have to be excluded from the model. Then we perform stepwise model selection.
+
+A summary of Model MLR:4 is below:
+
+```{r mlr_model4a}
+model_mlr_4 <- lm(TARGET_AMT_LOG ~ . - TARGET_FLAG, data = alt_train_df_trans)
+model_mlr_4 <- step(model_mlr_4, trace=0)
+summary(model_mlr_4)
+
+```
+
 ### Select Models
 
+#### Binary Logistic Regression Models
 
+To check for goodness of fit, we create marginal model plots for the response and each predictor in each binary logistic regression model. (Note that the `mmps` function from the `car` package used to generate these plots skips any factors and interaction terms within the models intentionally.)
+
+```{r marginal_model_plots, warning = FALSE, message = FALSE}
+palette <- brewer.pal(n = 12, name = "Paired")
+mmps(model_blr_1, layout = c(3, 4), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model BLR:1")
+
+```
+
+The marginal models plots for Model BLR:1 reveal some small fit issues, mostly with `TRAVTIME`.
+
+```{r warning = FALSE, message = FALSE}
+mmps(model_blr_2, layout = c(2, 2), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model BLR:2")
+
+```
+
+The marginal models plots for Model BLR:2 reveal more fit issues than Model BLR:1 had, but Model BLR:2 relies on fewer numeric variables than Model BLR:1, and remember these plots can't visualize factors.
+
+```{r warning = FALSE, message = FALSE}
+mmps(model_blr_3, layout = c(2, 2), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model BLR:3")
+
+```
+
+The marginal models plots for Model BLR:3 reveals one fit issue for `AGE`. Again, this model relies on a lot of factors, which the marginal models plots can't visualize.
+
+We calculate the Hosmer-Lemeshow statistic for each model to further check for lack of fit.
+
+```{r hlstats, echo=F}
+hlstat1 <- hltest(model_blr_1, verbose = FALSE)
+hlstat2 <- hltest(model_blr_2, verbose = FALSE)
+hlstat3 <- hltest(model_blr_3, verbose = FALSE)
+models <- c("Model BLR:1",
+            "Model BLR:2",
+            "Model BLR:3")
+hl_tbl <- as.data.frame(cbind(models, rbind(hlstat1[2:4], hlstat2[2:4],
+                                            hlstat3[2:4])))
+cols <- c("Model", "HL Statistic", "DoF", "P Value")
+colnames(hl_tbl) <- cols
+knitr::kable(hl_tbl, format = "simple")
+
+```
+
+The low p-values for Models BLR:1 and BLR:3 suggest some lack of fit there. The moderate p-value for Model BLR:2 suggests no lack of fit there. This is not what we expected based on the incomplete pictures provided by looking at just the marginal models plots. 
+
+We produce ROC curves to visualize how each model performs on the training and test data.
+
+```{r warning = FALSE, message = FALSE}
+model_blr_1_train_preds_df <- alt_train_df_imputed |>
+    mutate(linpred = predict(model_blr_1),
+           predprob = predict(model_blr_1, type = "response"))
+model_blr_1_test_preds_df <- alt_test_df_imputed |>
+    mutate(linpred = predict(model_blr_1, alt_test_df_imputed),
+           predprob = predict(model_blr_1, alt_test_df_imputed, type = "response"))
+model_blr_2_train_preds_df <- train_df_imputed |>
+    mutate(linpred = predict(model_blr_2),
+           predprob = predict(model_blr_2, type = "response"))
+model_blr_2_test_preds_df <- test_df_imputed |>
+    mutate(linpred = predict(model_blr_2, test_df_imputed),
+           predprob = predict(model_blr_2, test_df_imputed, type = "response"))
+model_blr_3_train_preds_df <- train_df_trans |>
+    mutate(linpred = predict(model_blr_3),
+           predprob = predict(model_blr_3, type = "response"))
+model_blr_3_test_preds_df <- test_df_trans |>
+    mutate(linpred = predict(model_blr_3, test_df_trans),
+           predprob = predict(model_blr_3, test_df_trans, type = "response"))
+par(mfrow=c(3,2))
+par(mai=c(.3,.3,.3,.3))
+roc1 <- roc(model_blr_1_train_preds_df$TARGET_FLAG,
+            model_blr_1_train_preds_df$predprob,
+            plot = TRUE, print.auc = TRUE, show.thres = TRUE)
+title(main = "Model BLR:1 ROC (Train)")
+roc2 <- roc(model_blr_1_test_preds_df$TARGET_FLAG,
+            model_blr_1_test_preds_df$predprob,
+            plot = TRUE, print.auc = TRUE, show.thres = TRUE)
+title(main = "Model BLR:1 ROC (Test)")
+roc3 <- roc(model_blr_2_train_preds_df$TARGET_FLAG,
+            model_blr_2_train_preds_df$predprob,
+            plot = TRUE, print.auc = TRUE, show.thres = TRUE)
+title(main = "Model BLR:2 ROC (Train)")
+roc4 <- roc(model_blr_2_test_preds_df$TARGET_FLAG,
+            model_blr_2_test_preds_df$predprob,
+            plot = TRUE, print.auc = TRUE, show.thres = TRUE)
+title(main = "Model BLR:2 ROC (Test)")
+roc5 <- roc(model_blr_3_train_preds_df$TARGET_FLAG,
+            model_blr_3_train_preds_df$predprob,
+            plot = TRUE, print.auc = TRUE, show.thres = TRUE)
+title(main = "Model BLR:3 ROC (Train)")
+roc6 <- roc(model_blr_3_test_preds_df$TARGET_FLAG,
+            model_blr_3_test_preds_df$predprob,
+            plot = TRUE, print.auc = TRUE, show.thres = TRUE)
+title(main = "Model BLR:3 ROC (Test)")
+
+```
+
+Model BLR:1 performs best on both the training and the test data.
+
+#### Multiple Linear Regression Models
 
 ### Appendix: Report Code
 
