@@ -401,7 +401,37 @@ Again, we see a non-linear relationship between our predictor (\emph{Economic Ne
 \hypertarget{modeling}{%
 \subsubsection{Modeling}\label{modeling}}
 
-We first create a basic multiple least squares linear model between our two socioeconomic proxy variables: \emph{Temporary Housing PErcentage of a School} and \emph{Average Economic Need Index}.
+For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = base_formula, data = train)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -0.54578 -0.11206  0.00304  0.11205  0.41671 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)   0.49700    0.20023   2.482   0.0135 *  
+## survey_pp_CT  0.04036    0.27214   0.148   0.8822    
+## survey_pp_RI  2.10716    0.19902  10.587  < 2e-16 ***
+## survey_pp_SE -1.41047    0.26337  -5.356 1.47e-07 ***
+## survey_pp_ES -0.22948    0.28878  -0.795   0.4273    
+## survey_pp_SF  0.26272    0.21171   1.241   0.2154    
+## survey_pp_TR -0.48790    0.42585  -1.146   0.2526    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.1592 on 383 degrees of freedom
+## Multiple R-squared:  0.2348, Adjusted R-squared:  0.2228 
+## F-statistic: 19.58 on 6 and 383 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+We find our base model for the school survey ratings produces an adjusted R-squared of \(R^2_{adj} = 0.22\). This is lower than the predictive model produces in \emph{Roth et al. (1996)}.
+
+We then create a basic multiple least squares linear model between our two socioeconomic proxy variables: \emph{Temporary Housing PErcentage of a School} and \emph{Average Economic Need Index}.
 
 \begin{verbatim}
 ## 
@@ -456,6 +486,44 @@ Given the
 
 \hypertarget{model-evaluation}{%
 \subsubsection{Model Evaluation}\label{model-evaluation}}
+
+\begin{verbatim}
+## [1] 0.1653904
+\end{verbatim}
+
+\begin{verbatim}
+## [1] 0.1366313
+\end{verbatim}
+
+\begin{verbatim}
+## [1] 0.1372144
+\end{verbatim}
+
+We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models. We're using fewer variables in our proxy and WLS models, so we'd expect better results (minimized values) for each of those criteria
+
+\begin{verbatim}
+## AIC for base model (rating results): -317.495489747942
+\end{verbatim}
+
+\begin{verbatim}
+## AIC for proxy variable model: -475.126800916888
+\end{verbatim}
+
+\begin{verbatim}
+## AIC for WLS model: -480.729858621265
+\end{verbatim}
+
+\begin{verbatim}
+## BIC for base model (rating results): -285.766315834952
+\end{verbatim}
+
+\begin{verbatim}
+## BIC for proxy variable model: -459.262213960393
+\end{verbatim}
+
+\begin{verbatim}
+## BIC for WLS model: -464.86527166477
+\end{verbatim}
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
@@ -517,6 +585,8 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{library}\NormalTok{(glue)}
 \FunctionTok{library}\NormalTok{(mice)}
 \FunctionTok{library}\NormalTok{(corrplot)}
+\FunctionTok{library}\NormalTok{(caret)}
+\FunctionTok{library}\NormalTok{(modelr)}
 \FunctionTok{library}\NormalTok{(}\StringTok{"papaja"}\NormalTok{)}
 \FunctionTok{r\_refs}\NormalTok{(}\StringTok{"r{-}references.bib"}\NormalTok{)}
 \CommentTok{\# Read in our dataset from GitHub}
@@ -586,11 +656,14 @@ Below is the code used to generate this report. It's also available on \href{htt
   \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+}
   \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Average Economic Need Index per School"}\NormalTok{,}
        \AttributeTok{y=}\StringTok{"4{-}year College Persistence Rate"}\NormalTok{)}
+\NormalTok{base\_formula }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ survey\_pp\_CT }\SpecialCharTok{+}\NormalTok{ survey\_pp\_RI }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SE }\SpecialCharTok{+}\NormalTok{ survey\_pp\_ES }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SF }\SpecialCharTok{+}\NormalTok{ survey\_pp\_TR}
+\NormalTok{rating\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(base\_formula,}
+\NormalTok{                   train)}
+\FunctionTok{summary}\NormalTok{(rating\_model)}
 \CommentTok{\# Create OLS linear model based on our proxy variables: no transforms}
 \NormalTok{proxy\_formula }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need}
 \NormalTok{proxy\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, train)}
 \FunctionTok{summary}\NormalTok{(proxy\_model)}
-
 \FunctionTok{plot}\NormalTok{(proxy\_model)}
 \CommentTok{\# Calculating weights for WLS}
 \NormalTok{weights }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{/} \FunctionTok{lm}\NormalTok{(}\FunctionTok{abs}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals) }\SpecialCharTok{\textasciitilde{}}\NormalTok{ proxy\_model}\SpecialCharTok{$}\NormalTok{fitted.values)}\SpecialCharTok{$}\NormalTok{fitted.values}\SpecialCharTok{\^{}}\DecValTok{2}
@@ -599,6 +672,20 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{wls\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, }\AttributeTok{data =}\NormalTok{ train, }\AttributeTok{weights=}\NormalTok{weights)}
 
 \FunctionTok{summary}\NormalTok{(wls\_model)}
+\CommentTok{\# Compute RMSE for each model on our testing data}
+\CommentTok{\# }\AlertTok{TODO}\CommentTok{: Put in table with AIC and BIC results}
+\FunctionTok{rmse}\NormalTok{(rating\_model, test)}
+\NormalTok{modelr}\SpecialCharTok{::}\FunctionTok{rmse}\NormalTok{(proxy\_model, test)}
+\NormalTok{modelr}\SpecialCharTok{::}\FunctionTok{rmse}\NormalTok{(wls\_model, test)}
+\CommentTok{\# Print AIC for each model type}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"AIC for base model (rating results): \{AIC(rating\_model)\}"}\NormalTok{))}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"AIC for proxy variable model: \{AIC(proxy\_model)\}"}\NormalTok{))}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"AIC for WLS model: \{AIC(wls\_model)\}"}\NormalTok{))}
+
+\CommentTok{\# BIC results}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"BIC for base model (rating results): \{BIC(rating\_model)\}"}\NormalTok{))}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"BIC for proxy variable model: \{BIC(proxy\_model)\}"}\NormalTok{))}
+\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"BIC for WLS model: \{BIC(wls\_model)\}"}\NormalTok{))}
 \end{Highlighting}
 \end{Shaded}
 

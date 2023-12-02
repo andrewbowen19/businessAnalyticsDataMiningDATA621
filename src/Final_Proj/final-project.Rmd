@@ -49,6 +49,8 @@ library(gridExtra)
 library(glue)
 library(mice)
 library(corrplot)
+library(caret)
+library(modelr)
 library("papaja")
 r_refs("r-references.bib")
 ```
@@ -82,7 +84,7 @@ Measuring the input variables that impact educational outcomes is a difficult ta
 
 # Data Sourcing
 
-The dataset used in this study is published from the  [NYC School Quality Report for the Academic Year 2020 - 2021](https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6). It consists of data from 487 New York City public schools, and 391 variables (in the form of columns). This dataset is defined at the school level, indexed by a school's *district borough number* (DBN). 
+The dataset used in this study is published from the [NYC School Quality Report for the Academic Year 2020 - 2021](https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6). It consists of data from 487 New York City public schools, and 391 variables (in the form of columns). This dataset is defined at the school level, indexed by a school's *district borough number* (DBN). 
 
 In addition to the school quality ratings provided from survey responses in the data, there is average and raw academic performance data included. In addition to thesea academic indicators, there are socioeconomic variables included as well, such as the percentage of students at a given school in temporary housing services.
 
@@ -221,13 +223,21 @@ Again, we see a non-linear relationship between our predictor (*Economic Need In
 
 
 ### Modeling
-We first create a basic multiple least squares linear model between our two socioeconomic proxy variables: *Temporary Housing PErcentage of a School* and *Average Economic Need Index*.
+For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to 
+```{r base-rating-model}
+base_formula <- college_rate ~ survey_pp_CT + survey_pp_RI + survey_pp_SE + survey_pp_ES + survey_pp_SF + survey_pp_TR
+rating_model <- lm(base_formula,
+                   train)
+summary(rating_model)
+```
+We find our base model for the school survey ratings produces an adjusted R-squared of $R^2_{adj} = 0.22$. This is lower than the predictive model produces in *@roth_meta-analyzing_1996*. 
+
+We then create a basic multiple least squares linear model between our two socioeconomic proxy variables: *Temporary Housing PErcentage of a School* and *Average Economic Need Index*.
 ```{r proxy-mlm}
 # Create OLS linear model based on our proxy variables: no transforms
 proxy_formula <- college_rate ~ temp_housing_pct + economic_need
 proxy_model <- lm(proxy_formula, train)
 summary(proxy_model)
-
 ```
 
 
@@ -252,6 +262,27 @@ summary(wls_model)
 
 ### Model Evaluation
 
+```{r RMSE}
+# Compute RMSE for each model on our testing data
+# TODO: Put in table with AIC and BIC results
+rmse(rating_model, test)
+modelr::rmse(proxy_model, test)
+modelr::rmse(wls_model, test)
+```
+
+We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models. We're using fewer variables in our proxy and WLS models, so we'd expect better results (minimized values) for each of those criteria
+
+```{r aic-bic}
+# Print AIC for each model type
+print(glue("AIC for base model (rating results): {AIC(rating_model)}"))
+print(glue("AIC for proxy variable model: {AIC(proxy_model)}"))
+print(glue("AIC for WLS model: {AIC(wls_model)}"))
+
+# BIC results
+print(glue("BIC for base model (rating results): {BIC(rating_model)}"))
+print(glue("BIC for proxy variable model: {BIC(proxy_model)}"))
+print(glue("BIC for WLS model: {BIC(wls_model)}"))
+```
 
 
 # Conclusion
