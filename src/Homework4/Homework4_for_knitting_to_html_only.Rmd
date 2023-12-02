@@ -3,6 +3,8 @@ title: "DATA 621 - HW4"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-10-30"
 output:
+  html_document:
+    df_print: paged
   pdf_document: default
 ---
 
@@ -25,7 +27,6 @@ library(naniar)
 library(mice)
 library(MASS)
 select <- dplyr::select
-library(kableExtra)
 library(car)
 library(glmtoolbox)
 library(pROC)
@@ -91,8 +92,7 @@ classes_summary <- classes |>
     group_by(Class) |>
     summarize(Count = n(),
               Variables = paste(sort(unique(Variable)),collapse=", "))
-kable(classes_summary, "latex", booktabs = T) |>
-  kableExtra::column_spec(2:3, width = "7cm")
+kable(classes_summary, format = "simple")
 
 ```
 
@@ -249,8 +249,7 @@ cat <- cat |>
     merge(values)
 num_vs_cat <- num |>
     bind_rows(cat)
-knitr::kable(num_vs_cat, "latex", booktabs = T)|>
-  kableExtra::column_spec(2:3, width = "6cm")
+kable(num_vs_cat, format = "simple")
 
 ```
 
