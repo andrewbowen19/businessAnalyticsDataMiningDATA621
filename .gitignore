@@ -49,4 +49,6 @@ po/*~
 rsconnect/
 
 blogs
+blogs/
+blogs/*
 data/school-quality-2020-2021.csv
