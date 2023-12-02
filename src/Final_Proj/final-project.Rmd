@@ -47,6 +47,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(gridExtra)
 library(glue)
+# library(autoReg)
 library("papaja")
 r_refs("r-references.bib")
 ```
@@ -57,22 +58,30 @@ The NYC School Survey seeks to collect data to provide an overview of New York C
 
 The survey has changed over the years. This change has come from recommendations of public policy analysts in order to more accurately define the quality of schools *@redesign-school-survey*. The 2020-21 academic year report provides a robust dataset defined at the school level with academic and socioeconomic data provided. 
 
-
-
 **Research Question:** This study aims to determine whether the school ratings within the NYC School Quality Survey accurately reflect educational outcomes, or if other variables related to certain schools can be used as a better proxy.
 
 # Literature Review
+One of the main predictors of academic performance is the socioeconomic background of a student. Students from low-income families are nearly four times more likely to drop out of high school than students from wealthy families *@NCES-Dropout-Rates*. 
+
+Attempts to use more sophisticated modeling techniques and different sources datasets come from several prior studies. *@BERNACKI2020103999* based their modeling off trying to predict based on student digital behavior, rather than social factors. The model in this study reached an accuracy of 75%, and was able to flag early interventions. While this modeling technique attempts to predict the same variable (educational achievement, albeit a different metric where we are predicting college attainment), the base dataset used to train the model and input variables are different.
+
+Similarly, *@MUSSO202000104* attempted to train an artificial neural network (ANN) to identify variable relationships to educational performance data. They modeled educational performance of Vietnamese students in grade 5. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in accuracy in prediction of $95-100%$.
+
+*@yagci-educational-2022* predicted final grade exams for Turkish students as well via machine learning models. Their input variables were prior exam grades. These can be a good "vacuum" comparison to compare one set of academci performance to another. However, there is a concern that good exam grades (even in one subject) do not correspond to a higher rate of career success later in life *@Grades-and-Careers*. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance *@roth_meta-analyzing_1996*.
+
 Measuring the input variables that impact educational outcomes is a difficult task. With so many confounding variables, it can be difficult to determine direct causal relationships that have an outsized impact 
 
 
 # Data Sourcing
 
-- [School Quality NYC 2020 - 2021](https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6)
+The dataset used in this study is published from the  [NYC School Quality Report for the Academic Year 2020 - 2021](https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6). It consists of data from 487 New York City public schools, and 391 variables (in the form of columns). This dataset is defined at the school level, indexed by a school's *district borough number* (DBN). 
+
+In addition to the school quality ratings provided from survey responses in the data, there is average and raw academic performance data included. In addition to thesea academic indicators, there are socioeconomic variables included as well, such as the percentage of students at a given school in temporary housing services.
 
 ```{r data-read-in}
 # Read in our dataset from GitHub
 # https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch
-df <- read.csv("../../data/school-quality-2020-2021.csv") #"https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
+df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
 ```
 
 
@@ -95,8 +104,6 @@ set.seed(42)
 
 # Adding a 20% holdout of our input data for model evaluation later
 train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
-
-
 test  <- dplyr::anti_join(df, train, by = 'dbn')
 ```
 

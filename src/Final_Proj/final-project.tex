@@ -250,16 +250,23 @@ The survey has changed over the years. This change has come from recommendations
 \hypertarget{literature-review}{%
 \section{Literature Review}\label{literature-review}}
 
+One of the main predictors of academic performance is the socioeconomic background of a student. Students from low-income families are nearly four times more likely to drop out of high school than students from wealthy families \emph{Education Statistics (2008)}.
+
+Attempts to use more sophisticated modeling techniques and different sources datasets come from several prior studies. \emph{Bernacki, Chavez, and Uesbeck (2020)} based their modeling off trying to predict based on student digital behavior, rather than social factors. The model in this study reached an accuracy of 75\%, and was able to flag early interventions. While this modeling technique attempts to predict the same variable (educational achievement, albeit a different metric where we are predicting college attainment), the base dataset used to train the model and input variables are different.
+
+Similarly, \emph{Musso, Cascallar, Bostani, and Crawford (2020)} attempted to train an artificial neural network (ANN) to identify variable relationships to educational performance data. They modeled educational performance of Vietnamese students in grade 5. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in accuracy in prediction of \(95-100%
+\).
+
+\emph{Yağcı (2022)} predicted final grade exams for Turkish students as well via machine learning models. Their input variables were prior exam grades. These can be a good ``vacuum'' comparison to compare one set of academci performance to another. However, there is a concern that good exam grades (even in one subject) do not correspond to a higher rate of career success later in life \emph{Afarian and Kleiner (2003)}. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance \emph{Roth, BeVier, Switzer III, and Schippmann (1996)}.
+
 Measuring the input variables that impact educational outcomes is a difficult task. With so many confounding variables, it can be difficult to determine direct causal relationships that have an outsized impact
 
 \hypertarget{data-sourcing}{%
 \section{Data Sourcing}\label{data-sourcing}}
 
-\begin{itemize}
-\tightlist
-\item
-  \href{https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6}{School Quality NYC 2020 - 2021}
-\end{itemize}
+The dataset used in this study is published from the \href{https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6}{NYC School Quality Report for the Academic Year 2020 - 2021}. It consists of data from 487 New York City public schools, and 391 variables (in the form of columns). This dataset is defined at the school level, indexed by a school's \emph{district borough number} (DBN).
+
+In addition to the school quality ratings provided from survey responses in the data, there is average and raw academic performance data included. In addition to thesea academic indicators, there are socioeconomic variables included as well, such as the percentage of students at a given school in temporary housing services.
 
 \hypertarget{methodology}{%
 \section{Methodology}\label{methodology}}
@@ -381,8 +388,26 @@ Again, we see a non-linear relationship between our predictor (\emph{Economic Ne
 
 \hypertarget{refs}{}
 \begin{CSLReferences}{1}{0}
+\leavevmode\vadjust pre{\hypertarget{ref-Grades-and-Careers}{}}%
+Afarian, R., \& Kleiner, B. (2003). The relationship between grades and career success. \emph{Management Research News}, \emph{26}, 42--51. \url{https://doi.org/10.1108/01409170310783781}
+
+\leavevmode\vadjust pre{\hypertarget{ref-BERNACKI2020103999}{}}%
+Bernacki, M. L., Chavez, M. M., \& Uesbeck, P. M. (2020). Predicting achievement and providing support before STEM majors begin to fail. \emph{Computers \& Education}, \emph{158}, 103999. https://doi.org/\url{https://doi.org/10.1016/j.compedu.2020.103999}
+
+\leavevmode\vadjust pre{\hypertarget{ref-NCES-Dropout-Rates}{}}%
+Education Statistics, N. C. for. (2008). \emph{Percentage of high school dropouts among persons 16 through 24 years old}. Retrieved from \url{https://nces.ed.gov/programs/digest/d08/tables/dt08_110.asp}
+
+\leavevmode\vadjust pre{\hypertarget{ref-MUSSO202000104}{}}%
+Musso, M. F., Cascallar, E. C., Bostani, N., \& Crawford, M. (2020). Identifying reliable predictors of educational outcomes through machine-learning predictive modeling. \emph{Frontiers in Education}, \emph{5}. \url{https://doi.org/10.3389/feduc.2020.00104}
+
 \leavevmode\vadjust pre{\hypertarget{ref-redesign-school-survey}{}}%
 New York City Schools, T. R. A. for. (2018). \emph{{R}edesigning the {A}nnual {N}{Y}{C} {S}chool {S}urvey: {L}essons from a {R}esearch-{P}ractice {P}artnership}. \url{https://steinhardt.nyu.edu/sites/default/files/2021-01/Lessons_from_a_Research-Practice_Partnership.pdf}.
+
+\leavevmode\vadjust pre{\hypertarget{ref-roth_meta-analyzing_1996}{}}%
+Roth, P. L., BeVier, C. A., Switzer III, F. S., \& Schippmann, J. S. (1996). Meta-analyzing the relationship between grades and job performance. \emph{Journal of Applied Psychology}, \emph{81}(5), 548--556. \url{https://doi.org/10.1037/0021-9010.81.5.548}
+
+\leavevmode\vadjust pre{\hypertarget{ref-yagci-educational-2022}{}}%
+Yağcı, M. (2022). Educational data mining: Prediction of students' academic performance using machine learning algorithms. \emph{Smart Learning Environments}, \emph{9}(1), 11. \url{https://doi.org/10.1186/s40561-022-00192-z}
 
 \end{CSLReferences}
 
@@ -397,11 +422,12 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{library}\NormalTok{(tidyverse)}
 \FunctionTok{library}\NormalTok{(gridExtra)}
 \FunctionTok{library}\NormalTok{(glue)}
+\CommentTok{\# library(autoReg)}
 \FunctionTok{library}\NormalTok{(}\StringTok{"papaja"}\NormalTok{)}
 \FunctionTok{r\_refs}\NormalTok{(}\StringTok{"r{-}references.bib"}\NormalTok{)}
 \CommentTok{\# Read in our dataset from GitHub}
 \CommentTok{\# https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v{-}cvch}
-\NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{(}\StringTok{"../../data/school{-}quality{-}2020{-}2021.csv"}\NormalTok{) }\CommentTok{\#"https://data.cityofnewyork.us/api/views/26je{-}vkp6/rows.csv?date=20231108")}
+\NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{(}\StringTok{"https://data.cityofnewyork.us/api/views/26je{-}vkp6/rows.csv?date=20231108"}\NormalTok{)}
 \NormalTok{label\_cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"dbn"}\NormalTok{, }\StringTok{"school\_name"}\NormalTok{, }\StringTok{"school\_type"}\NormalTok{)}
 \CommentTok{\# Convert needed columns to numeric typing}
 \NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(df[, label\_cols], }\FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{lapply}\NormalTok{(df[,}\SpecialCharTok{!}\FunctionTok{names}\NormalTok{(df) }\SpecialCharTok{\%in\%}\NormalTok{ label\_cols], as.numeric)))}
@@ -412,9 +438,8 @@ Below is the code used to generate this report. It's also available on \href{htt
 
 \CommentTok{\# Adding a 20\% holdout of our input data for model evaluation later}
 \NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{subset}\NormalTok{(df[}\FunctionTok{sample}\NormalTok{(}\DecValTok{1}\SpecialCharTok{:}\FunctionTok{nrow}\NormalTok{(df)), ]) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{sample\_frac}\NormalTok{(}\FloatTok{0.8}\NormalTok{)}
-
-
 \NormalTok{test  }\OtherTok{\textless{}{-}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{anti\_join}\NormalTok{(df, train, }\AttributeTok{by =} \StringTok{\textquotesingle{}dbn\textquotesingle{}}\NormalTok{)}
+
 \NormalTok{p1 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_CT, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\StringTok{"Mean ACT Math Score"}\NormalTok{)}
 \NormalTok{p2 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_ES, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
 \NormalTok{p3 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_RI, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
