@@ -47,6 +47,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(gridExtra)
 library(glue)
+library(mice)
 # library(autoReg)
 library("papaja")
 r_refs("r-references.bib")
@@ -65,7 +66,7 @@ One of the main predictors of academic performance is the socioeconomic backgrou
 
 Attempts to use more sophisticated modeling techniques and different sources datasets come from several prior studies. *@BERNACKI2020103999* based their modeling off trying to predict based on student digital behavior, rather than social factors. The model in this study reached an accuracy of 75%, and was able to flag early interventions. While this modeling technique attempts to predict the same variable (educational achievement, albeit a different metric where we are predicting college attainment), the base dataset used to train the model and input variables are different.
 
-Similarly, *@MUSSO202000104* attempted to train an artificial neural network (ANN) to identify variable relationships to educational performance data. They modeled educational performance of Vietnamese students in grade 5. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in accuracy in prediction of $95-100%$.
+Similarly, *@MUSSO202000104* attempted to train an artificial neural network (ANN) to identify variable relationships to educational performance data. They modeled educational performance of Vietnamese students in grade 5. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in accuracy in prediction of $95-100%$ higher than other modeling techniques. However, the training data came in that case from a different country (Vietnam, rather than the United States). Comparing modeling results from this (and other US-centric studies) may not be prudent.
 
 *@yagci-educational-2022* predicted final grade exams for Turkish students as well via machine learning models. Their input variables were prior exam grades. These can be a good "vacuum" comparison to compare one set of academci performance to another. However, there is a concern that good exam grades (even in one subject) do not correspond to a higher rate of career success later in life *@Grades-and-Careers*. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance *@roth_meta-analyzing_1996*.
 
@@ -107,110 +108,100 @@ train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
 test  <- dplyr::anti_join(df, train, by = 'dbn')
 ```
 
+Additionally, we impute both our training and evaluation datasets. Given we are dealing with continuous numeric (and not categorical variables), we use the *Predictive Mean Matching* imputation method native to the R `mice` package
+```{r impute-train, echo=FALSE, message=FALSE}
+
+cols <- c("survey_pp_CT",
+          "survey_pp_ES", "survey_pp_SE",
+          "survey_pp_SF", "survey_pp_TR",
+          "temp_housing_pct", "economic_need",
+          "college_rate",
+          "val_mean_score_act_math_all",
+          "val_mean_score_act_engl_all")
+train_data <- train[, cols]
+imp <- mice(train_data, method="pmm", seed=42)
+train <- complete(imp)
+```
+
+
+```{r impute-test, echo=FALSE, message=FALSE}
+test_data <- test[, cols]
+imp <- mice(test_data, method="pmm", seed=42)
+test <- complete(imp)
+```
+
 
 The below plot shows the raw relationship between each survey rating (*Collaborative Teaching*, *Trust*, etc) and the response variables of interest: *Average English/Math SAT scores* per school. 
 
 
-```{r plot-relationships, warning=FALSE}
-
-p1 <- ggplot(df, aes(x=survey_pp_CT, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y="Mean ACT Math Score")
-p2 <- ggplot(df, aes(x=survey_pp_ES, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
-p3 <- ggplot(df, aes(x=survey_pp_RI, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
-p4 <- ggplot(df, aes(x=survey_pp_SE, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
-p5 <- ggplot(df, aes(x=survey_pp_SF, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
-p6 <- ggplot(df, aes(x=survey_pp_TR, y=val_mean_score_act_math_all)) + geom_point() + labs(x=NULL, y=NULL)
-
-# Plot english scores
-p7 <- ggplot(df, aes(x=survey_pp_CT, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Collaborative Teacher Rating",y="Mean ACT English Score")
-p8 <- ggplot(df, aes(x=survey_pp_ES, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Leadership Rating", y=NULL)
-p9 <- ggplot(df, aes(x=survey_pp_RI, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Rigorous Instruction", y=NULL)
-p10 <- ggplot(df, aes(x=survey_pp_SE, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Supportive environment", y=NULL)
-p11 <- ggplot(df, aes(x=survey_pp_SF, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Family-Community Ties", y=NULL)
-p12 <- ggplot(df, aes(x=survey_pp_TR, y=val_mean_score_act_engl_all)) + geom_point() + labs(x="Trust", y=NULL)
-
-# Panel plot
-grid.arrange(
-  p1, p2,
-  p3, p4,
-  p5, p6,
-  p7, p8,
-  p9, p10,
-  p11, p12,
-  nrow=2,
-  ncol=6,
-  top = "ACT Scores vs NYC School Quality Ratings, 2020-2021",
-  bottom="Survey Rating Type"
-)
-
-```
-
-
 # Experimentation and Results
-First, we construct a basic linear model to predict both English and Math ACT average scores for a given school. 
-
-```{r}
-english_formula <- val_mean_score_act_engl_all ~ survey_pp_RI + survey_pp_CT + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
-
-math_formula <-  val_mean_score_act_math_all ~ survey_pp_RI + survey_pp_CT + survey_pp_ES + survey_pp_SE + survey_pp_SF + survey_pp_TR
-
-# Create lineaer model to predict english and math scores based on sruvey ratings
-lm_english <- lm(english_formula, data=train)
-lm_math <- lm(math_formula, data=train)
-```
-
-
-As we see from summary stats below $Rating \rightarrow English/Math$ models perform decently well at predicting ACT English and Math scores, respectively. We see adjusted $R^2$ values for each academic subject below:
-
-- *English:* 0.76
-- *Math:* 0.493
-
-```{r}
-summary(lm_english)
-```
-
-
-```{r}
-summary(lm_math)
-```
 
 
 We can use two variables as a proxy for the school's survey rating in predicting college persistence:
 
-- Percent in Temp Housing (`temp_housing_pct`) - percentage of students at a given school living in NYC temporary housing
-- Economic Need Index (`eni_hs_pct_912`) - this is a measure of the percent of students facing economic hardship at a school
+- Percent of Students in Tempoarary Housing (`temp_housing_pct`)
+- [Economic Need Index](https://data.cccnewyork.org/data/bar/1371/student-economic-need-index#1371/a/1/1622/127) (`eni_hs_pct_912`) - this is a measure of the percent of students facing economic hardship at a school *@noauthor_student_2021*. This measures the economic hardship faced by students measured along a few criteria:
+    - The student is eligible for public assistance from the NYC Human Resources Administration (HRA)
+    - The student lived in temporary housing in the past four years
+    - The student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
+    
+
 
 ```{r}
 hist(train$college_rate)
 ```
 
+
+
+
 ```{r}
 ggplot(train, aes(x=temp_housing_pct)) + geom_histogram() + labs(x="% of Students in Temporary Housing", y="Number of NYC Schools")
 ```
+We see this distribution of the percentage of students in temporary housing per school to be skewed left. This will be an important piece of information as we model these relationships later.
 
-First, we should check an assumption of linearity between our predictor and response variables.
+
+First, we should check an assumption of linearity between our predictor and response variables. In this case this a scatter plot of the percentage of students in temporary housing 
 ```{r}
-
+# Plot temp housing percentage vs college persistence rate
 ggplot(train, aes(x=temp_housing_pct, y=college_rate)) + geom_point() + labs(x="% of Students in Temporary Housing", y="4-year College Persistence Rate")
 ```
 
-We see a general linear relationship for schools with lower rates of students in temp housing. However, this linear relationship does **not** visually hold for schools with hisgher rates of temp housing use. 
+We see a general linear relationship for schools with lower rates of students in temp housing. However, this linear relationship does **not** visually hold for schools with higher rates of temp housing use. 
 
 Plotting the relationship below between a school's economic need index
 ```{r}
-
+# Plot ENI vs college persistence rate
 ggplot(train, aes(x=economic_need, y=college_rate)) + geom_point() +
   labs(x="Average Economic Need Index per School", y="4-year College Persistence Rate")
 ```
 Again, we see a non-linear relationship between our predictor (*Economic Need Index*) and Outcome Variable (*College Persistence Rate*)
 
 ```{r}
-proxy_lm <- lm(college_rate ~ temp_housing_pct + economic_need, train)
+proxy_formula <- college_rate ~ temp_housing_pct + economic_need
+proxy_lm <- lm(proxy_formula, train)
+summary(proxy_lm)
 ```
 
 
 ```{r}
 plot(proxy_lm)
 ```
+
+
+Given the 
+
+```{r}
+# Calculating weights for WLS
+weights <- 1 / lm(abs(proxy_lm$residuals) ~ proxy_lm$fitted.values)$fitted.values^2
+
+#perform weighted least squares regression
+wls_model <- lm(proxy_formula, data = train, weights=weights)
+
+summary(wls_model)
+```
+
+### Model Evaluation
+
 
 
 # Conclusion

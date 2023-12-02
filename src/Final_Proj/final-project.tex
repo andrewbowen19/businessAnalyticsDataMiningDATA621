@@ -255,7 +255,7 @@ One of the main predictors of academic performance is the socioeconomic backgrou
 Attempts to use more sophisticated modeling techniques and different sources datasets come from several prior studies. \emph{Bernacki, Chavez, and Uesbeck (2020)} based their modeling off trying to predict based on student digital behavior, rather than social factors. The model in this study reached an accuracy of 75\%, and was able to flag early interventions. While this modeling technique attempts to predict the same variable (educational achievement, albeit a different metric where we are predicting college attainment), the base dataset used to train the model and input variables are different.
 
 Similarly, \emph{Musso, Cascallar, Bostani, and Crawford (2020)} attempted to train an artificial neural network (ANN) to identify variable relationships to educational performance data. They modeled educational performance of Vietnamese students in grade 5. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in accuracy in prediction of \(95-100%
-\).
+\) higher than other modeling techniques. However, the training data came in that case from a different country (Vietnam, rather than the United States). Comparing modeling results from this (and other US-centric studies) may not be prudent.
 
 \emph{Yağcı (2022)} predicted final grade exams for Turkish students as well via machine learning models. Their input variables were prior exam grades. These can be a good ``vacuum'' comparison to compare one set of academci performance to another. However, there is a concern that good exam grades (even in one subject) do not correspond to a higher rate of career success later in life \emph{Afarian and Kleiner (2003)}. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance \emph{Roth, BeVier, Switzer III, and Schippmann (1996)}.
 
@@ -273,99 +273,157 @@ In addition to the school quality ratings provided from survey responses in the 
 
 We create a 20\% holdout set of data to be used later on in order to evaluate the efficacy of our model's predictive capability. The remaining 80\% of the data is to be used for model training and exploratory data analysis (EDA).
 
-The below plot shows the raw relationship between each survey rating (\emph{Collaborative Teaching}, \emph{Trust}, etc) and the response variables of interest: \emph{Average English/Math SAT scores} per school.
+Additionally, we impute both our training and evaluation datasets. Given we are dealing with continuous numeric (and not categorical variables), we use the \emph{Predictive Mean Matching} imputation method native to the R \texttt{mice} package
 
-\includegraphics{final-project_files/figure-latex/plot-relationships-1.pdf}
+\begin{verbatim}
+## 
+##  iter imp variable
+##   1   1  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   1   2  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   1   3  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   1   4  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   1   5  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   2   1  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   2   2  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   2   3  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   2   4  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   2   5  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   3   1  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   3   2  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   3   3  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   3   4  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   3   5  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   4   1  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   4   2  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   4   3  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   4   4  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   4   5  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   5   1  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   5   2  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   5   3  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   5   4  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+##   5   5  survey_pp_CT  survey_pp_ES  survey_pp_SE  survey_pp_SF  survey_pp_TR  college_rate  val_mean_score_act_math_all*  val_mean_score_act_engl_all
+\end{verbatim}
+
+\begin{verbatim}
+## 
+##  iter imp variable
+##   1   1  survey_pp_CT  survey_pp_SE  college_rate
+##   1   2  survey_pp_CT  survey_pp_SE  college_rate
+##   1   3  survey_pp_CT  survey_pp_SE  college_rate
+##   1   4  survey_pp_CT  survey_pp_SE  college_rate
+##   1   5  survey_pp_CT  survey_pp_SE  college_rate
+##   2   1  survey_pp_CT  survey_pp_SE  college_rate
+##   2   2  survey_pp_CT  survey_pp_SE  college_rate
+##   2   3  survey_pp_CT  survey_pp_SE  college_rate
+##   2   4  survey_pp_CT  survey_pp_SE  college_rate
+##   2   5  survey_pp_CT  survey_pp_SE  college_rate
+##   3   1  survey_pp_CT  survey_pp_SE  college_rate
+##   3   2  survey_pp_CT  survey_pp_SE  college_rate
+##   3   3  survey_pp_CT  survey_pp_SE  college_rate
+##   3   4  survey_pp_CT  survey_pp_SE  college_rate
+##   3   5  survey_pp_CT  survey_pp_SE  college_rate
+##   4   1  survey_pp_CT  survey_pp_SE  college_rate
+##   4   2  survey_pp_CT  survey_pp_SE  college_rate
+##   4   3  survey_pp_CT  survey_pp_SE  college_rate
+##   4   4  survey_pp_CT  survey_pp_SE  college_rate
+##   4   5  survey_pp_CT  survey_pp_SE  college_rate
+##   5   1  survey_pp_CT  survey_pp_SE  college_rate
+##   5   2  survey_pp_CT  survey_pp_SE  college_rate
+##   5   3  survey_pp_CT  survey_pp_SE  college_rate
+##   5   4  survey_pp_CT  survey_pp_SE  college_rate
+##   5   5  survey_pp_CT  survey_pp_SE  college_rate
+\end{verbatim}
+
+The below plot shows the raw relationship between each survey rating (\emph{Collaborative Teaching}, \emph{Trust}, etc) and the response variables of interest: \emph{Average English/Math SAT scores} per school.
 
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
-
-First, we construct a basic linear model to predict both English and Math ACT average scores for a given school.
-
-As we see from summary stats below \(Rating \rightarrow English/Math\) models perform decently well at predicting ACT English and Math scores, respectively. We see adjusted \(R^2\) values for each academic subject below:
-
-\begin{itemize}
-\tightlist
-\item
-  \emph{English:} 0.76
-\item
-  \emph{Math:} 0.493
-\end{itemize}
-
-\begin{verbatim}
-## 
-## Call:
-## lm(formula = english_formula, data = train)
-## 
-## Residuals:
-##      39      90     128     132     147     193     257     259 
-##  2.1072  0.1175 -0.1037 -0.7313 -0.6176  0.1158  0.7941 -1.6820 
-## 
-## Coefficients:
-##              Estimate Std. Error t value Pr(>|t|)
-## (Intercept)   -154.76      88.19  -1.755    0.330
-## survey_pp_RI   118.97      32.77   3.630    0.171
-## survey_pp_CT    43.29      40.36   1.073    0.478
-## survey_pp_ES  -223.10     144.88  -1.540    0.367
-## survey_pp_SE   -23.08     130.37  -0.177    0.888
-## survey_pp_SF   -73.85      49.68  -1.486    0.377
-## survey_pp_TR   370.05     271.36   1.364    0.403
-## 
-## Residual standard error: 2.976 on 1 degrees of freedom
-##   (382 observations deleted due to missingness)
-## Multiple R-squared:  0.966,  Adjusted R-squared:  0.7618 
-## F-statistic:  4.73 on 6 and 1 DF,  p-value: 0.3381
-\end{verbatim}
-
-\begin{verbatim}
-## 
-## Call:
-## lm(formula = math_formula, data = train)
-## 
-## Residuals:
-##      39      90     128     132     147     193     257     259 
-##  2.9350  0.1636 -0.1444 -1.0186 -0.8602  0.1613  1.1060 -2.3428 
-## 
-## Coefficients:
-##              Estimate Std. Error t value Pr(>|t|)
-## (Intercept)   -134.18     122.84  -1.092    0.472
-## survey_pp_RI    81.91      45.65   1.794    0.324
-## survey_pp_CT    46.38      56.22   0.825    0.561
-## survey_pp_ES  -171.25     201.80  -0.849    0.552
-## survey_pp_SE    40.36     181.58   0.222    0.861
-## survey_pp_SF  -101.32      69.20  -1.464    0.381
-## survey_pp_TR   296.15     377.97   0.784    0.577
-## 
-## Residual standard error: 4.145 on 1 degrees of freedom
-##   (382 observations deleted due to missingness)
-## Multiple R-squared:  0.9276, Adjusted R-squared:  0.493 
-## F-statistic: 2.135 on 6 and 1 DF,  p-value: 0.4808
-\end{verbatim}
 
 We can use two variables as a proxy for the school's survey rating in predicting college persistence:
 
 \begin{itemize}
 \tightlist
 \item
-  Percent in Temp Housing (\texttt{temp\_housing\_pct}) - percentage of students at a given school living in NYC temporary housing
+  Percent of Students in Tempoarary Housing (\texttt{temp\_housing\_pct})
 \item
-  Economic Need Index (\texttt{eni\_hs\_pct\_912}) - this is a measure of the percent of students facing economic hardship at a school
+  \href{https://data.cccnewyork.org/data/bar/1371/student-economic-need-index\#1371/a/1/1622/127}{Economic Need Index} (\texttt{eni\_hs\_pct\_912}) - this is a measure of the percent of students facing economic hardship at a school \emph{(\textbf{noauthor\_student\_2021?})}. This measures the economic hardship faced by students measured along a few criteria:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    The student is eligible for public assistance from the NYC Human Resources Administration (HRA)
+  \item
+    The student lived in temporary housing in the past four years
+  \item
+    The student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
+  \end{itemize}
 \end{itemize}
 
-\includegraphics{final-project_files/figure-latex/unnamed-chunk-5-1.pdf}
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-2-1.pdf}
 
-\includegraphics{final-project_files/figure-latex/unnamed-chunk-6-1.pdf}
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-3-1.pdf}
+We see this distribution of the percentage of students in temporary housing per school to be skewed left. This will be an important piece of information as we model these relationships later.
 
-First, we should check an assumption of linearity between our predictor and response variables.
-\includegraphics{final-project_files/figure-latex/unnamed-chunk-7-1.pdf}
+First, we should check an assumption of linearity between our predictor and response variables. In this case this a scatter plot of the percentage of students in temporary housing
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-4-1.pdf}
 
-We see a general linear relationship for schools with lower rates of students in temp housing. However, this linear relationship does \textbf{not} visually hold for schools with hisgher rates of temp housing use.
+We see a general linear relationship for schools with lower rates of students in temp housing. However, this linear relationship does \textbf{not} visually hold for schools with higher rates of temp housing use.
 
 Plotting the relationship below between a school's economic need index
-\includegraphics{final-project_files/figure-latex/unnamed-chunk-8-1.pdf}
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-5-1.pdf}
 Again, we see a non-linear relationship between our predictor (\emph{Economic Need Index}) and Outcome Variable (\emph{College Persistence Rate})
 
-\includegraphics{final-project_files/figure-latex/unnamed-chunk-10-1.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-10-2.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-10-3.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-10-4.pdf}
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = proxy_formula, data = train)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -0.49012 -0.08789  0.00611  0.07876  0.36541 
+## 
+## Coefficients:
+##                  Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)       1.06702    0.03559  29.982  < 2e-16 ***
+## temp_housing_pct -0.54355    0.12098  -4.493  9.3e-06 ***
+## economic_need    -0.57142    0.05791  -9.867  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.1285 on 387 degrees of freedom
+## Multiple R-squared:  0.493,  Adjusted R-squared:  0.4903 
+## F-statistic: 188.1 on 2 and 387 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+\includegraphics{final-project_files/figure-latex/unnamed-chunk-7-1.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-7-2.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-7-3.pdf} \includegraphics{final-project_files/figure-latex/unnamed-chunk-7-4.pdf}
+
+Given the
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = proxy_formula, data = train, weights = weights)
+## 
+## Weighted Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -4.9321 -0.8493  0.0723  0.8035  3.5727 
+## 
+## Coefficients:
+##                  Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)       1.05450    0.03252  32.424  < 2e-16 ***
+## temp_housing_pct -0.64311    0.12791  -5.028 7.61e-07 ***
+## economic_need    -0.53909    0.05538  -9.734  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.261 on 387 degrees of freedom
+## Multiple R-squared:  0.5205, Adjusted R-squared:  0.518 
+## F-statistic: 210.1 on 2 and 387 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+\hypertarget{model-evaluation}{%
+\subsubsection{Model Evaluation}\label{model-evaluation}}
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
@@ -422,6 +480,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{library}\NormalTok{(tidyverse)}
 \FunctionTok{library}\NormalTok{(gridExtra)}
 \FunctionTok{library}\NormalTok{(glue)}
+\FunctionTok{library}\NormalTok{(mice)}
 \CommentTok{\# library(autoReg)}
 \FunctionTok{library}\NormalTok{(}\StringTok{"papaja"}\NormalTok{)}
 \FunctionTok{r\_refs}\NormalTok{(}\StringTok{"r{-}references.bib"}\NormalTok{)}
@@ -440,53 +499,37 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{subset}\NormalTok{(df[}\FunctionTok{sample}\NormalTok{(}\DecValTok{1}\SpecialCharTok{:}\FunctionTok{nrow}\NormalTok{(df)), ]) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{sample\_frac}\NormalTok{(}\FloatTok{0.8}\NormalTok{)}
 \NormalTok{test  }\OtherTok{\textless{}{-}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{anti\_join}\NormalTok{(df, train, }\AttributeTok{by =} \StringTok{\textquotesingle{}dbn\textquotesingle{}}\NormalTok{)}
 
-\NormalTok{p1 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_CT, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\StringTok{"Mean ACT Math Score"}\NormalTok{)}
-\NormalTok{p2 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_ES, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p3 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_RI, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p4 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SE, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p5 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SF, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p6 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_TR, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_math\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\ConstantTok{NULL}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-
-\CommentTok{\# Plot english scores}
-\NormalTok{p7 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_CT, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Collaborative Teacher Rating"}\NormalTok{,}\AttributeTok{y=}\StringTok{"Mean ACT English Score"}\NormalTok{)}
-\NormalTok{p8 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_ES, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Leadership Rating"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p9 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_RI, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Rigorous Instruction"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p10 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SE, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Supportive environment"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p11 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_SF, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Family{-}Community Ties"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-\NormalTok{p12 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{survey\_pp\_TR, }\AttributeTok{y=}\NormalTok{val\_mean\_score\_act\_engl\_all)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Trust"}\NormalTok{, }\AttributeTok{y=}\ConstantTok{NULL}\NormalTok{)}
-
-\CommentTok{\# Panel plot}
-\FunctionTok{grid.arrange}\NormalTok{(}
-\NormalTok{  p1, p2,}
-\NormalTok{  p3, p4,}
-\NormalTok{  p5, p6,}
-\NormalTok{  p7, p8,}
-\NormalTok{  p9, p10,}
-\NormalTok{  p11, p12,}
-  \AttributeTok{nrow=}\DecValTok{2}\NormalTok{,}
-  \AttributeTok{ncol=}\DecValTok{6}\NormalTok{,}
-  \AttributeTok{top =} \StringTok{"ACT Scores vs NYC School Quality Ratings, 2020{-}2021"}\NormalTok{,}
-  \AttributeTok{bottom=}\StringTok{"Survey Rating Type"}
-\NormalTok{)}
-
-\NormalTok{english\_formula }\OtherTok{\textless{}{-}}\NormalTok{ val\_mean\_score\_act\_engl\_all }\SpecialCharTok{\textasciitilde{}}\NormalTok{ survey\_pp\_RI }\SpecialCharTok{+}\NormalTok{ survey\_pp\_CT }\SpecialCharTok{+}\NormalTok{ survey\_pp\_ES }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SE }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SF }\SpecialCharTok{+}\NormalTok{ survey\_pp\_TR}
-
-\NormalTok{math\_formula }\OtherTok{\textless{}{-}}\NormalTok{  val\_mean\_score\_act\_math\_all }\SpecialCharTok{\textasciitilde{}}\NormalTok{ survey\_pp\_RI }\SpecialCharTok{+}\NormalTok{ survey\_pp\_CT }\SpecialCharTok{+}\NormalTok{ survey\_pp\_ES }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SE }\SpecialCharTok{+}\NormalTok{ survey\_pp\_SF }\SpecialCharTok{+}\NormalTok{ survey\_pp\_TR}
-
-\CommentTok{\# Create lineaer model to predict english and math scores based on sruvey ratings}
-\NormalTok{lm\_english }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(english\_formula, }\AttributeTok{data=}\NormalTok{train)}
-\NormalTok{lm\_math }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(math\_formula, }\AttributeTok{data=}\NormalTok{train)}
-\FunctionTok{summary}\NormalTok{(lm\_english)}
-\FunctionTok{summary}\NormalTok{(lm\_math)}
+\NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"survey\_pp\_CT"}\NormalTok{,}
+          \StringTok{"survey\_pp\_ES"}\NormalTok{, }\StringTok{"survey\_pp\_SE"}\NormalTok{,}
+          \StringTok{"survey\_pp\_SF"}\NormalTok{, }\StringTok{"survey\_pp\_TR"}\NormalTok{,}
+          \StringTok{"temp\_housing\_pct"}\NormalTok{, }\StringTok{"economic\_need"}\NormalTok{,}
+          \StringTok{"college\_rate"}\NormalTok{,}
+          \StringTok{"val\_mean\_score\_act\_math\_all"}\NormalTok{,}
+          \StringTok{"val\_mean\_score\_act\_engl\_all"}\NormalTok{)}
+\NormalTok{train\_data }\OtherTok{\textless{}{-}}\NormalTok{ train[, cols]}
+\NormalTok{imp }\OtherTok{\textless{}{-}} \FunctionTok{mice}\NormalTok{(train\_data, }\AttributeTok{method=}\StringTok{"pmm"}\NormalTok{, }\AttributeTok{seed=}\DecValTok{42}\NormalTok{)}
+\NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{complete}\NormalTok{(imp)}
+\NormalTok{test\_data }\OtherTok{\textless{}{-}}\NormalTok{ test[, cols]}
+\NormalTok{imp }\OtherTok{\textless{}{-}} \FunctionTok{mice}\NormalTok{(test\_data, }\AttributeTok{method=}\StringTok{"pmm"}\NormalTok{, }\AttributeTok{seed=}\DecValTok{42}\NormalTok{)}
+\NormalTok{test }\OtherTok{\textless{}{-}} \FunctionTok{complete}\NormalTok{(imp)}
 \FunctionTok{hist}\NormalTok{(train}\SpecialCharTok{$}\NormalTok{college\_rate)}
 \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct)) }\SpecialCharTok{+} \FunctionTok{geom\_histogram}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% of Students in Temporary Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Number of NYC Schools"}\NormalTok{)}
-
+\CommentTok{\# Plot temp housing percentage vs college persistence rate}
 \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct, }\AttributeTok{y=}\NormalTok{college\_rate)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% of Students in Temporary Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"4{-}year College Persistence Rate"}\NormalTok{)}
-
+\CommentTok{\# Plot ENI vs college persistence rate}
 \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{economic\_need, }\AttributeTok{y=}\NormalTok{college\_rate)) }\SpecialCharTok{+} \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+}
   \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Average Economic Need Index per School"}\NormalTok{, }\AttributeTok{y=}\StringTok{"4{-}year College Persistence Rate"}\NormalTok{)}
-\NormalTok{proxy\_lm }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need, train)}
+\NormalTok{proxy\_formula }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need}
+\NormalTok{proxy\_lm }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, train)}
+\FunctionTok{summary}\NormalTok{(proxy\_lm)}
 \FunctionTok{plot}\NormalTok{(proxy\_lm)}
+\CommentTok{\# Calculating weights for WLS}
+\NormalTok{weights }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{/} \FunctionTok{lm}\NormalTok{(}\FunctionTok{abs}\NormalTok{(proxy\_lm}\SpecialCharTok{$}\NormalTok{residuals) }\SpecialCharTok{\textasciitilde{}}\NormalTok{ proxy\_lm}\SpecialCharTok{$}\NormalTok{fitted.values)}\SpecialCharTok{$}\NormalTok{fitted.values}\SpecialCharTok{\^{}}\DecValTok{2}
+
+\CommentTok{\#perform weighted least squares regression}
+\NormalTok{wls\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, }\AttributeTok{data =}\NormalTok{ train, }\AttributeTok{weights=}\NormalTok{weights)}
+
+\FunctionTok{summary}\NormalTok{(wls\_model)}
 \end{Highlighting}
 \end{Shaded}
 
