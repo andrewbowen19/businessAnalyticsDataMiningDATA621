@@ -1,0 +1,133 @@
+---
+title: "DATA 621 - HW5"
+author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
+date: "2023-11-27"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Homework 5 - Count Regression
+
+```{r packages, warning=FALSE, message = FALSE}
+library(tidyverse)
+library(DataExplorer)
+library(knitr)
+library(mice)
+library(cowplot)
+library(scales)
+library(MASS)
+library(glue)
+library(corrplot)
+
+```
+
+
+```{r theme}
+cur_theme <- theme_set(theme_classic())
+
+```
+
+### Data Exploration
+
+The dataset to be used in this analysis involves sales of over 12,000 different types of commerically available wine. There are 12,795 records across the training set with a response variable `TARGET` that indicates the number of sample cases purchased by wine distribution companies. It is generally more appropriate to use poisson or negative binomial regression methods to predict a discrete dependent variable and different variations will be explored later in the analysis. 
+
+Below is a short description of all the variables of interest in the data set, including these response variables:
+
+```{r load_input, echo=F}
+git_link = 'https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/wine_training_data.csv'
+input_df <- read_csv(git_link)
+```
+
+|VARIABLE NAME|DEFINITION|
+|--|--|
+|`INDEX`|Identification Variable|
+|`TARGET`|Number of Cases Purchased|
+|`ACIDINDEX`|Proprietary method of testing total acidity of wine by using a weighted average|
+|`ALCOHOL`|Alcohol Content|
+|`CHLORIDES`|Chloride content of wine|
+|`CITRICACID`|Citric Acide Content|
+|`DENSITY`|Density of Wine|
+|`FIXEDACIDITY`|Fixed Acidity of Wine|
+|`FREESULFURDIOXIDE`|Sulfur Dioxide Content of Wine|
+|`LABELAPPEAL`|Marketing Score indicating the appeal of label design for consumers. High numbers suggest customers like the label design. Negative numbers suggest customers don't like the design.|
+|`RESIDUAL SUGAR`|Residual Sugar of Wine|
+|`STARS`|Win rating by a team of experts|
+|`SULPHATES`|Sulfate content of Wine|
+|`TOTLASULFURDIOXIDE`|Total Sulfur Dioxide of Wine|
+|`VOLATILEACIDITY`|Volatile Acide content of Wine|
+|`PH`|pH Level of Wine|
+
+
+```{r}
+summary(input_df)
+```
+
+All of the variables are numeric included `STARS` although that independent predictor could potentially be treated as a factor given that it's values correspond to a rating scale. Perhaps that will be explored with transformations in the modeling section to determine if that is a better means of prediction. It also has by far the most `NA` values. From reviewing the mean values of all of the variables it appears `CitricAcid` and `FreeSulfurDioxide` have much larger average values than the other potential predictor variables and it'll be interesting to see if that impact coefficients in the models. `ResidualSugar` appears to have some large outlier values given the interquartile range between -2 and 15.9. It is not immediately obvious what a negative value would represent for this column. Further review may be necessary to determine if these are valid data points or distort the model. 
+
+```{r missing_data}
+p1 <- plot_missing(input_df, missing_only = TRUE,
+                   ggtheme = theme_classic(), title = "Missing Values")
+
+```
+
+As mentioned from the summary of the dataframe `STARS` is missing  about a quarter of all of the observations which will require some form of transformation or modification to be included in a model. `Sulphates` has more null values as well but at 10% may not be as problematic and will likely require some imputation to represent the missing rows. For the other columns that have missing values it is hard to say that samples were taken for these wines for these attributes or maybe something tainted the reading for them.
+
+Review of all variable distributions:
+
+```{r review_distributions,echo=F}
+
+input_df <- input_df |> dplyr::select(-INDEX)
+
+numeric_train <- input_df[,sapply(input_df, is.numeric)]
+par(mfrow=c(4,4))
+par(mai=c(.3,.3,.3,.3))
+variables <- names(numeric_train)
+for (i in 1:(length(variables))) {
+  hist(numeric_train[[variables[i]]], main = variables[i], col = "lightblue")
+}
+
+```
+
+The vast majority of predictor variables appear to have a fairly normal approximation although `ResidualSugar`, `Chlorides`,`FreeSulfurDioxide`,`CitricAcid` have some minor skew in their distributions. `AcidIndex` appears to more closely resemble a poisson or maybe exponential distribution and the skew may require further transformations. As discussed previously, `STARS` given it's more discrete values in nature is skewed, but likely should not be treated as a numeric input. `LabelAppeal` does seem to be discrete as well which makes sense given its perhaps a standardized marketing score based on consumer feedback. 
+The response variable appears to have a large amount of zero values, which requires some further review:
+
+```{r target_dist, echo=F}
+
+ggplot(input_df, aes(x = TARGET, y = after_stat(density))) +
+  geom_histogram(binwidth = 1, fill = 'lightblue', color = 'black', alpha = 0.7, 
+                 aes(color = "Histogram")) +
+  geom_line(aes(y = dpois(TARGET, mean(TARGET), log = FALSE), color = "Poisson"), 
+            linewidth = 1) +
+  geom_line(aes(y = dnbinom(x = TARGET, size = 1, prob = 0.2), color = "Negative Binomial"), 
+            linewidth = 1) +
+  geom_line(aes(y = dnorm(x = TARGET, mean = mean(TARGET), sd = sd(TARGET), log = FALSE), color = "Normal"), linewidth = 1) +
+  labs(title = 'Target Histogram and Distribution Overlay',
+       x = 'TARGET',
+       y = 'Density') +
+  scale_color_manual(values = c( "blue", "orange", "red"),
+                     labels = c("Poisson", "Negative Binomial", "Normal")) +
+  theme_minimal()
+
+```
+
+One key assumption when using poisson regression models is that the response is expected to mirror a poisson distribution which has been plotted on the graph above. An attempt will be made to use a standard poisson model despite the fact that there are many zero values from this distribution. It may be necessary to incorporate zero-inflated modeling techniques to occur for this pattern in the data to improve the accuracy/performance of our regression models.
+
+Reviewing $\lambda$ for the poisson distribution:
+
+```{r}
+print(glue("The response mean: {mean(input_df$TARGET)} and variance: {var(input_df$TARGET)}"))
+```
+
+Another important assumption for poisson models relates to the fact that the $\lambda$ parameter which is a critical input for the poisson distribution expects that the  mean and variance must be equal. In practice this is nearly impossible and although there is some overdispersion for the response it is not bad enough to disqualify using this method. 
+
+Let's analyze the correlation relationship among predictors and the response:
+
+```{r check-multicolin, echo=F, fig.show='hold', fig.align='center'}
+corrplot(cor(na.omit(input_df)),method="color",diag=FALSE,type="lower",addCoef.col = "black",number.cex=0.70)
+
+```
