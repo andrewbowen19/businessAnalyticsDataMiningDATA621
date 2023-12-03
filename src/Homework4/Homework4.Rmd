@@ -380,7 +380,7 @@ p2
 
 ```
 
-We do see some overlap in the observations that have missing values for these variables, but it's hard to detect anything more conclusive from this plot. To take a closer look at the patterns of missingness between these variables, we can use the `missing_pattern` function from the `finalfit` package.
+We do see some overlap in the observations that have missing values for these variables, but it's hard to detect anything more conclusive from this plot. To take a closer look at the patterns of missingness between these variables, we can use the `missing_pattern` function from the `finalfit` package. (Note that in the visualization that follows, the numbers along the bottom axis are unfortunately illegible, but they are just the column-wise counts of missing values for each variable, plus a sum of missing values for all variables, and we have already remarked on these totals.)
 
 ```{r missing_pattern_plot, fig.show='hold', out.width='80%', fig.align='center'}
 explanatory = c("JOB", "INCOME", "YOJ")
@@ -391,7 +391,7 @@ p3 <- main_df |>
 
 ```
 
-Here, we see several patterns of missingness worth noting. 814 observations are missing two out of these four variables, and 49 observations are missing three. Of the observations that are missing `HOME_VAL`, 483 are also missing `INCOME`, 154 are also missing `JOB`, and 109 are also missing `YOJ`. Due to these patterns of related missingness, we will no longer consider imputing these variables in the main version of our dataset.
+Here, we see several patterns of missingness worth noting. 814 observations are missing two out of these four variables, and 49 observations are missing three. Of the observations that are missing `HOME_VAL`, 483 are also missing `INCOME`, 154 are also missing `JOB`, and 109 are also missing `YOJ`. Due to these patterns of related missingness, we will no longer consider imputing these variables in the main version of our dataset. 
 
 Let's take a look at the distributions of the numeric variables.
 
@@ -1592,7 +1592,7 @@ knitr::kable(mlr_summary, format = "simple")
 
 ```
 
-The predictive power of all these models is pretty low, as expected. Model MLR:1 is the only model that beats predicting using the mean, and it doesn't beat it by much. We select it as the final multiple linear regression model we will use to make predictions on the evaluation data.
+The predictive power of all these models is pretty low, as expected. Model MLR:1 is the only model that beats predicting using the mean, and it doesn't beat it by much. We know the assumptions of OLS are violated in Model MLR:1, even though the other models have flaws as well. So we do select it as the final multiple linear regression model we will use to make predictions on the evaluation data, but we approach these predictions with caution. Models that are more superior to the naive method of predicting using the mean, and that do not have statistical flaws, should be further investigated. No alternate models we have attempted have fared better as of yet though. 
 
 #### Predictions on Evaluation Data
 
