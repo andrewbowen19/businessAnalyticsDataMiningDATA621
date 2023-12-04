@@ -1,0 +1,337 @@
+---
+title: "DATA 621 - HW5"
+author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
+date: "2023-11-27"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Homework 5 - Count Regression
+
+```{r packages, warning=FALSE, message = FALSE}
+library(tidyverse)
+library(DataExplorer)
+library(knitr)
+library(mice)
+library(cowplot)
+library(scales)
+library(MASS)
+library(glue)
+library(corrplot)
+library(naniar)
+library(correlationfunnel)
+library(finalfit)
+```
+
+
+```{r theme}
+cur_theme <- theme_set(theme_classic())
+
+```
+
+### Data Exploration
+
+The dataset to be used in this analysis involves sales of over 12,000 different types of commercially available wine. There are 12,795 records across the training set with a response variable `TARGET` that indicates the number of sample cases purchased by wine distribution companies. It is generally more appropriate to use poisson or negative binomial regression methods to predict a discrete dependent variable and different variations will be explored later in the analysis. 
+
+Below is a short description of all the variables of interest in the data set, including these response variables:
+
+```{r load_input, echo=F}
+git_link = 'https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/wine_training_data.csv'
+input_df <- read_csv(git_link,show_col_types = FALSE)
+```
+
+|VARIABLE NAME|DEFINITION|
+|--|--|
+|`INDEX`|Identification Variable|
+|`TARGET`|Number of Cases Purchased|
+|`ACIDINDEX`|Proprietary method of testing total acidity of wine by using a weighted average|
+|`ALCOHOL`|Alcohol Content|
+|`CHLORIDES`|Chloride content of wine|
+|`CITRICACID`|Citric Acide Content|
+|`DENSITY`|Density of Wine|
+|`FIXEDACIDITY`|Fixed Acidity of Wine|
+|`FREESULFURDIOXIDE`|Sulfur Dioxide Content of Wine|
+|`LABELAPPEAL`|Marketing Score indicating the appeal of label design for consumers. High numbers suggest customers like the label design. Negative numbers suggest customers don't like the design.|
+|`RESIDUAL SUGAR`|Residual Sugar of Wine|
+|`STARS`|Win rating by a team of experts|
+|`SULPHATES`|Sulfate content of Wine|
+|`TOTLASULFURDIOXIDE`|Total Sulfur Dioxide of Wine|
+|`VOLATILEACIDITY`|Volatile Acide content of Wine|
+|`PH`|pH Level of Wine|
+
+Let's review the basic numeric distributions from the summary of the dataframe:
+
+```{r summary_input,echo=F}
+summary(input_df)
+```
+
+All of the variables are numeric included `STARS` although that independent predictor could potentially be treated as a factor given that it's values correspond to a rating scale. Perhaps that will be explored with transformations in the modeling section to determine if that is a better means of prediction. It also has by far the most `NA` values. From reviewing the mean values of all of the variables it appears `CitricAcid` and `FreeSulfurDioxide` have much larger average values than the other potential predictor variables and it'll be interesting to see if that impact coefficients in the models. `ResidualSugar` appears to have some large outlier values given the interquartile range between -2 and 15.9. It is not immediately obvious what a negative value would represent for this column. Further review may be necessary to determine if these are valid data points or distort the model. 
+
+How many observations have negative values (excluding NA values)?
+
+
+```{r rev_negatives,echo=F}
+excl_neg <- c('INDEX','TARGET','pH','STARS')
+#neg_df <- input_df |> dplyr::select(-all_of(excl_neg))
+neg_cnts <- sapply(input_df |> dplyr::select(-all_of(excl_neg)), function(x) sum(!is.na(x) & x<0))
+knitr::kable(t(neg_cnts), format = "simple")
+```
+
+Given the proclivity of negative values across multiple columns it would appear to be too widespread an occurrence unless many of the measurements were incorrectly assessed or recorded. It is also not appropriate to change the sign of said observations we it is unclear if that would be a more accurate representation of the data. This may make it a bit harder to explain certain relationships that are encountered in the regression models.
+
+Let's review the frequency of missing values overall across the training dataset:
+
+```{r missing_data, echo=F}
+p1 <- plot_missing(input_df, missing_only = TRUE,
+                   ggtheme = theme_classic(), title = "Missing Values")
+
+```
+
+As mentioned from the summary of the dataframe `STARS` is missing  about a quarter of all of the observations which will require some form of transformation or modification to be included in a model. `Sulphates` has more null values as well but at 10% may not be as problematic and will likely require some imputation to represent the missing rows. For the other columns that have missing values it is hard to say that samples were taken for these wines for these attributes or maybe something tainted the reading for them.
+
+Review of all variable distributions:
+
+```{r review_distributions,echo=F}
+
+#input_df <- input_df |> dplyr::select(-INDEX)
+
+numeric_train <- input_df[,sapply(input_df, is.numeric)]
+par(mfrow=c(4,4))
+par(mai=c(.3,.3,.3,.3))
+variables <- names(numeric_train)
+for (i in 1:(length(variables))) {
+  hist(numeric_train[[variables[i]]], main = variables[i], col = "lightblue")
+}
+
+```
+
+The vast majority of predictor variables appear to have a fairly normal approximation although `ResidualSugar`, `Chlorides`,`FreeSulfurDioxide`,`CitricAcid` have some minor skew in their distributions. `AcidIndex` appears to more closely resemble a poisson or maybe exponential distribution and the skew may require further transformations. As discussed previously, `STARS` given it's more discrete values in nature is skewed, but likely should not be treated as a numeric input. `LabelAppeal` does seem to be discrete as well which makes sense given its perhaps a standardized marketing score based on consumer feedback. 
+The response variable appears to have a large amount of zero values, which requires some further review:
+
+```{r target_dist, echo=F}
+
+ggplot(input_df, aes(x = TARGET, y = after_stat(density))) +
+  geom_histogram(binwidth = 1, fill = 'lightblue', color = 'black', alpha = 0.7, 
+                 aes(color = "Histogram")) +
+  geom_line(aes(y = dpois(TARGET, mean(TARGET), log = FALSE), color = "Poisson"), 
+            linewidth = 1) +
+  geom_line(aes(y = dnbinom(x = TARGET, size = 1, prob = 0.2), color = "Negative Binomial"), 
+            linewidth = 1) +
+  geom_line(aes(y = dnorm(x = TARGET, mean = mean(TARGET), sd = sd(TARGET), log = FALSE), color = "Normal"), linewidth = 1) +
+  labs(title = 'Target Histogram and Distribution Overlay',
+       x = 'TARGET',
+       y = 'Density') +
+  scale_color_manual(values = c( "red", "blue", "orange"),
+                     labels = c("Negative Binomial","Normal","Poisson")) +
+  theme_minimal()
+
+```
+
+One key assumption when using poisson regression models is that the response is expected to mirror a poisson distribution which has been plotted on the graph above. An attempt will be made to use a standard poisson model despite the fact that there are many zero values from this distribution. It may be necessary to incorporate zero-inflated modeling techniques to occur for this pattern in the data to improve the accuracy/performance of our regression models. The negative binomial function seems to be account for the frequency of zero values in the `TARGET` response, but it is not capturing the distribution of the remaining predicted cases very well. The normal distriubtion was also included to compare against the poisson given that at higher $\lambda$ values these two distributions tend to converge and in this case are not that substantially different from one another when evaluating the training dataset.
+
+Reviewing $\lambda$ for the poisson distribution:
+
+```{r pois_lambda,echo=F}
+print(glue("The response mean: {mean(input_df$TARGET)} and variance: {var(input_df$TARGET)}"))
+```
+
+Another important assumption for poisson models relates to the fact that the $\lambda$ parameter which is a critical input for the poisson distribution expects that the  mean and variance must be equal. In practice this is nearly impossible and although there is some overdispersion for the response it is not bad enough to disqualify using this method. 
+
+Let's analyze the correlation relationship among predictors and the response:
+
+```{r check-multicolin, echo=F,out.width='90%'} 
+
+corrplot(cor(na.omit(input_df)),method="color",diag=FALSE,type="lower",addCoef.col = "black",number.cex=0.60)
+
+```
+
+After excluding the NA values, there are weak correlation values across the board except for `TARGET`,`STARS` and `LabelAppeal`. This is not the most encouraging evidence that the predictor variables provided in the dataset are going to be that predictive.
+
+One hypothesis for the apparent lack of linear relationships between variables and the response may be driven off the substantial number of zero values in the response. A potential guess for missing `TARGET` values might be the fact that many more brands of wine exist that are minimally distributed on a commercial scale.
+
+What is the relationship among the variables when excluding the zero response values?
+
+```{r non_zero_corr,echo=F}
+nonzero_df <- na.omit(input_df) |> filter(TARGET!=0) 
+corrplot(cor(nonzero_df),method="color",diag=FALSE,type="lower",addCoef.col = "black",number.cex=0.60)
+```
+
+There aren't many changes across the correlations after excluding the zero response rows. `LabelAppeal` appears to have a stronger linear relationship with the `TARGET` and `STARS`. Two different acidity (`AcidIndex` and `FixedAcidity`) inputs also have more correlation than before although it is still a fairly weak relationship.
+
+### Data Preparation
+
+As discussed in the exploratory section, the `STARS` variable appears to be something that can be treated as a factor. The number of NA values would likely indicate that it is not a rated wine by the experts and much less likely to have sample cases purchased by distributors. The missing values will be updated to zero to mirror the scale of this discrete predictor.
+
+```{r prep_stars, echo=F}
+mod_df <- input_df |> dplyr::select(-INDEX) |> mutate(STARS=as.factor(ifelse(is.na(STARS),0,STARS)))
+```
+
+The remaining columns with missing values are far less clear to evaluate and will need a more standardized imputation method:
+
+One more comprehensive method to evaluate if the data is Missing Completely at random (MCAR) is running Little's test although this is unlikely to be the case for most real world datasets.
+
+```{r missing_completely_at_random}
+littles_test <- input_df |>
+    mcar_test()
+knitr::kable(littles_test, format = "simple")
+
+```
+
+The zero in the p-value indicates that the missing values across these columns are not in fact MCAR.
+
+Let's review if the NA values appear in similar observations:
+
+```{r missing_values_map,echo=F}
+na_cols <- c("pH", "ResidualSugar", "Chlorides", "FreeSulfurDioxide",'Alcohol','TotalSulfurDioxide','Sulphates')
+na_col_review <- mod_df |>
+    dplyr::select(all_of(na_cols)) |>
+    missing_plot()
+na_col_review
+
+
+```
+
+The plot above highlights via a heat map all of the individuals rows where the independent predictors have NA values (shaded in light blue). It's a bit challenging to discern where observations have more than one null value, but there is definitely some overlap across records.
+
+```{r row_index,echo=F}
+na_freq <- mod_df |> dplyr::select(all_of(na_cols)) |> mutate(row_index=1:nrow(mod_df)) |> pivot_longer(cols=na_cols,names_to='header') |> filter(is.na(value)) |> group_by(row_index) |> summarise(num_na=n())
+
+ggplot(na_freq,aes(x=num_na)) +
+    geom_bar() +
+    labs(x='Number of NA columns',y='Number of Rows',title='Distribution of NA Values across columns')
+
+print(glue("Only {pull(na_freq |> filter(num_na>1)|>summarise(total=n()))} rows have more than 1 column with NA, which is only {format(round(pull(na_freq |> filter(num_na>1)|>summarise(total=n())/nrow(na_freq))*100,2),nsmall=2)}%"))
+
+```
+
+It does not appear that many observations have more than 1 NA value and the heatmap wasn't so clear in identifying overlapping columns.
+
+
+```{r train_test_split,echo=F}
+set.seed(19)
+rows <- sample(nrow(mod_df))
+sample <- sample(c(TRUE, FALSE), nrow(mod_df), replace=TRUE,
+                 prob=c(0.7,0.3))
+train_df <- mod_df[sample, ]
+test_df <- mod_df[!sample, ]
+
+```
+
+
+```{r imputation}
+
+df_names <- colnames(train_df)
+non_na_cols <- df_names[!df_names %in% na_cols]
+#Since the imputation process is a little slow, we only do the imputations once, save the results as .csv files once, and load those .csv files moving forward, making sure the levels of the factors stay the same. 
+#if (file.exists("alt_train_df_imputed.csv") & file.exists("alt_test_df_imputed.csv")){
+#    alt_train_df_imputed <- read.csv("alt_train_df_imputed.csv", na.strings = "",
+#                                 colClasses = col_classes)
+#    alt_test_df_imputed <- read.csv("alt_test_df_imputed.csv", na.strings = "",
+#                                 colClasses = col_classes)
+#}else{
+    #Train Data Imputation First
+    init = mice(train_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    
+    
+    meth[non_na_cols] = ""
+    
+    meth[c("pH")] = "pmm"
+    meth[c("ResidualSugar")] = "pmm"
+    meth[c("Chlorides")] = "pmm"
+    meth[c("FreeSulfurDioxide")] = "pmm"
+    meth[c("Alcohol")] = "pmm"
+    meth[c("TotalSulfurDioxide")] = "pmm"
+    meth[c("Sulphates")] = "pmm"
+
+    imputed_train = mice(train_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    train_df_imputed <- complete(imputed_train)
+    write.csv(train_df_imputed, "imputed_wine_train_df.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+    
+    #Repeat for test_df
+    init = mice(test_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    meth[non_na_cols] = ""
+    meth[c("pH")] = "pmm"
+    meth[c("ResidualSugar")] = "pmm"
+    meth[c("Chlorides")] = "pmm"
+    meth[c("FreeSulfurDioxide")] = "pmm"
+    meth[c("Alcohol")] = "pmm"
+    meth[c("TotalSulfurDioxide")] = "pmm"
+    meth[c("Sulphates")] = "pmm"
+    imputed_test = mice(test_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    imputed_test_df <- complete(imputed_test)
+    write.csv(imputed_test_df, "imputed_wine_test_df.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+#}
+
+```
+
+
+```{r}
+train_df_imputed_input <- read.csv("/Users/JoshForster/Desktop/Masters_Data_Sci/Data621/imputed_wine_train_df.csv", na.strings = "")
+test_df_imputed_input <- read.csv("/Users/JoshForster/Desktop/Masters_Data_Sci/Data621/imputed_wine_test_df.csv", na.strings = "")
+
+```
+
+Let's confirm that the imputation filled for all null values:
+
+```{r impute_check,echo=F}
+x <- sapply(train_df_imputed_input, function(x) sum(is.na(x)))
+y <- sapply(test_df_imputed_input, function(x) sum(is.na(x)))
+sum(x, y) == 0
+```
+
+Let's review the distributions of the train and test imputed datasets to confirm they remain similar:
+#need to fix for spacing and split up imputed predictors
+```{r review__imputedistrib, warning = FALSE, message = FALSE}
+
+impute_train_input <- train_df_imputed_input |>
+    dplyr::select(all_of(na_cols)) |>
+    mutate(Set = "Train")
+impute_test_input <- test_df_imputed_input |>
+    dplyr::select(all_of(na_cols)) |>
+    mutate(Set = "Test")
+impute_both <- impute_train_input |>
+    bind_rows(impute_test_input)
+impute_pivot <- impute_both |>
+    pivot_longer(!Set, names_to = "Variable", values_to = "Value")
+impute_plot <- impute_pivot |>
+    ggplot(aes(x = Value)) +
+    geom_density(fill = "lightblue", color = "black") +
+    labs(y = "Density") +
+    facet_grid(rows = vars(Set), cols = vars(Variable),
+               switch = "y", scales = "free_x")
+impute_plot
+
+```
+
+There is one additional variable, `AcidIndex` that remains skewed that will require further transformation
+#proposed lambda was -1.15 and need to review further
+```{r box_cox_transform,echo=F}
+skew = c('AcidIndex')
+for (i in 1:(length(skew))){
+    if (i == 1){
+        lambdas <- c()
+    }
+    bc <- boxcox(lm(train_df_imputed_input[[skew[i]]] ~ 1),
+                 lambda = seq(-2, 2, length.out = 81),
+                 plotit = FALSE)
+    lambda <- bc$x[which.max(bc$y)]
+    lambdas <- append(lambdas, lambda)
+}
+lambdas <- as.data.frame(cbind(skew, lambdas))
+lambdas
+
+```
+

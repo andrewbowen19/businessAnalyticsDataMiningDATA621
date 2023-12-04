@@ -1,0 +1,811 @@
+---
+title: "DATA 621 - HW3"
+author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
+date: "2023-10-23"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
+
+library(tidyverse)
+library(modelr)
+library(DataExplorer)
+library(correlationfunnel)
+library(caret)
+library(knitr)
+library(confintr)
+library(psych)
+library(car)
+library(corrplot)
+library(RColorBrewer)
+library(MASS)
+select <- dplyr::select
+library(glmtoolbox)
+library(cowplot)
+library(pROC)
+library(bestglm)
+
+```
+
+## Homework 3 - Logistic Regression
+
+### Analysis of Factors that Influence Crime Rates:
+
+In this homework assignment, we explore, analyze, and model a dataset containing information on crime for various neighborhoods of a major city. Each record has a response variable indicating whether or not the crime rate is above the median crime rate (1) or not (0).
+
+Our objective is to build a binary logistic regression model on the training dataset to predict whether the neighborhood will be at risk for high crime levels.
+
+Below is a short description of the variables of interest in the dataset:
+
+|Column|Description|
+|--|--|
+|`zn`|proportion of residential land zoned for large lots (over 25000 square feet) (*predictor variable*)|
+|`indus`|proportion of non-retail business acres per suburb (*predictor variable*)|
+|`chas`|a dummy var. for whether the suburb borders the Charles River (1) or not (0) (*predictor variable*)|
+|`nox`|nitrogen oxides concentration (parts per 10 million) (*predictor variable*)|
+|`rm`|average number of rooms per dwelling (*predictor variable*)|
+|`age`|proportion of owner-occupied units built prior to 1940 (*predictor variable*)
+|`dis`|weighted mean of distances to five Boston employment centers (*predictor variable*)
+|`rad`|index of accessibility to radial highways (*predictor variable*)|
+|`tax`|full-value property-tax rate per $10,000 (*predictor variable*)|
+|`ptratio`|pupil-teacher ratio by town (*predictor variable*)|
+|`lstat`|lower status of the population (percent) (*predictor variable*)|
+|`medv`|median value of owner-occupied homes in $1000s (*predictor variable*)|
+|**`target`**|**whether the crime rate is above the median crime rate (1) or not (0) (*response variable*)**|
+
+```{r load-train-data, echo=F}
+train_df <- read.csv("https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/crime-training-data_modified.csv")
+test_df <- read.csv("https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/crime-evaluation-data_modified.csv")
+
+```
+
+### Data Exploration:
+
+```{r df-shape, echo=F}
+dim(train_df)
+
+```
+
+The dataset consists of 466 observations of 13 variables. There are 12 predictor variables and one response variable (`target`).
+
+```{r dim-data, echo=F}
+train_df |>
+    glimpse()
+
+```
+
+All of the columns in the dataset are numeric, but the predictor variable `chas` is a dummy variable, as is the response variable `target`. We re-code them as factors. 
+
+```{r echo=F}
+train_df <- train_df |>
+    mutate(chas = as.factor(chas), target = as.factor(target))
+
+```
+
+Let's take a look at the summary statistics for the variables in the dataset. 
+
+```{r summary-stats1, echo=F}
+summary(train_df)
+
+# standard deviation
+sapply((train_df |> select (-chas, -target)), sd)
+
+```
+
+We can see the mean, median, standard deviations, etc. for each of the variables in the dataset.
+
+For the `target` variable, there are 229 instances where crime level is above the median level (`target` = 1) and 237 instances where crime is not above the median level (`target` = 0). Since the response variable is fairly balanced between its two levels, the data will not require any resampling to weight the distributions for each level.
+
+The `tax` variable does not follow our expectations that higher property tax rates would correspond with less crime. 
+
+The minimum, first quantile, and median values for `zn` are all 0. This variable refers to the proportion of residential land zoned for large lots. Most of the neighborhoods in this dataset do not have land that is zoned for large lots. 
+
+For the `age` variable, the median is higher than the mean. This indicates the data is left-skewed, meaning there is a greater proportion of homes that were built prior to 1940 in the dataset. 
+
+There do not appear to be any missing values to address. Let's validate this. 
+
+```{r, echo=F}
+sum(is.na(train_df))
+
+```
+
+There are in fact no missing values in the dataset.
+
+To check whether the predictor variables are correlated with the target variable, we produce a correlation funnel that visualizes the strength of the relationships between our predictors and our response. 
+
+```{r correlation_funnel, echo=F}
+train_df_binarized <- train_df |>
+    binarize(n_bins = 5, thresh_infreq = 0.01, name_infreq = "OTHER",
+           one_hot = TRUE)
+train_df_corr <- train_df_binarized |>
+    correlate(target__1)
+train_df_corr |>
+    plot_correlation_funnel()
+rm(train_df_binarized, train_df_corr)
+
+```
+
+The correlation funnel plots the most important features towards the top. In our dataset, the four most important features correlated with the response variable are `tax`, `indus`, `ptratio`, and `nox`.
+
+Looking at the features towards the bottom, the four least important features correlated with the response variable are `medv`, `lstat`, `rm`, and `chas`, with `chas` being the least correlated to `target`. These correlations are measured by the Pearson Correlation coefficient by default. 
+
+Since both `chas` and `target` are binary categorical variables, the correct coefficient to use to understand the strength of their relationship is actually the $\phi$ coefficient. If either of these categorical variables had more than two categories, we would need to calculate $\phi$ using the formula for Cramer's V (also called Cramer's $\phi$) coefficient. However, in the special case that both categorical variables are binary, the value of Cramer's V coefficient will actually be equal to the value of the Pearson Correlation coefficient. So either formula actually results in the same value for $\phi$. We prove this below.
+
+```{r correlation_coefficients, echo=F}
+factors <- c("chas", "target")
+cramersv <- round(cramersv(train_df |> select(all_of(factors))), 5)
+pearson <- round(cor(as.numeric(train_df$chas), as.numeric(train_df$target), method = "pearson"), 5)
+(cramersv == pearson)
+
+```
+
+The value for $\phi$ is `r cramersv` regardless of the formula used to calculate it, and this very low value proves the very small amount of correlation between `chas` and `target` estimated by the correlation funnel is accurate. 
+
+Now we check for multicollinearity between predictor variables.
+
+```{r check-multicolin, echo=F, fig.show='hold', fig.align='center', out.width='90%'}
+corrplot(cor(train_df |> select(-target) |> mutate(chas = as.numeric(chas))),
+         method="color",
+         diag=FALSE,
+         type="lower",
+         addCoef.col = "black",
+         number.cex=0.70)
+
+```
+
+It is clear that the predictor variables `rad` and `tax` are very highly correlated (more than 0.9). We will attempt to account for this when we prepare the data. 
+
+There are some smaller, but still high correlations between other predictor variables as well. `indus` is highly correlated (more than 0.7) with `nox`, `dis`, and `tax`. `nox` is also highly correlated with `age` and `dis`. `rm` is highly correlated with `medv`. `lstat` is highly correlated with `medv`. 
+
+Let's take a look at the distributions for the predictor variables. 
+
+```{r plot-distributions, echo=F}
+par(mfrow=c(3,4))
+par(mai=c(.3,.3,.3,.3))
+variables <- names(train_df)
+for (i in 1:(length(variables)-1)) {
+    if (variables[i] %in% factors){
+        hist(as.numeric(train_df[[variables[i]]]), main = variables[i],
+             col = "lightblue")
+    }else{
+        hist(train_df[[variables[i]]], main = variables[i], col = "lightblue")
+    }
+}
+
+```
+
+The distribution for `rm` appears to be normal, and the distribution for `medv` is nearly normal. The distributions for `zn`, `dis`, `lstat`, and `nox` are right-skewed. The distributions for `age` and `ptratio` are left-skewed.
+
+The distributions for the remaining variables are multimodal, including the distribution for `chas`, which appears degenerate at first glance. It looks like a near-zero variance predictor, which we can confirm using the `nearZeroVar` function from the `caret` package. 
+
+```{r near_zero_var, echo=F}
+nzv <- nearZeroVar(train_df |> select(-target), saveMetrics = TRUE)
+knitr::kable(nzv)
+
+```
+
+The percentage of unique values, `percentUnique`, in the sample for this predictor is less than the typical threshold of 10 percent, but there is a second criterion to consider: the `freqRatio`. This measures the frequency of the most common value (0 in this case) to the frequency of the second most common value (1 in this case). The `freqRatio` value for this predictor is less than the typical threshold of 19 (i.e. 95 occurrences of the most frequent value for every 5 occurrences of the second most frequent value). So it is not considered a near-zero variance predictor. Neither are any of the other predictors. 
+
+Next we analyze boxplots to determine the spread of the numeric predictor variables. This will also reveal any outliers.
+
+```{r boxplots, echo=F}
+train_df |>
+    dplyr::select(-chas) |>
+    gather(key, value, -target) |>
+    mutate(key = factor(key),
+           target = factor(target)) |>
+    ggplot(aes(x = key, y = value)) +
+    geom_boxplot(aes(fill = target)) +
+    scale_x_discrete(labels = NULL, breaks = NULL) +
+    facet_wrap(~ key, scales = 'free', ncol = 3) +
+    scale_fill_brewer(palette = "Paired") +
+    theme_minimal() +
+    theme(strip.text = element_text(face = "bold"))
+
+```
+
+For certain predictors, the variance between the two categories of the response variable differs largely: `age`, `dis`, `nox`, `rad`, `indus`, and `zn`. Many of these variables also have almost no overlap in the interquartile ranges for each level of the response.
+
+We also see some outliers in one or both levels of the response for some variables. We have no reason to conclude the outliers represent anything other than accurately recorded information that could be important to our model.
+
+### Data Preparation:
+
+We confirmed earlier that there are no missing values to impute and no near-zero variance variables to remove. We also decided against [winsorizing](https://towardsdatascience.com/detecting-and-treating-outliers-in-python-part-3-dcb54abaf7b0) the outliers, which is a method of outlier imputation that replaces any value of a variable above or below percentile $k$ with the value of the $k^{th}$ percentile itself. (We tested building a model using winsorized data, and it did not result in a model with different predictors or coefficients than building a model with non-winsorized data, so we scrapped it.)
+
+We check whether our predictor variables with skewed distributions would benefit from transformations.
+
+```{r trans, echo=F}
+skewed <- c("zn", "dis", "lstat", "nox", "age", "ptratio")
+train_df_trans <- train_df
+for (i in 1:(length(skewed))){
+    #Add a small constant to columns with any 0 values
+    if (sum(train_df_trans[[skewed[i]]] == 0) > 0){
+        train_df_trans[[skewed[i]]] <-
+            train_df_trans[[skewed[i]]] + 0.001
+    }
+}
+for (i in 1:(length(skewed))){
+    if (i == 1){
+        lambdas <- c()
+    }
+    bc <- boxcox(lm(train_df_trans[[skewed[i]]] ~ 1),
+                 lambda = seq(-2, 2, length.out = 81),
+                 plotit = FALSE)
+    lambda <- bc$x[which.max(bc$y)]
+    lambdas <- append(lambdas, lambda)
+}
+lambdas <- as.data.frame(cbind(skewed, lambdas))
+adj <- c("log", "log", "log", "inverse", "no transformation", "square")
+lambdas <- cbind(lambdas, adj)
+cols <- c("Skewed Variable", "Ideal Lambda Proposed by Box-Cox", "Reasonable Alternative Transformation")
+colnames(lambdas) <- cols
+kable(lambdas, format = "simple")
+
+```
+
+All of the skewed variables except for `age` might benefit from transformations. We also check whether the distributions for these skewed variables in the test set are similar to their distributions in the training set. 
+
+```{r test_dist,echo=F}
+par(mfrow=c(2,3))
+par(mai=c(.3,.3,.3,.3))
+for (i in 1:length(skewed)) {
+    if (skewed[i] != "age"){
+        hist(test_df[[skewed[i]]], main = skewed[i], col = "lightblue")
+    }
+    else{
+        next
+    }
+}
+```
+
+The distributions in the test set for these skewed variables are similar to the distributions in the training set, so there are no issues transforming these variables. We now create transformed versions of our train and test data, and we will incorporate these transformed predictors into one of our models in the next section: Model 2. 
+
+```{r trans2, echo=F}
+remove <- c("zn", "dis", "lstat", "nox")
+train_df_trans <- train_df_trans |>
+    mutate(log_zn = log(zn),
+           log_dis = log(dis),
+           log_lstat = log(lstat),
+           inverse_nox = nox^-1,
+           ptratio_sq = ptratio^2) |>
+    select(-all_of(remove))
+test_df_trans <- test_df
+for (i in 1:(length(skewed))){
+    #Add a small constant to columns with any 0 values
+    if (sum(test_df_trans[[skewed[i]]] == 0) > 0){
+        test_df_trans[[skewed[i]]] <-
+            test_df_trans[[skewed[i]]] + 0.001
+    }
+}
+test_df_trans <- test_df_trans |>
+    mutate(log_zn = log(zn),
+           log_dis = log(dis),
+           log_lstat = log(lstat),
+           inverse_nox = nox^-1,
+           ptratio_sq = ptratio^2) |>
+    select(-all_of(remove))
+
+```
+
+We now consider modifying the `rad` and `tax` variables in an attempt to minimize the very high correlation we identified earlier between these two predictors. First, we look at the `rad` distribution more closely.
+
+```{r rad_review,echo=F, fig.show='hold', fig.align='center', out.width='70%'}
+ggplot(train_df,aes(x=rad)) +
+    geom_bar()
+```
+
+It is apparent that this variable may be more useful as a dummy variable given the limited potential values for this predictor. We bin the values and create the `rad_less5` dummy variable indicating 1 if the value for `rad` is < 5 and 0 if not. Using the same logic, we also bin the values in the `tax` variable into three levels (low is < 300, middle is 300 to 400, high is 400+), then create two dummy variables: `middle_tax` and `high_tax`. 
+
+```{r create_rad_tax_cols,echo=F}
+remove <- c("rad", "tax")
+train_df2 <- train_df |>
+    mutate(rad_less5=as.factor(ifelse(rad<5,1,0)),
+           high_tax=as.factor(ifelse(tax>400,1,0)),
+           middle_tax=as.factor(ifelse(tax<400 & tax>=300,1,0))) |>
+    select(-all_of(remove)) |>
+    relocate(target,.after=last_col())
+test_df2 <- test_df |>
+    mutate(rad_less5=as.factor(ifelse(rad<5,1,0)),
+           high_tax=as.factor(ifelse(tax>400,1,0)),
+           middle_tax=as.factor(ifelse(tax<400 & tax>=300,1,0))) |>
+    select(-all_of(remove))
+
+```
+
+```{r rerun_corplot_rad_tax,echo=F, fig.show='hold', fig.align='center', out.width='90%'}
+corrplot(cor(train_df2 |> select(-target) |> mutate(chas = as.numeric(chas),
+                                                    rad_less5 = as.numeric(rad_less5),
+                                                    high_tax = as.numeric(high_tax),
+                                                    middle_tax = as.numeric(middle_tax))),
+             method="color",
+             diag=FALSE,
+             type="lower",
+             addCoef.col = "black",
+             number.cex=0.70)
+```
+
+Both binned dummy columns address the correlation concerns that were previously identified. We will attempt to incorporate these binned predictors into one of our models in the next section: Model 3.
+
+Before we build the models in the next section, we have decided that none of the models will be trained on the variable `chas`, as we have deemed this predictor irrelevant based on the earlier conclusion that its correlation with the response variable is very low.
+
+```{r remove_chas, echo=F}
+train_df <- train_df |>
+    select(-chas)
+train_df_trans <- train_df_trans |>
+    select(-chas)
+train_df2 <- train_df2 |>
+    select(-chas)
+test_df <- test_df |>
+    select(-chas)
+test_df_trans <- test_df_trans |>
+    select(-chas)
+test_df2 <- test_df2 |>
+    select(-chas)
+
+```
+
+### Build Models
+
+We build three models. Model 1 will be trained using untransformed data, Model 2 will be trained using transformed data for skewed predictors, and Model 3 will be trained using binned data for highly correlated predictors. For Models 1 and 2, stepwise model selection will be used to pick the model with the lowest AIC. For Model 3, an alternative exhaustive search method will be used to pick two sub-models based on different criteria: one with the lowest AIC and one with the lowest BIC.
+
+#### Model 1: Stepwise AIC Selection on Untransformed Data
+
+We start with a full model using the untransformed data and then perform stepwise model selection to select the model with the smallest AIC value using the `stepAIC()` function from the `MASS` package. 
+
+```{r full-model, echo=F}
+glm_full <- glm(target~., family='binomial', data=train_df)
+model_1 <- stepAIC(glm_full, trace=0)
+summary(model_1)
+
+```
+
+Model 1, the stepwise untransformed model, consists of 8 predictor variables and has an AIC of 215.32.
+
+To interpret the model coefficients other than the Intercept, we first need to exponentiate them.
+
+```{r coefs, echo=F}
+beta <- coef(model_1)
+beta_exp <- as.data.frame(exp(beta)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta_exp) <- cols
+beta_exp <- beta_exp |>
+    filter(Feature != "(Intercept)")
+knitr::kable(beta_exp, format = "simple")
+
+```
+
+The coefficients are now easier to interpret. Features with coefficients less than 1 indicate the odds of the crime rate being above the median crime rate decrease as that feature increases, while coefficients greater than 1 indicate the odds of the crime rate being above the median crime rate increases as that feature increases. How much the odds increase or decrease per 1 unit increase in the feature is the difference between that feature's coefficient and 1, multiplied by 100 so we can understand it as a percentage increase or decrease.
+
+The coefficient for `nox` is extremely large. If we look back at the boxplots, we can see that the spreads for each category of the `target` value have no overlap in their interquartile ranges for this predictor. Almost all measures greater than 0.5 are associated with above median crime rates, and since this variable is measured on a scale less than 1, an increase of 1 in its value makes any measurement a large enough value to associate it with above median crime rates.
+
+Now that we understand that, let's exclude `nox` from the features so that we can look at the rest of their coefficients more closely.
+
+```{r coefs2, echo=F}
+beta_exp <- beta_exp |>
+    filter(Feature != "nox") |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds Crime Rate Above Median")
+colnames(beta_exp) <- cols
+knitr::kable(beta_exp, format = "simple")
+
+```
+
+It's interesting that variables that did not have as strong of a linear relationship in the correlation funnel have an estimated larger percentage impact in the model given the exponentiated coefficients outside of `nox`. This is probably due to the scales the variables are measured on.
+
+Here, we see that increasing `rad` by 1 unit increases the odds of being above the median crime rate by 106.5 percent, increasing `zn` by 1 unit decreases the odds of being above the median crime rate by 6.6 percent, and so forth. 
+
+It is not so obvious what the perceived strength of the statistical relationship between access to radial highways and crime might be. Perhaps it has to do with how easily visitors could come and go from a neighborhood that is more proximate to highways.
+
+Let's check for possible multicollinearity within this model. 
+
+```{r check-multicol-model1, echo=F}
+vif(model_1)
+
+```
+
+All of the variance inflation factors are less than 5 so there are no issues of multicollinearity within this model.
+
+#### Model 2: Stepwise AIC Selection on Transformed Data
+
+We build our second model using the transformed data. We again start with a full model, then use the same stepwise lowest-AIC selection process we used for the first model to get a reduced model.
+
+```{r model2, echo=F}
+glm_full2 <- glm(target~., family='binomial', data=train_df_trans)
+model_2 <- stepAIC(glm_full2, trace=0)
+summary(model_2)
+
+```
+
+Model 2, the stepwise transformed model, consists of 10 predictor variables and has an AIC of 204.17.
+
+To interpret the model coefficients, we first need to exponentiate them again to discuss how 1 unit increases in each of these predictors would affect the odds of the crime rate being above the median.
+
+```{r coefs_model2, echo=F}
+beta2 <- coef(model_2)
+beta2_exp <- as.data.frame(exp(beta2)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta2_exp) <- cols
+beta2_exp <- beta2_exp |>
+    filter(Feature != "(Intercept)")
+beta2_exp <- beta2_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds Crime Rate Above Median")
+colnames(beta2_exp) <- cols
+knitr::kable(beta2_exp, format = "simple")
+
+```
+
+A 1 unit increase in the transformed predictor `log_dis` results in a 2687.3 percent increase in the odds of being above the median crime rate, a 1 unit increase in the the transformed predictor `log_zn` results in a 20.8 percent decrease in the odds of being above the median crime rate, and so forth.
+
+Note that since Model 2 uses the transformed predictor `inverse_nox` instead of the original predictor `nox`, the exponentiated coefficient for the transformed predictor is very small instead of very large, and therefore a 1 unit increase in `inverse_nox` logically results in a 100 percent decrease in the odds of being above the median crime rate. 
+
+Note also that the coefficient for the transformed predictor `ptratio_sq` is positive, where as the coefficient for its untransformed lower order term `ptratrio` is negative. This falls within expected behavior when adding a quadratic term, and visually the relationship between the response and these predictors would look like a concave upward parabola that decreases to a minimum, then increases. 
+
+We check for possible multicollinearity within this model. 
+
+```{r check-multicol-model2, echo=F}
+vif(model_2)
+
+```
+
+We see very high variance inflation factors for `ptratio` and `ptratio_sq`. This is expected since we've included a higher order term and its lower order term in the model. We want to keep both, as keeping just the higher order term would be us insisting the lower order term has no effect on the model, and we have no reason to do that.
+
+The only other variance inflation factor higher than 5 is for `medv`. We will remove this variable from Model 2. 
+
+```{r update_model_2, echo=F}
+model_2 <- update(model_2, ~ . - medv)
+summary(model_2)
+
+```
+This increased the AIC for Model 2 to 210.28. This is still lower than the AIC from Model 1. 
+
+#### Model 3: Utilizing Dummy Variables with Best Subset
+
+The stepwise lowest-AIC selection method was utilized to optimize the previous two models' performance. For Model 3, we will use an alternative approach, the `bestglm` function from the `bestglm` package, which attempts to find the best subset model by comparing all permutations for model optimization. This package also allows us to use an alternative criterion to evaluate the model performance. So we will evaluate using AIC in one iteration and BIC in another. (This function has a limitation of 15 predictors given the computational power needed for all variations of the model.)
+
+```{r model3,echo=F, warning = F, message = F}
+model_3_aic <- bestglm(train_df2,IC="AIC",family=binomial)
+model_3_bic <- bestglm(train_df2,IC="BIC",family=binomial)
+
+```
+
+```{r model3_bestmodels_review2, echo=F}
+summary(model_3_aic$BestModel)
+
+```
+For Model 3, the model with the lowest AIC returned by the `bestglm` function has nine predictors and an AIC of 240.53. We will refer to this model as Model 3A: Binned (Best AIC) hereafter.
+
+We will wait to interpret the model coefficients for Model 3A until we've exponentiated them for 3B as well, but the exponentiated coefficients for MOdel 3A are below. (Since the coefficient for `nox` is again very large, and we know why, we will omit it from both summaries.)
+
+```{r coefs_model3a, echo=F}
+beta3a <- coef(model_3_aic$BestModel)
+beta3a_exp <- as.data.frame(exp(beta3a)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta3a_exp) <- cols
+remove <- c("nox", "(Intercept)")
+beta3a_exp <- beta3a_exp |>
+    filter(!Feature %in% remove)
+beta3a_exp <- beta3a_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds Crime Rate Above Median")
+colnames(beta3a_exp) <- cols
+knitr::kable(beta3a_exp, format = "simple")
+
+```
+
+```{r model3_bestmodels_review3, echo=F}
+summary(model_3_bic$BestModel)
+
+```
+
+The lowest BIC model returned by the `bestglm` function has only six predictors. We will refer to this model as Model 3B: Binned (Best BIC) hereafter. As expected, the BIC criterion selection method preferred a model with fewer predictors than AIC, as its penalty function more heavily penalizes model complexity.
+
+Below are the exponentiated coefficients for Model 3B, which we can now discuss alongside the coefficients we previously exponentiated for Model 3A.
+
+```{r coefs_model3b, echo=F}
+beta3b <- coef(model_3_bic$BestModel)
+beta3b_exp <- as.data.frame(exp(beta3b)) |>
+    rownames_to_column()
+cols <- c("Feature", "Coefficient")
+colnames(beta3b_exp) <- cols
+remove <- c("nox", "(Intercept)")
+beta3b_exp <- beta3b_exp |>
+    filter(!Feature %in% remove)
+beta3b_exp <- beta3b_exp |>
+    mutate(diff = round(Coefficient - 1, 3) * 100) |>
+    arrange(desc(diff))
+cols <- c("Feature", "Coefficient", "Percentage Change in Odds Crime Rate Above Median")
+colnames(beta3b_exp) <- cols
+knitr::kable(beta3b_exp, format = "simple")
+
+```
+
+The exponentiated coefficients for Models 3A and 3B show that being in a middle or high tax neighborhood substantially increases the odds of being above the median crime rate whether we choose a model based on AIC or BIC. This highlights the relationship between higher tax rates and higher crime that surprised us in exploratory data analysis. Looking back at the boxplots, higher crime rate neighborhoods had a wide interquartile range for `tax`. By binning this data as we did, we may have lost some of the detail, and we wonder how well this would extrapolate to unseen data.
+
+Let's review the models for any multicollinearity concerns:
+
+``` {r model3_vif,echo=F}
+viz_vif <- function(model_input, title){
+    barplot(vif(model_input), main = title, col = "steelblue",
+            ylim=c(0,7), las = 2) #create horizontal bar chart to display each VIF value
+
+abline(h = 5, lwd = 3, lty = 2)
+}
+par(mfrow=c(1,2))
+viz_vif(model_3_aic$BestModel, "Model 3A: Binned (Best AIC) VIF")
+viz_vif(model_3_bic$BestModel, "Model 3B: Binned (Best BIC) VIF")
+
+```
+
+Neither Model 3A nor Model 3B has correlation concerns that would require further revision of the underlying selected predictors.
+
+### Select Models:
+
+The main criterion we will use to select the model with the best performance is the F1 Score. We want to minimize both the risk of incorrectly classifying a neighborhood with a lower crime rate as a neighborhood with a higher crime rate (False Positives), as well as the risk of incorrectly classifying a neighborhood with a higher crime rate as a neighborhood with a lower crime rate (False Negatives). We have to balance both of these because our primary concern is that money, resources, and programming are all allocated to combat crime, and a city's budget only goes so far. The more neighborhoods that are incorrectly classified as higher crime neighborhoods, the more resources are wasted combatting crime there. Similarly, the more neighborhoods that are incorrectly classified as lower crime neighborhoods, the more resources they miss out on.
+
+Based on this reasoning, balancing precision (what proportion of neighborhoods classified as high crime are relevant) and recall (what proportion of actual high crime neighborhoods are retrieved) is the way to go, and the F1 Score accomplishes this.
+
+Before we calculate F1 Scores, however, we have some secondary concerns. First, we need to check for goodness of fit issues. The main criteria we will use to determine lack of fit are binned residual plots, marginal model plots, and the Hosmer-Lemeshow statistic. We may or may not reject a model based on any suggestion of fit issues, but we do want to consider them. We will also plot ROC curves to visualize the models' performance even though AUC is not our main selection criterion.
+
+To check for goodness of fit, we first plot the residuals for each model against their fitted values.
+
+```{r residuals, echo=F,  fig.show='hold', fig.align='center', out.width='90%'}
+linpred1 <- predict(model_1)
+predprob1 <- predict(model_1, type = "response")
+rawres1 <- residuals(model_1, type = "response")
+res1 <- as.data.frame(cbind(linpred1, predprob1, rawres1))
+linpred2 <- predict(model_2)
+predprob2 <- predict(model_2, type = "response")
+rawres2 <- residuals(model_2, type = "response")
+res2 <- as.data.frame(cbind(linpred2, predprob2, rawres2))
+pa <- res1 |>
+    ggplot() +
+    geom_point(aes(x = linpred1, y = rawres1)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
+train_df_mod1 <- train_df |>
+    mutate(residuals = residuals(model_1),
+           linpred = predict(model_1),
+           predprob = predict(model_1, type = "response"))
+binned1 <- train_df_mod1 |>
+    group_by(cut(linpred, breaks = unique(quantile(linpred,
+                                                   probs = seq(.05, 1, .05)))))
+diag1 <- binned1 |>
+    summarize(residuals = mean(residuals), linpred = mean(linpred))
+pb <- diag1 |>
+    ggplot() +
+    geom_point(aes(x = linpred, y = residuals)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Binned")  
+pc <- res2 |>
+    ggplot() +
+    geom_point(aes(x = linpred2, y = rawres2)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
+train_df_mod2 <- train_df_trans |>
+    mutate(residuals = residuals(model_2),
+           linpred = predict(model_2),
+           predprob = predict(model_2, type = "response"))
+binned2 <- train_df_mod2 |>
+    group_by(cut(linpred, breaks = unique(quantile(linpred,
+                                                   probs = seq(.05, 1, .05)))))
+diag2 <- binned2 |>
+    summarize(residuals = mean(residuals), linpred = mean(linpred))
+pd <- diag2 |>
+    ggplot() +
+    geom_point(aes(x = linpred, y = residuals)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Binned")
+title1 <- ggdraw() + 
+    draw_label("Model 1: Stepwise Untransformed")
+p1a <- plot_grid(pa, pb, ncol = 2, align = "h", axis = "b")
+p1 <- plot_grid(title1, p1a, ncol = 1, rel_heights = c(0.1, 1))
+title2 <- ggdraw() + 
+    draw_label("Model 2: Stepwise Transformed")
+p2a <- plot_grid(pc, pd, ncol = 2, align = "h", axis = "b")
+p2 <- plot_grid(title2, p2a, ncol = 1, rel_heights = c(0.1, 1))
+p1
+p2
+
+linpred3a <- predict(model_3_aic$BestModel)
+predprob3a <- predict(model_3_aic$BestModel, type = "response")
+rawres3a <- residuals(model_3_aic$BestModel, type = "response")
+res3a <- as.data.frame(cbind(linpred3a, predprob3a, rawres3a))
+linpred3b <- predict(model_3_bic$BestModel)
+predprob3b <- predict(model_3_bic$BestModel, type = "response")
+rawres3b <- residuals(model_3_bic$BestModel, type = "response")
+res3b <- as.data.frame(cbind(linpred3b, predprob3b, rawres3b))
+pe <- res3a |>
+    ggplot() +
+    geom_point(aes(x = linpred3a, y = rawres3a)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
+train_df_mod3a <- train_df |>
+    mutate(residuals = residuals(model_3_aic$BestModel),
+           linpred = predict(model_3_aic$BestModel),
+           predprob = predict(model_3_aic$BestModel, type = "response"))
+binned3a <- train_df_mod3a |>
+    group_by(cut(linpred, breaks = unique(quantile(linpred,
+                                                   probs = seq(.05, 1, .05)))))
+diag3a <- binned3a |>
+    summarize(residuals = mean(residuals), linpred = mean(linpred))
+pf <- diag3a |>
+    ggplot() +
+    geom_point(aes(x = linpred, y = residuals)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Binned")
+pg <- res3b |>
+    ggplot() +
+    geom_point(aes(x = linpred3b, y = rawres3b)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Not Binned")
+train_df_mod3b <- train_df |>
+    mutate(residuals = residuals(model_3_bic$BestModel),
+           linpred = predict(model_3_bic$BestModel),
+           predprob = predict(model_3_bic$BestModel, type = "response"))
+binned3b <- train_df_mod3b |>
+    group_by(cut(linpred, breaks = unique(quantile(linpred,
+                                                   probs = seq(.05, 1, .05)))))
+diag3b <- binned3b |>
+    summarize(residuals = mean(residuals), linpred = mean(linpred))
+ph <- diag3b |>
+    ggplot() +
+    geom_point(aes(x = linpred, y = residuals)) +
+    labs(x = "Linear Predictor", y = "Residuals", title = "Binned")
+title3 <- ggdraw() + 
+    draw_label("Model 3A: Binned (Best AIC)")
+p3a1 <- plot_grid(pe, pf, ncol = 2, align = "h", axis = "b")
+p3a <- plot_grid(title3, p3a1, ncol = 1, rel_heights = c(0.1, 1))
+title4 <- ggdraw() + 
+    draw_label("Model 3B: Binned (Best BIC)")
+p3b1 <- plot_grid(pg, ph, ncol = 2, align = "h", axis = "b")
+p3b <- plot_grid(title4, p3b1, ncol = 1, rel_heights = c(0.1, 1))
+p3a
+p3b
+
+```
+
+The binned residual plots don't quite eliminate the patterns in the raw residuals as we expected. We refrain from concluding anything determinant about the fit for each model just by looking at these plots.
+
+Next we create marginal model plots for the response and each predictor in each model. (Note that the `mmps` function from the `car` package used to generate these plots skips any factors and interaction terms within the models intentionally. So for Models 3A and 3B, which include dummy variables we created, fewer predictors are plotted than are present within the models.)
+
+```{r marginal_model_plots, echo=F}
+palette <- brewer.pal(n = 12, name = "Paired")
+mmps(model_1, layout = c(3, 3), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model 1: Stepwise Untransformed: Marginal Model Plots")
+mmps(model_2, layout = c(3, 4), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model 2: Stepwise Transformed: Marginal Model Plots")
+model_3_aic_for_mmps <- glm(formula(model_3_aic$BestModel), family = "binomial",
+                            data = train_df2)
+mmps(model_3_aic_for_mmps, layout = c(3, 3), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model 3A: Binned: Best AIC: Marginal Model Plots", ylab = "target")
+model_3_bic_for_mmps <- glm(formula(model_3_bic$BestModel), family = "binomial",
+                            data = train_df2)
+mmps(model_3_bic_for_mmps, layout = c(2, 3), grid = FALSE, col.line = palette[c(2,6)],
+     main = "Model 3B: Binned: Best BIC: Marginal Model Plots", ylab = "target")
+```
+
+There is very good agreement between the two fits for all of the predictors in the marginal model plots for Models 1 and 3B. There is one notable deviation of fit for the relationship between `target` and `rm` for Model 2, and one notable deviation of fit for the relationship between `target` and `indus` in Model 3A.
+
+We calculate the Hosmer-Lemeshow statistic for each model to further check for lack of fit.
+
+```{r hlstats, echo=F}
+hlstat1 <- hltest(model_1, verbose = FALSE)
+hlstat2 <- hltest(model_2, verbose = FALSE)
+hlstat3a <- hltest(model_3_aic$BestModel, verbose = FALSE)
+hlstat3b <- hltest(model_3_bic$BestModel, verbose = FALSE)
+models <- c("Model 1: Stepwise Untransformed",
+            "Model 2: Stepwise Transformed",
+            "Model 3A: Binned (Best AIC)",
+            "Model 3B: Binned (Best BIC)")
+hl_tbl <- as.data.frame(cbind(models, rbind(hlstat1[2:4], hlstat2[2:4],
+                                            hlstat3a[2:4], hlstat3b[2:4])))
+cols <- c("Model", "HL Statistic", "DoF", "P Value")
+colnames(hl_tbl) <- cols
+knitr::kable(hl_tbl, format = "simple")
+
+```
+
+The moderate p-values here for Models 1 and 3A suggest no lack of fit, while the low p-values for Models 2 and 3B do. This is a little surprising for Models 3A and 3B given the marginal models plots issues for the former and the lack thereof for the latter. Note that this statistic can't tell us whether any of the models are overfitting the data though.
+
+We produce ROC curves to visualize how each model performs on the training data. 
+
+```{r roc_curves, echo=F, warning = FALSE, message = FALSE}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
+roc1 <- roc(train_df_mod1$target, train_df_mod1$predprob, plot = TRUE,
+            print.auc = TRUE, show.thres = TRUE)
+title(main = "Model 1: ROC")
+roc2 <- roc(train_df_mod2$target, train_df_mod2$predprob, plot = TRUE,
+            print.auc = TRUE, show.thres = TRUE)
+title(main = "Model 2: ROC")
+roc3a <- roc(train_df_mod3a$target, train_df_mod3a$predprob, plot = TRUE,
+            print.auc = TRUE, show.thres = TRUE)
+title(main = "Model 3A: ROC")
+roc3b <- roc(train_df_mod3b$target, train_df_mod3b$predprob, plot = TRUE,
+            print.auc = TRUE, show.thres = TRUE)
+title(main = "Model 3B: ROC")
+
+```
+
+Model 2 has the highest AUC and performs best on the training data based on its ROC curve, although again this is not our main selection criterion.
+
+```{r eval_creation,echo=F}
+pred1_df <- as.data.frame(predprob1) |> mutate(predicted=as.factor(ifelse(predprob1>0.5,1,0))) |>select(predicted)
+pred2_df <- as.data.frame(predprob2) |> mutate(predicted=as.factor(ifelse(predprob2>0.5,1,0))) |>select(predicted)
+pred3a_df <- as.data.frame(predprob3a) |> mutate(predicted=as.factor(ifelse(predprob3a>0.5,1,0))) |>select(predicted)
+pred3b_df <- as.data.frame(predprob3b) |> mutate(predicted=as.factor(ifelse(predprob3b>0.5,1,0))) |>select(predicted)
+
+model_1_cm <- confusionMatrix(pred1_df$predicted,reference=train_df$target, positive='1')
+model_2_cm <- confusionMatrix(pred2_df$predicted,reference=train_df$target, positive='1')
+model_3a_cm <- confusionMatrix(pred3a_df$predicted,reference=train_df$target, positive='1')
+model_3b_cm <- confusionMatrix(pred3b_df$predicted,reference=train_df$target, positive='1')
+
+```
+
+Finally, we are ready to produce the confusion matrices and calculate performance metrics for all models (primarily using the `caret` library), including the F1 Score we will use to select our final model.
+
+#### Confusion Matrices
+
+Model 1:
+
+```{r model1_table,echo=F}
+model_1_cm$table[2:1, 2:1]
+
+```
+Model 2:
+
+```{r model2_table,echo=F}
+model_2_cm$table[2:1, 2:1]
+```
+
+Model 3A:
+
+```{r model3a_table,echo=F}
+model_3a_cm$table[2:1, 2:1]
+```
+
+Model 3B:
+
+```{r model3b_table,echo=F}
+model_3b_cm$table[2:1, 2:1]
+```
+
+#### Training Data Metrics
+
+```{r eval_review,echo=F}
+
+preds <- as.data.frame(cbind(model_1_cm$byClass,model_2_cm$byClass,model_3a_cm$byClass,model_3b_cm$byClass))
+colnames(preds) <-c('Model 1','Model 2','Model 3A','Model 3B')
+preds2 <- rbind(preds,c(model_1_cm$overall[1],model_2_cm$overall[1],model_3a_cm$overall[1],model_3b_cm$overall[1]),c(1-model_1_cm$overall[1],1-model_2_cm$overall[1],1-model_3a_cm$overall[1],1-model_3b_cm$overall[1]),c(roc1$auc,roc2$auc,roc3a$auc,roc3b$auc))
+rownames(preds2)[12:14] <- c('Accuracy','Classification Error Rate','AUC')
+knitr::kable(preds2, format = "simple")
+
+```
+
+Model 2 has the highest F1 Score, which makes it the best choice to meet the city's need to correctly allocate money, resources, and programming to combat crime, despite the lack of fit issues noted earlier. We select Model 2 as our final model for predictions.
+
+#### Evaluation
+
+```{r eval_predict, echo=F}
+eval_pred <- predict(model_2,test_df_trans,type = "response")
+eval_pred <- as.data.frame(eval_pred) |>
+    mutate(predictions=ifelse(eval_pred>=0.5,1,0)) 
+deliverable <- test_df_trans |>
+    bind_cols(eval_pred)
+colnames(deliverable) <- c(colnames(test_df_trans),
+                           "predprobs", "classification")
+write.csv(deliverable,file='HW 3 Assigned Prediction Probabilities.csv')
+eval_pred |> group_by(predictions) |> summarise(cnt=n())
+```
+
+The predictions are evenly split at 50% between the two binary responses and that result does not diverge much from the training set. With the available data in the training and test set the model has performed as expected and additional target information would be helpful to further evaluate and refine the underlying model to minimize any overfitting.
+
+### Appendix
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
