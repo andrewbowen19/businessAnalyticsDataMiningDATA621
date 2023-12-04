@@ -209,6 +209,129 @@ print(glue("Only {pull(na_freq |> filter(num_na>1)|>summarise(total=n()))} rows 
 
 ```
 
-
-
 It does not appear that many observations have more than 1 NA value and the heatmap wasn't so clear in identifying overlapping columns.
+
+
+```{r train_test_split,echo=F}
+set.seed(19)
+rows <- sample(nrow(mod_df))
+sample <- sample(c(TRUE, FALSE), nrow(mod_df), replace=TRUE,
+                 prob=c(0.7,0.3))
+train_df <- mod_df[sample, ]
+test_df <- mod_df[!sample, ]
+
+```
+
+
+```{r imputation}
+
+df_names <- colnames(train_df)
+non_na_cols <- df_names[!df_names %in% na_cols]
+#Since the imputation process is a little slow, we only do the imputations once, save the results as .csv files once, and load those .csv files moving forward, making sure the levels of the factors stay the same. 
+#if (file.exists("alt_train_df_imputed.csv") & file.exists("alt_test_df_imputed.csv")){
+#    alt_train_df_imputed <- read.csv("alt_train_df_imputed.csv", na.strings = "",
+#                                 colClasses = col_classes)
+#    alt_test_df_imputed <- read.csv("alt_test_df_imputed.csv", na.strings = "",
+#                                 colClasses = col_classes)
+#}else{
+    #Train Data Imputation First
+    init = mice(train_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    
+    
+    meth[non_na_cols] = ""
+    
+    meth[c("pH")] = "pmm"
+    meth[c("ResidualSugar")] = "pmm"
+    meth[c("Chlorides")] = "pmm"
+    meth[c("FreeSulfurDioxide")] = "pmm"
+    meth[c("Alcohol")] = "pmm"
+    meth[c("TotalSulfurDioxide")] = "pmm"
+    meth[c("Sulphates")] = "pmm"
+
+    imputed_train = mice(train_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    train_df_imputed <- complete(imputed_train)
+    write.csv(train_df_imputed, "imputed_wine_train_df.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+    
+    #Repeat for test_df
+    init = mice(test_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    meth[non_na_cols] = ""
+    meth[c("pH")] = "pmm"
+    meth[c("ResidualSugar")] = "pmm"
+    meth[c("Chlorides")] = "pmm"
+    meth[c("FreeSulfurDioxide")] = "pmm"
+    meth[c("Alcohol")] = "pmm"
+    meth[c("TotalSulfurDioxide")] = "pmm"
+    meth[c("Sulphates")] = "pmm"
+    imputed_test = mice(test_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    imputed_test_df <- complete(imputed_test)
+    write.csv(imputed_test_df, "imputed_wine_test_df.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+#}
+
+```
+
+
+```{r}
+train_df_imputed_input <- read.csv("/Users/JoshForster/Desktop/Masters_Data_Sci/Data621/imputed_wine_train_df.csv", na.strings = "")
+test_df_imputed_input <- read.csv("/Users/JoshForster/Desktop/Masters_Data_Sci/Data621/imputed_wine_test_df.csv", na.strings = "")
+
+```
+
+Let's confirm that the imputation filled for all null values:
+
+```{r impute_check,echo=F}
+x <- sapply(train_df_imputed_input, function(x) sum(is.na(x)))
+y <- sapply(test_df_imputed_input, function(x) sum(is.na(x)))
+sum(x, y) == 0
+```
+
+Let's review the distributions of the train and test imputed datasets to confirm they remain similar:
+#need to fix for spacing and split up imputed predictors
+```{r review__imputedistrib, warning = FALSE, message = FALSE}
+
+impute_train_input <- train_df_imputed_input |>
+    dplyr::select(all_of(na_cols)) |>
+    mutate(Set = "Train")
+impute_test_input <- test_df_imputed_input |>
+    dplyr::select(all_of(na_cols)) |>
+    mutate(Set = "Test")
+impute_both <- impute_train_input |>
+    bind_rows(impute_test_input)
+impute_pivot <- impute_both |>
+    pivot_longer(!Set, names_to = "Variable", values_to = "Value")
+impute_plot <- impute_pivot |>
+    ggplot(aes(x = Value)) +
+    geom_density(fill = "lightblue", color = "black") +
+    labs(y = "Density") +
+    facet_grid(rows = vars(Set), cols = vars(Variable),
+               switch = "y", scales = "free_x")
+impute_plot
+
+```
+
+There is one additional variable, `AcidIndex` that remains skewed that will require further transformation
+#proposed lambda was -1.15 and need to review further
+```{r box_cox_transform,echo=F}
+skew = c('AcidIndex')
+for (i in 1:(length(skew))){
+    if (i == 1){
+        lambdas <- c()
+    }
+    bc <- boxcox(lm(train_df_imputed_input[[skew[i]]] ~ 1),
+                 lambda = seq(-2, 2, length.out = 81),
+                 plotit = FALSE)
+    lambda <- bc$x[which.max(bc$y)]
+    lambdas <- append(lambdas, lambda)
+}
+lambdas <- as.data.frame(cbind(skew, lambdas))
+lambdas
+
+```
+
