@@ -1,0 +1,42 @@
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.3472}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.0972}}@{}}
+\caption{\label{tab:data2}}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+rows
+columns
+all\_missing\_columns
+total\_missing\_values
+complete\_rows
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+487
+393
+12
+47359
+0
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+rows
+columns
+all\_missing\_columns
+total\_missing\_values
+complete\_rows
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+487
+393
+12
+47359
+0
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+There are 12 columns that & are completely devoid of data, so we identify and remove those. \\
+Table: (\#tab:unnamed-chu & nk-2) \\
+All NA Columns & \\
+\end{longtable}
