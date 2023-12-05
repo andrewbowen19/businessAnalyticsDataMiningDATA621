@@ -36,9 +36,11 @@ mask              : no
 figurelist        : no
 tablelist         : no
 footnotelist      : no
+figsintext        : yes
 classoption       : "man"
 output            : papaja::apa6_pdf
 ---
+
 ```{r setup-knitr, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
@@ -52,18 +54,21 @@ library(corrplot)
 library(caret)
 library(modelr)
 library("papaja")
+library(DataExplorer)
+library(cowplot)
 r_refs("r-references.bib")
 ```
 
-
 # Introduction
-The NYC School Survey seeks to collect data to provide an overview of New York City (NYC) Schools. Beginning in 2005, the survey looks to collect demographic and achievement data for New York City Public Schools, and provide a standardized rating of various elements of school quality. 
+The NYC School Survey seeks to collect data to provide an overview of New York City (NYC) Schools. First conducted in 2005, the survey gathers demographic and achievement data for NYC Public Schools and provides a standardized rating of various elements of school quality. 
 
-The survey has changed over the years. This change has come from recommendations of public policy analysts in order to more accurately define the quality of schools *@redesign-school-survey*. The 2020-21 academic year report provides a robust dataset defined at the school level with academic and socioeconomic data provided. 
+The survey has changed over the years. These changes have come from the recommendations of public policy analysts seeking to more accurately define the quality of schools *@redesign-school-survey*. The 2020-21 academic year report provides a robust dataset of school-level observations of academic and socioeconomic data.
 
-**Research Question:** This study aims to determine whether the school ratings within the NYC School Quality Survey accurately reflect educational outcomes, or if other variables related to certain schools can be used as a better proxy. 
+**Research Question:** Our analysis aims to determine whether NYC School Quality Survey ratings accurately reflect educational outcomes or these outcomes could actually be better predicted by proxy variables related to the student body.
 
-In our case, we are interested in predicting the 4-year college persistence rate for an NYC high school. This measure is defined as the percent of students who graduate from a high school, and eventually go on to graduate from a 4-year colllege. Being able to identify the main indicators of a school's ability to successfully prepare students for college can benefit the NYC Department of Education, and New York City Schools along a couple of dimensions:
+The primary measure of success we are interested in predicting is the 4-year college persistence rate for an NYC high school. This measure is defined as the percentage of students who graduate from a high school and eventually go on to graduate from a 4-year college. Being able to identify the main indicators of a school's ability to successfully prepare students for college would benefit the NYC Department of Education (DOE) and NYC Public Schools in a couple of ways:
+
+**improve bullet points below**
 
 1. More directed instruction to enable useful skill transfer in preparatory courses
 2. Better use of resourcing available to public schools to increase the percentage of college-ready students
@@ -73,40 +78,37 @@ For point 2 above, it's well correlated that students who attend 4-year institut
 # Literature Review
 One of the main predictors of academic performance is the socioeconomic background of a student. Students from low-income families are nearly four times more likely to drop out of high school than students from wealthy families *@NCES-Dropout-Rates*. 
 
-Attempts to use more sophisticated modeling techniques and different sources datasets come from several prior studies. *@BERNACKI2020103999* based their modeling off trying to predict based on student digital behavior, rather than social factors. The model in this study reached an accuracy of 75%, and was able to flag early interventions. While this modeling technique attempts to predict the same variable (educational achievement, albeit a different metric where we are predicting college attainment), the base dataset used to train the model and input variables are different.
+Several prior studies have made attempts to use more sophisticated modeling techniques, different data sources, and different predictor variables to predict educational outcomes similar to what we're trying to predict. *@BERNACKI2020103999* based their modeling on trying to predict educational achievement based on student digital behavior, rather than the social factors we'll be looking at. The model in this study reached an accuracy of 75%, and was able to flag early interventions. This modeling technique attempts to predict a slightly different metric of student success than our modeling will, and the training data and predictor variables are different as well.
 
-Similarly, *@MUSSO202000104* attempted to train an artificial neural network (ANN) to identify variable relationships to educational performance data. They modeled educational performance of Vietnamese students in grade 5. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in accuracy in prediction of $95-100%$ higher than other modeling techniques. However, the training data came in that case from a different country (Vietnam, rather than the United States). Comparing modeling results from this (and other US-centric studies) may not be prudent.
+Similarly, *@MUSSO202000104* attempted to train an artificial neural network (ANN) to identify relationships between variables and educational performance data. They modeled educational performance of Vietnamese students in grade five. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in prediction accuracy of $95-100%$, higher than other modeling techniques. Since the training data comes from a different country and therefore a different educational system, comparing modeling results from our analysis (or results from other US-centric studies) to theirs may not be prudent.
 
-*@yagci-educational-2022* predicted final grade exams for Turkish students as well via machine learning models. Their input variables were prior exam grades. These can be a good "vacuum" comparison to compare one set of academci performance to another. However, there is a concern that good exam grades (even in one subject) do not correspond to a higher rate of career success later in life *@Grades-and-Careers*. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance *@roth_meta-analyzing_1996*.
+*@yagci-educational-2022* predicted final grade exams for Turkish students via machine learning models. Their input variables were prior exam grades, which can be good "vacuum" comparisons between one set of academic performance data and another. However, there is a concern that good exam grades in one or more subjects do not correspond to higher rates of career success later in life *@Grades-and-Careers*. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance *@roth_meta-analyzing_1996*. **The previous two sentences go a little off-topic since we're linking school demographics to college persistence, which is definitely a precursor to a career, but obviously different.**
 
-Measuring the input variables that impact educational outcomes is a difficult task. With so many confounding variables, it can be difficult to determine direct causal relationships that have an outsized impact 
-
+Measuring which predictors impact educational outcomes and how much is a difficult task. There are generally many confounding variables related to the student body being observed, and causal relationships can be difficult if not impossible to establish. 
 
 # Data Sourcing
+The dataset used in this study is published in the [NYC School Quality Report for the Academic Year 2020 - 2021](https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6). It consists of data from 487 NYC Public Schools, and there are 391 variable columns. The observations are all school-level, indexed by each school's *District Borough Number* (DBN). 
 
-The dataset used in this study is published from the [NYC School Quality Report for the Academic Year 2020 - 2021](https://data.cityofnewyork.us/Education/2020-2021-School-Quality-Reports-High-School/26je-vkp6). It consists of data from 487 New York City public schools, and 391 variables (in the form of columns). This dataset is defined at the school level, indexed by a school's *district borough number* (DBN). 
-
-In addition to the school quality ratings provided from survey responses in the data, there is average and raw academic performance data included. In addition to thesea academic indicators, there are socioeconomic variables included as well, such as the percentage of students at a given school in temporary housing services.
+In addition to the school quality ratings based on survey responses, average and raw academic performance data are included as well. There are also socioeconomic variables, such as a school's percentage of students in temporary housing services.
 
 ```{r data-read-in}
 # Read in our dataset from GitHub
 # https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v-cvch
 df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
 ```
-
-
 # Methodology
-Our primary interest is finding proxy variables within our dataset that can better serve as predictors of 4-year college persistence rates as a given NYC high school than the survey ratings collected by the school quality review. As a result, we'll need to first construct a "base" model that predicts a school's college persistence rate.
+Our primary interest is finding proxy variables within the data that can better serve as predictors of 4-year college persistence rates at a given NYC high school than the school survey ratings collected by the quality review. Toward this end, we'll need to first construct a baseline model that predicts a school's college persistence rate.
 
-We can use two variables as a proxy for the school's survey rating in predicting college persistence:
+We will attempt to use three variables as a proxy for the school's survey rating in predicting college persistence:
+
+**improve these bullets**
 
 - Percent of Students in Tempoarary Housing (`temp_housing_pct`)
-- [Economic Need Index](https://data.cccnewyork.org/data/bar/1371/student-economic-need-index#1371/a/1/1622/127) (`eni_hs_pct_912`) - this is a measure of the percent of students facing economic hardship at a school *@noauthor_student_2021*. This measures the economic hardship faced by students measured along a few criteria:
+- [Economic Need Index](https://data.cccnewyork.org/data/bar/1371/student-economic-need-index#1371/a/1/1622/127) (`eni_hs_pct_912`) - this is a measure of the percent of students facing economic hardship at a school **noauthor_student_2021 (fix, not in references)**. This measures the economic hardship faced by students measured along a few criteria:
     - The student is eligible for public assistance from the NYC Human Resources Administration (HRA)
     - The student lived in temporary housing in the past four years
     - The student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
-
-
+- Chronic Absenteeism (`val_chronic_absent_hs_all`)
 
 ```{r, echo=FALSE, warning=FALSE}
 label_cols <- c("dbn", "school_name", "school_type")
@@ -116,8 +118,34 @@ df <- cbind(df[, label_cols], as.data.frame(lapply(df[,!names(df) %in% label_col
 df$college_rate <- df$val_persist3_4yr_all
 df$economic_need <- df$eni_hs_pct_912
 ```
+We take a look at a summary of the dataset's completeness.
 
+```{r data2}
+remove <- c("discrete_columns", "continuous_columns",
+            "total_observations", "memory_usage")
+completeness <- introduce(df) |>
+    select(-all_of(remove))
+apa_table(t(completeness), caption = "Completeness Summary", placement = "H")
+
+```
+There are 12 columns that are completely devoid of data, so we identify and remove those.
+
+```{r }
+find_all_na_cols <- function(dframe){
+    col_sums_na <- colSums(is.na(dframe))
+    all_na_cols <- names(col_sums_na[col_sums_na == nrow(dframe)])
+    all_na_cols
+}
+all_na_cols <- find_all_na_cols(df)
+df <- df |>
+    select(-all_of(all_na_cols))
+all_na_cols <- as.data.frame(all_na_cols)
+colnames(all_na_cols) <- c("All NA Columns")
+apa_table(all_na_cols, placement = "H")
+
+```
 We create a 20% holdout set of data to be used later on in order to evaluate the efficacy of our model's predictive capability. The remaining 80% of the data is to be used for model training and exploratory data analysis (EDA).
+
 ```{r train-test-split}
 set.seed(42)
 
@@ -125,34 +153,55 @@ set.seed(42)
 train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
 test  <- dplyr::anti_join(df, train, by = 'dbn')
 ```
+For ease of single-node computation, we'll select the variables of interest from our dataset. Notably, these are the survey ratings, enrollment levels, and our preferred proxy variables for each school.
 
-For ease of single-node computation, we'll select the variables of interest from our dataset. Notably, these are the survey ratings for each school, as well as our preferred froxy variables. Additionally, we impute both our training and evaluation datasets. Given we are dealing with continuous numeric (and not categorical variables), we use the *Predictive Mean Matching* imputation method native to the R `mice` package
-```{r impute-train, echo=FALSE, message=FALSE}
-
+```{r }
 cols <- c("survey_pp_CT", "survey_pp_RI",
           "survey_pp_ES", "survey_pp_SE",
           "survey_pp_SF", "survey_pp_TR",
           "temp_housing_pct", "economic_need",
-          "college_rate")
+          "college_rate", "enrollment",
+          "val_chronic_absent_hs_all")
 train_data <- train[, cols]
-imp <- mice(train_data, method="pmm", seed=42)
+```
+We take a look at whether the reduced training dataset contains any missing values and what the spread is.
+
+```{r data3, include = FALSE}
+p1 <- plot_missing(train_data, missing_only = FALSE,
+                   ggtheme = theme_classic(), title = "Missing Values")
+
+```
+
+```{r data4, fig.pos='H', out.width="\\textwidth"}
+p1 <- p1 + 
+    scale_fill_brewer(palette = "Paired")
+p1
+
+```
+The variable with the most missing data is `college_rate`. Some schools are also missing some survey ratings, and a very small percentage of schools are missing chronic absenteeism values.
+
+We impute both our training and evaluation datasets. Given we are dealing with continuous numeric (and not categorical variables), we use the *Predictive Mean Matching* imputation method native to the R `mice` package.
+
+```{r impute-train, echo=FALSE, message=FALSE}
+imp <- mice(train_data, method="pmm", seed=42, printFlag = FALSE)
 train <- complete(imp)
 ```
 
-
 ```{r impute-test, echo=FALSE, message=FALSE}
 test_data <- test[, cols]
-imp <- mice(test_data, method="pmm", seed=42)
+imp <- mice(test_data, method="pmm", seed=42, printFlag = FALSE)
 test <- complete(imp)
 ```
-
 To check underlying modeling assumptions, we plot distributions and relationships of different variables. First, we plot the distribution of college persistence rates among NYC high schools to check for normality.
 
-```{r}
+```{r fig.pos='H', out.width="\\textwidth"}
 # Plot target variable distribution
 ggplot(train, aes(x=college_rate)) + 
     geom_density() + 
-    labs(x="4-Year College Persistence Rate", y="Density of NYC High Schools", title="Average 4-Year Colege Persistence Rates: NYC High Schools 2020-2021", caption="The average NYC high school sees ~50% of students go on to have 4-year college persistence.")
+    labs(x="4-Year College Persistence Rate",
+         y="Density of NYC High Schools",
+         title="Average 4-Year Colege Persistence Rates: NYC High Schools 2020-2021",
+         caption="The average NYC high school sees ~50% of students go on to have 4-year college persistence.")
 
 theme_set(theme_apa())
 ```
@@ -160,8 +209,7 @@ We see a relatively normal distribution of college persistence rates. In the cas
 
 The below plot shows the raw correlation between each variable in our pared down dataset (*Collaborative Teaching*, *Trust*, etc) and the response variable of interest: *4-Year College Persistence Rate*.
 
-```{r}
-
+```{r fig.pos='H', out.width="\\textwidth"}
 # Renaming training dataframe for correlation plot
 train_renamed <- train %>%
   rename("Collaborative Teaching"=survey_pp_CT,
@@ -172,67 +220,80 @@ train_renamed <- train %>%
          "Trust"=survey_pp_TR,
          "Temporary Housing Pct"=temp_housing_pct,
          "Economic Need"=economic_need,
-         "College Persistence"=college_rate)
+         "College Persistence"=college_rate,
+         "Enrollment"=enrollment,
+         "Chronic Absenteeism"=val_chronic_absent_hs_all)
 
 # Create correlation plot between vars of interest
 corMatrix <- cor(train_renamed)
 corrplot(corMatrix, method="color", type="lower", tl.col="black")
 ```
-
 From our correlation plot above, we can see strong negative relationships between our proxy variables of interest (*Temporary Housing Rate* and *Economic Need Index*) and our target variable: *College Persistence Rate*. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
 
 Now we can plot the distributions of our proxy variables of interest. First we can plot the temp housing rate:
 
-```{r temp-housing-rates}
+```{r temp-housing-rates, fig.pos='H', out.width="\\textwidth"}
 # Plot temp housing rates
 ggplot(train, aes(x=temp_housing_pct)) +
   geom_histogram() +
   labs(x="% of Students in Temporary Housing", y="Number of NYC Schools")
 ```
-We see this distribution of the percentage of students in temporary housing per school to be skewed left. This will be an important piece of information as we model these relationships later. We also show the distribution of schools' economic need indices (also between 0 and 1). This index is closer to 1 the more economic hardship a student at a school faces (temporary housing use or food assistance, for instance). 
-
-```{r economic-need-index}
+We see this distribution of the percentage of students in temporary housing per school to be skewed right. This will be an important piece of information as we model these relationships later. We also show the distribution of schools' economic need indices (also between 0 and 1). This index is closer to 1 the more economic hardship a student at a school faces (temporary housing use or food assistance, for instance). 
+```{r economic-need-index, fig.pos='H', out.width="\\textwidth"}
 # Plot economic need index
 ggplot(train, aes(x=economic_need)) +
   geom_density() +
   labs(x="Economic Need Index", y="Density of NYC Schools",
        title="Density of Economic Need Index: NYC High Schools 2020-2021")
 ```
-We also see a skewed distribution for our economic need index. This is a candidate for transformation before feeding into our proxy variable model.
+We see a left-skewed distribution for our economic need index. This is a candidate for transformation before feeding into our proxy variable model.
 
-First, we should check an assumption of linearity between our predictor and response variables. In this case this a scatter plot of the percentage of students in temporary housing 
-```{r plot-housing-vs-college}
+First, we should check an assumption of linearity between our predictors and our response variable. Here, we produce scatter plots of the response variable versus the percentage of students in temporary housing, the economic need index, the enrollment level, and chronic absenteism. 
+
+```{r fig.pos='H', out.width="\\textwidth"}
 # Plot temp housing percentage vs college persistence rate
-ggplot(train, aes(x=temp_housing_pct, y=college_rate)) +
+pa <- ggplot(train, aes(x=temp_housing_pct, y=college_rate)) +
   geom_point() +
-  labs(x="% of Students in Temporary Housing",
-       y="4-year College Persistence Rate")
-```
-
-We see a general linear relationship for schools with lower rates of students in temp housing. However, this linear relationship does **not** visually hold for schools with higher rates of temp housing use. 
-
-Plotting the relationship below between a school's economic need index
-```{r plot-need-vs-college}
+  labs(x="% Students in Temp Housing",
+       y="College Persist")
 # Plot ENI vs college persistence rate
-ggplot(train, aes(x=economic_need, y=college_rate)) +
+pb <- ggplot(train, aes(x=economic_need, y=college_rate)) +
   geom_point() +
-  labs(x="Average Economic Need Index per School",
-       y="4-year College Persistence Rate")
-```
-Again, we see a non-linear relationship between our predictor (*Economic Need Index*) and Outcome Variable (*College Persistence Rate*)
+  labs(x="Economic Need Index",
+       y="College Persist")
+pc <- ggplot(train, aes(x=enrollment, y=college_rate)) +
+  geom_point() +
+  labs(x="Enrollment",
+       y="College Persist")
+pd <- ggplot(train, aes(x=val_chronic_absent_hs_all, y=college_rate)) +
+  geom_point() +
+  labs(x="Chronic Absenteeism",
+       y="College Persist")
+p <- plot_grid(pa, pb, pc, pd, nrow = 2, ncol = 2, align = "hv", axis = "t")
+p
 
+```
+We see a generally negative linear relationship between the response variable and rates of students in temporary housing. As that rate increases, college persistence tends to decrease. However, that relationship does **not** appear to hold for schools with higher rates of students in temporary housing. So the relationship cannot be completely captured by a linear trend. 
+
+We also see a non-linear relationship between the response variable and the economic need index. 
+
+Schools with lower enrollment levels have a wider range of college persistence rates than schools with higher enrollment levels.
+
+Only 1 school where chronic absenteeism is greater than or equal to 0.5 achieves college persistence levels above 80 percent. However, college persistence varies widely at most chronic absenteeism levels. **Investigate why this variable can take such high rates and whether there's anything that can collectively be said about the 12 schools with values greater than 0.8 for this variable. Make sure we understand what it's measuring correctly.**
 
 ### Modeling
 For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to 
+
 ```{r base-rating-model}
 base_formula <- college_rate ~ survey_pp_CT + survey_pp_RI + survey_pp_SE + survey_pp_ES + survey_pp_SF + survey_pp_TR
 rating_model <- lm(base_formula,
                    train)
 summary(rating_model)
 ```
-We find our base model for the school survey ratings produces an adjusted R-squared of $R^2_{adj} = 0.22$. This is lower than the predictive model produces in *@roth_meta-analyzing_1996*. 
+We find our base model for the school survey ratings produces an adjusted R-squared of $R^2_{adj} = 0.22$. This is lower than the predictive model in *@roth_meta-analyzing_1996* produces. 
 
-We then create a basic multiple least squares linear model between our two socioeconomic proxy variables: *Temporary Housing PErcentage of a School* and *Average Economic Need Index*.
+We then create a basic multiple least squares linear model between the response and our two socioeconomic proxy variables: *Temporary Housing Percentage of a School* and *Average Economic Need Index*.
+
 ```{r proxy-mlm}
 # Create OLS linear model based on our proxy variables: no transforms
 proxy_formula <- college_rate ~ temp_housing_pct + economic_need
@@ -240,12 +301,11 @@ proxy_model <- lm(proxy_formula, train)
 summary(proxy_model)
 ```
 
-
-```{r plot-proxy-model}
+```{r plot-proxy-model, fig.pos='H', out.width="\\textwidth"}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
 plot(proxy_model)
 ```
-
-
 Given the 
 
 ```{r weighted-least-squares}
@@ -257,7 +317,6 @@ wls_model <- lm(proxy_formula, data = train, weights=weights)
 
 summary(wls_model)
 ```
-
 # Experimentation and Results
 
 ### Model Evaluation
@@ -269,7 +328,6 @@ rmse(rating_model, test)
 modelr::rmse(proxy_model, test)
 modelr::rmse(wls_model, test)
 ```
-
 We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models. We're using fewer variables in our proxy and WLS models, so we'd expect better results (minimized values) for each of those criteria
 
 ```{r aic-bic}
@@ -283,11 +341,7 @@ print(glue("BIC for base model (rating results): {BIC(rating_model)}"))
 print(glue("BIC for proxy variable model: {BIC(proxy_model)}"))
 print(glue("BIC for WLS model: {BIC(wls_model)}"))
 ```
-
-
 # Conclusion
-
-
 
 ## TODO
 - Merge/Join in ACT/SAT information by DBN
@@ -300,12 +354,9 @@ print(glue("BIC for WLS model: {BIC(wls_model)}"))
 ::: {#refs custom-style="Bibliography"}
 :::
 
-
 # Appendices
 
 Below is the code used to generate this report. It's also available on [GitHub here](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main)
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 
 ```
-
-

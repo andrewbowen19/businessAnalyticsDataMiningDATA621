@@ -1,0 +1,5 @@
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+
+\includegraphics[width=0.9\linewidth]{final-project_files/figure-latex/data4-1} \caption{ }\label{fig:data4}
+\end{figure*}
