@@ -245,3 +245,100 @@ In this Negative Binomial Regression model, we will include all variables.
 nbrm1 <- glm.nb(TARGET ~ ., data = wine_train)
 summary(nbrm1)
 ```
+
+We see Citric Acid, Residual Sugar, Free Sulfur Dioxide, Total Sulfur Dioxide, Alcohol and Stars are significant variables.
+
+*Negative Binomial Regression Model 2*: In this Negative Binomial Regression Model, we will look at those significant variables.
+
+```{r model 4}
+nbrm2 <- glm.nb(TARGET ~ . +CitricAcid +ResidualSugar +TotalSulfurDioxide +FreeSulfurDioxide +Alcohol +STARS, data = wine_train)
+summary(nbrm2)
+```
+
+*Multiple Linear Regression Model 1*: In this Multiple Linear Regression model, we will look at all variables.
+
+```{r model 5}
+mlr1 <- lm(TARGET ~ ., data = wine_train)
+summary(mlr1)
+```
+Here we see an adjusted R-square of 0.5281.  
+
+
+*Multiple Linear Regression Model 2*: In this model, we will look at those significant variables.
+
+```{r model 6}
+mlr2 <- lm(TARGET ~ . -CitricAcid -FixedAcidity -Chlorides - ResidualSugar -Density - TotalSulfurDioxide - FreeSulfurDioxide - Alcohol -pH -Sulphates, data = wine_train)
+summary(mlr2)
+```
+We see that the adjusted R-squared value of 0.5249 was actually worse than our first MLR model.
+
+## 4. Select Models 
+
+```{r}
+model_test <- function(model, wine_test, trainY) {
+  # Evaluate Model 1 with testing data set
+  predictedY <- predict(model, newdata=wine_test)
+  model_results <- data.frame(obs = trainY, pred=predictedY)
+  colnames(model_results) = c('obs', 'pred')
+  
+  # This grabs RMSE, Rsquaredand MAE by default
+  model_eval <- defaultSummary(model_results)
+  
+  # Add AIC score to the results
+  if ('aic' %in% model) {
+    model_eval[4] <- model$aic
+  } else {
+    model_eval[4] <- AIC(model)
+  }
+  
+  names(model_eval)[4] <- 'aic'
+ 
+  # Add BIC score to the results
+  model_eval[5] <- BIC(model)
+  names(model_eval)[5] <- 'bic'
+  
+  
+  model_eval[6] <- paste0(deparse(substitute(model)))
+  names(model_eval)[6] <- "model"
+   
+  return(model_eval)}
+```
+
+
+```{r}
+trainY <- wine_test %>% dplyr::select(TARGET)
+
+models = list(prmodel1, prmodel2, nbrm1, nbrm2,mlr1,mlr2)
+
+
+prmodel1_eval = model_test(prmodel1, wine_test, trainY)
+prmodel2_eval = model_test(prmodel2, wine_test, trainY)
+nbrm1_eval= model_test(nbrm1, wine_test, trainY)
+nbrm2_eval= model_test(nbrm2, wine_test, trainY)
+mlr1_eval= model_test(mlr1, wine_test, trainY)
+mlr2_eval= model_test(mlr2, wine_test, trainY)
+
+models_summary <- rbind(prmodel1_eval, prmodel2_eval, nbrm1_eval, nbrm2_eval, mlr1_eval,mlr2_eval)
+kable(models_summary) %>% 
+  kable_styling(bootstrap_options = "basic", position = "center")
+```
+
+```{r}
+models_summary
+```
+This table showcases the RMSE, R2, MAE, AIC and BIC for the six models. The Linear regressions, mlr1 and mlr2, had the best  performances based on RMSE and R2.. Also, mlr1 had the best aic and mlr2 had the best bic.
+
+Both RMSE an R2 were not significantly different across the 6 models, so we chose MLR 1 as our final model since it had the lowest AIC.
+
+<center> <h4> **Top Model Evaluation** </h4> </center>
+
+```{r}
+eval_data <- df_eval %>% dplyr::select(-TARGET)
+predictions <- predict(mlr1, eval_data)
+
+eval_data$TARGET <- predictions
+
+write.csv(eval_data, 'eval_predictions.csv', row.names=FALSE)
+
+head(eval_data)
+```
