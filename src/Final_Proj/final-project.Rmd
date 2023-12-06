@@ -64,25 +64,23 @@ The NYC School Survey seeks to collect data to provide an overview of New York C
 
 The survey has changed over the years. These changes have come from the recommendations of public policy analysts seeking to more accurately define the quality of schools *@redesign-school-survey*. The 2020-21 academic year report provides a robust dataset of school-level observations of academic and socioeconomic data.
 
-**Research Question:** Our analysis aims to determine whether NYC School Quality Survey ratings accurately reflect educational outcomes or these outcomes could actually be better predicted by proxy variables related to the student body.
+**Research Question:** Our analysis aims to determine whether NYC School Quality Survey ratings accurately reflect educational outcomes or if these outcomes could be better predicted by proxy variables related to the student body.
 
-The primary measure of success we are interested in predicting is the 4-year college persistence rate for an NYC high school. This measure is defined as the percentage of students who graduate from a high school and eventually go on to graduate from a 4-year college. Being able to identify the main indicators of a school's ability to successfully prepare students for college would benefit the NYC Department of Education (DOE) and NYC Public Schools in a couple of ways:
+The primary measure of success we aim to predict is the 4-year college persistence rate for NYC high schools. This measure is defined as the percentage of students who graduate from a high school and eventually complete a 4-year college program. Identifying the key indicators of a school's ability to successfully prepare students for college could benefit the NYC Department of Education (DOE) and NYC Public Schools in a several ways:
 
-**improve bullet points below**
+1. It would provide insights to the NYC DOE and NYC Public Schools which would enable them to tailor instructional approaches and develop targeted curricula that specifically address college preparedness. 
+2. It would allow for strategic allocation of resources to address identified areas that significantly impact college readiness, ensuring that resources are utilized efficiently to increase the percentage of college-ready students across NYC Public Schools. 
 
-1. More directed instruction to enable useful skill transfer in preparatory courses
-2. Better use of resourcing available to public schools to increase the percentage of college-ready students
-
-For point 2 above, it's well correlated that students who attend 4-year institutions increase their career potential earnings significantly.
+It is well-established that attending 4-year institutions significantly enhances career potential earnings. Ensuring that high school students are adequately prepared for their college careers not only benefits their immediate educational success but also contributes to their long-term success in life.
 
 # Literature Review
-One of the main predictors of academic performance is the socioeconomic background of a student. Students from low-income families are nearly four times more likely to drop out of high school than students from wealthy families *@NCES-Dropout-Rates*. 
+One of the main predictors of academic performance is a student's socioeconomic background. According to the National Center for Education Statistics (NCES), students from low-income families are nearly four times more likely to drop out of high school than students from wealthy families *@NCES-Dropout-Rates*. 
 
-Several prior studies have made attempts to use more sophisticated modeling techniques, different data sources, and different predictor variables to predict educational outcomes similar to what we're trying to predict. *@BERNACKI2020103999* based their modeling on trying to predict educational achievement based on student digital behavior, rather than the social factors we'll be looking at. The model in this study reached an accuracy of 75%, and was able to flag early interventions. This modeling technique attempts to predict a slightly different metric of student success than our modeling will, and the training data and predictor variables are different as well.
+Several prior studies have made attempts to use more sophisticated modeling techniques, different data sources, and different predictor variables to predict educational outcomes similar to what we're trying to predict. In one such study, *@BERNACKI2020103999* based their modeling on trying to predict educational achievement based on student digital behavior, rather than the social factors we intend to explore. The model in this study reached an accuracy of 75%, and was able to flag early interventions. This modeling technique attempts to predict a slightly different metric of student success than our modeling will, and the training data and predictor variables differ as well.
 
-Similarly, *@MUSSO202000104* attempted to train an artificial neural network (ANN) to identify relationships between variables and educational performance data. They modeled educational performance of Vietnamese students in grade five. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in prediction accuracy of $95-100%$, higher than other modeling techniques. Since the training data comes from a different country and therefore a different educational system, comparing modeling results from our analysis (or results from other US-centric studies) to theirs may not be prudent.
+Similarly, *@MUSSO202000104* attempted to train an artificial neural network (ANN) to identify relationships between variables and educational performance data. They modeled educational performance of Vietnamese students in grade five and included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in an impressive prediction accuracy of $95-100%$. However, as their training data comes from a different country with a different educational system and methods, it may not be prudent to compare the model's results to those of our model or of any other US-centric study.
 
-*@yagci-educational-2022* predicted final grade exams for Turkish students via machine learning models. Their input variables were prior exam grades, which can be good "vacuum" comparisons between one set of academic performance data and another. However, there is a concern that good exam grades in one or more subjects do not correspond to higher rates of career success later in life *@Grades-and-Careers*. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance *@roth_meta-analyzing_1996*. **The previous two sentences go a little off-topic since we're linking school demographics to college persistence, which is definitely a precursor to a career, but obviously different.**
+In another study, *@yagci-educational-2022* predicted final grade exams for Turkish students through machine learning models, using prior exam scores as their input variables. While this provides a valuable metric for academic performance, concerns arise regarding the direct correlation between good exam grades and later career success *@Grades-and-Careers*. However, a parent study found a correlation of up to 0.3 between academic grades and later job performance *@roth_meta-analyzing_1996*, so it may be worthwhile to consider this metric as a measure to predict later success in life. Further analysis would have to be conducted in this respect. 
 
 Measuring which predictors impact educational outcomes and how much is a difficult task. There are generally many confounding variables related to the student body being observed, and causal relationships can be difficult if not impossible to establish. 
 
@@ -97,18 +95,18 @@ In addition to the school quality ratings based on survey responses, average and
 df <- read.csv("https://data.cityofnewyork.us/api/views/26je-vkp6/rows.csv?date=20231108")
 ```
 # Methodology
-Our primary interest is finding proxy variables within the data that can better serve as predictors of 4-year college persistence rates at a given NYC high school than the school survey ratings collected by the quality review. Toward this end, we'll need to first construct a baseline model that predicts a school's college persistence rate.
+Our primary interest is finding proxy variables within the data that can better serve as predictors of 4-year college persistence rates at a given NYC high school than the school survey ratings collected by the quality review. Toward this end, we will need to first construct a baseline model that predicts a school's college persistence rate.
 
 We will attempt to use three variables as a proxy for the school's survey rating in predicting college persistence:
 
 **improve these bullets**
 
-- Percent of Students in Tempoarary Housing (`temp_housing_pct`)
-- [Economic Need Index](https://data.cccnewyork.org/data/bar/1371/student-economic-need-index#1371/a/1/1622/127) (`eni_hs_pct_912`) - this is a measure of the percent of students facing economic hardship at a school **noauthor_student_2021 (fix, not in references)**. This measures the economic hardship faced by students measured along a few criteria:
-    - The student is eligible for public assistance from the NYC Human Resources Administration (HRA)
-    - The student lived in temporary housing in the past four years
-    - The student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
-- Chronic Absenteeism (`val_chronic_absent_hs_all`)
+- `temp_housing_pct` - The percentage of students living in temporary housing
+- `eni_hs_pct_912` - [Economic Need Index](https://data.cccnewyork.org/data/bar/1371/student-economic-need-index#1371/a/1/1622/127). This is a measure of the percentage of students facing economic hardship at a school **noauthor_student_2021 (fix, not in references)**. This measures the economic hardship faced by students measured along a few criteria:
+    - Whether the student is eligible for public assistance from the NYC Human Resources Administration (HRA).
+    - Whether the student lived in temporary housing in the past four years.
+    - Whether the student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
+- `val_chronic_absent_hs_all` - The percentage of students who are chronically absent. 
 
 ```{r, echo=FALSE, warning=FALSE}
 label_cols <- c("dbn", "school_name", "school_type")
@@ -118,7 +116,8 @@ df <- cbind(df[, label_cols], as.data.frame(lapply(df[,!names(df) %in% label_col
 df$college_rate <- df$val_persist3_4yr_all
 df$economic_need <- df$eni_hs_pct_912
 ```
-We take a look at a summary of the dataset's completeness.
+
+We begin by taking a look at a summary of the dataset's completeness.
 
 ```{r data2}
 remove <- c("discrete_columns", "continuous_columns",
@@ -205,7 +204,7 @@ ggplot(train, aes(x=college_rate)) +
 
 theme_set(theme_apa())
 ```
-We see a relatively normal distribution of college persistence rates. In the case of NYC high schools, the peak is at around 50%. This is inline with national averages released by *@CensusBureau_CollegeRates_2023*
+We see a relatively normal distribution of college persistence rates. In the case of NYC high schools, the peak is at around 50%. This is inline with national averages released by the *@CensusBureau_CollegeRates_2023*
 
 The below plot shows the raw correlation between each variable in our pared down dataset (*Collaborative Teaching*, *Trust*, etc) and the response variable of interest: *4-Year College Persistence Rate*.
 
@@ -230,13 +229,13 @@ corrplot(corMatrix, method="color", type="lower", tl.col="black")
 ```
 From our correlation plot above, we can see strong negative relationships between our proxy variables of interest (*Temporary Housing Rate* and *Economic Need Index*) and our target variable: *College Persistence Rate*. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
 
-Now we can plot the distributions of our proxy variables of interest. First we can plot the temp housing rate:
+Now we can plot the distributions of our proxy variables of interest. First we can plot the temporary housing rate:
 
 ```{r temp-housing-rates, fig.pos='H', out.width="\\textwidth"}
 # Plot temp housing rates
 ggplot(train, aes(x=temp_housing_pct)) +
   geom_histogram() +
-  labs(x="% of Students in Temporary Housing", y="Number of NYC Schools")
+  labs(x="% of Students in Temporary Housing", y="Number of NYC Schools", title="Histogram of the Percentage of Students Living in Temporary Housing:\nNYC High Schools 2020-2021")
 ```
 We see this distribution of the percentage of students in temporary housing per school to be skewed right. This will be an important piece of information as we model these relationships later. We also show the distribution of schools' economic need indices (also between 0 and 1). This index is closer to 1 the more economic hardship a student at a school faces (temporary housing use or food assistance, for instance). 
 ```{r economic-need-index, fig.pos='H', out.width="\\textwidth"}
@@ -248,7 +247,7 @@ ggplot(train, aes(x=economic_need)) +
 ```
 We see a left-skewed distribution for our economic need index. This is a candidate for transformation before feeding into our proxy variable model.
 
-First, we should check an assumption of linearity between our predictors and our response variable. Here, we produce scatter plots of the response variable versus the percentage of students in temporary housing, the economic need index, the enrollment level, and chronic absenteism. 
+First, we should check an assumption of linearity between our predictors and our response variable. Here, we produce scatter plots of the response variable versus the percentage of students in temporary housing, the economic need index, the enrollment level, and chronic absenteeism. 
 
 ```{r fig.pos='H', out.width="\\textwidth"}
 # Plot temp housing percentage vs college persistence rate
