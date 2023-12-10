@@ -339,7 +339,7 @@ summary(wls_model)
 
 ```{r RMSE}
 # Compute RMSE for each model on our testing data
-# TODO: Put in table with AIC and BIC results
+
 rmse(rating_model, test)
 modelr::rmse(proxy_model, test)
 modelr::rmse(wls_model, test)
@@ -371,7 +371,7 @@ print(glue("BIC for WLS model: {BIC(wls_model)}"))
 
 # Appendices
 
-Below is the code used to generate this report. It's also available on [GitHub here](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main)
+Below is the code used to generate this report. It's also available on [GitHub here](https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main).
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 
 ```
