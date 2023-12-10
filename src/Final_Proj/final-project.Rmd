@@ -171,11 +171,11 @@ p1 <- plot_missing(train_data, missing_only = FALSE,
 
 ```
 
-```{r data4, fig.pos='H', out.width="\\textwidth"}
+```{r data4, fig.pos='H', out.width="\\textwidth", warning=FALSE, message=FALSE}
+# Plot missing value percentages by cols of interest
 p1 <- p1 + 
     scale_fill_brewer(palette = "Paired")
 p1
-
 ```
 The variable with the most missing data is `college_rate`. Some schools are also missing some survey ratings, and a very small percentage of schools are missing chronic absenteeism values.
 
@@ -204,7 +204,7 @@ ggplot(train, aes(x=college_rate)) +
 
 theme_set(theme_apa())
 ```
-We see a relatively normal distribution of college persistence rates. In the case of NYC high schools, the peak is at around 50%. This is inline with national averages released by the *@CensusBureau_CollegeRates_2023*
+We see a relatively normal distribution of college persistence rates. In the case of NYC high schools, the peak is at around 50%. This is inline with national averages released by the *@CensusBureau_CollegeRates_2023*.
 
 The below plot shows the raw correlation between each variable in our pared down dataset (*Collaborative Teaching*, *Trust*, etc) and the response variable of interest: *4-Year College Persistence Rate*.
 
@@ -281,7 +281,7 @@ Schools with lower enrollment levels have a wider range of college persistence r
 Only 1 school where chronic absenteeism is greater than or equal to 0.5 achieves college persistence levels above 80 percent. However, college persistence varies widely at most chronic absenteeism levels. **Investigate why this variable can take such high rates and whether there's anything that can collectively be said about the 12 schools with values greater than 0.8 for this variable. Make sure we understand what it's measuring correctly.**
 
 ### Modeling
-For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to 
+For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to predict the college persistence rate of a given high school. The model diagnostic statistics are pritned below:
 
 ```{r base-rating-model}
 base_formula <- college_rate ~ survey_pp_CT + survey_pp_RI + survey_pp_SE + survey_pp_ES + survey_pp_SF + survey_pp_TR
@@ -291,7 +291,7 @@ summary(rating_model)
 ```
 We find our base model for the school survey ratings produces an adjusted R-squared of $R^2_{adj} = 0.22$. This is lower than the predictive model in *@roth_meta-analyzing_1996* produces. 
 
-We then create a basic multiple least squares linear model between the response and our two socioeconomic proxy variables: *Temporary Housing Percentage of a School* and *Average Economic Need Index*.
+We then create a basic multiple least squares linear model between the response and our two socioeconomic proxy variables: *Temporary Housing Percentage of a School* and *Average Economic Need Index*. The summary statistics of the socieoeconomic model are shown below.
 
 ```{r proxy-mlm}
 # Create OLS linear model based on our proxy variables: no transforms
@@ -300,12 +300,29 @@ proxy_model <- lm(proxy_formula, train)
 summary(proxy_model)
 ```
 
+In addition, the plot below shows the diagnostic plots for our proxy socioeconmic model. We see no strong trend in the residuals vs fitted plot, indicating heteroscedasticity
+
 ```{r plot-proxy-model, fig.pos='H', out.width="\\textwidth"}
 par(mfrow=c(2,2))
 par(mai=c(.3,.3,.3,.3))
 plot(proxy_model)
 ```
-Given the 
+We can also  test the assumption of normally-distributed residuals via a [Shapiro-Wilk test for normality](https://en.wikipedia.org/wiki/Shapiro–Wilk_test). Here we operate with the null $H_0$ and alternative hypotheses $H_a$:
+
+- $H_0$: the error terms of the socioeconomic proxy model come from a normally-distributed population
+- $H_a$:  the error terms of the socioeconomic proxy model come from a population that is **not** normally distributed
+
+Running a Shapiro test for normality at a 95% threshold, we receive a p-value of 0.5848, higher than our threshold, so we cannot reject our null hypothesis
+```{r shapiro-proxy-model}
+# Test proxy model for normality of residuals
+shapiro.test(proxy_model$residuals)
+```
+
+Plotting our proxy model's residuals, we can confirm normality as well visually:
+```{r proxy-residual-plot}
+hist(proxy_model$residuals)
+```
+
 
 ```{r weighted-least-squares}
 # Calculating weights for WLS
@@ -343,7 +360,6 @@ print(glue("BIC for WLS model: {BIC(wls_model)}"))
 # Conclusion
 
 ## TODO
-- Merge/Join in ACT/SAT information by DBN
 - Model Selection
 
 \newpage

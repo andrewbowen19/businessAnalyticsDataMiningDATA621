@@ -245,34 +245,32 @@ The NYC School Survey seeks to collect data to provide an overview of New York C
 
 The survey has changed over the years. These changes have come from the recommendations of public policy analysts seeking to more accurately define the quality of schools \emph{New York City Schools (2018)}. The 2020-21 academic year report provides a robust dataset of school-level observations of academic and socioeconomic data.
 
-\textbf{Research Question:} Our analysis aims to determine whether NYC School Quality Survey ratings accurately reflect educational outcomes or these outcomes could actually be better predicted by proxy variables related to the student body.
+\textbf{Research Question:} Our analysis aims to determine whether NYC School Quality Survey ratings accurately reflect educational outcomes or if these outcomes could be better predicted by proxy variables related to the student body.
 
-The primary measure of success we are interested in predicting is the 4-year college persistence rate for an NYC high school. This measure is defined as the percentage of students who graduate from a high school and eventually go on to graduate from a 4-year college. Being able to identify the main indicators of a school's ability to successfully prepare students for college would benefit the NYC Department of Education (DOE) and NYC Public Schools in a couple of ways:
-
-\textbf{improve bullet points below}
+The primary measure of success we aim to predict is the 4-year college persistence rate for NYC high schools. This measure is defined as the percentage of students who graduate from a high school and eventually complete a 4-year college program. Identifying the key indicators of a school's ability to successfully prepare students for college could benefit the NYC Department of Education (DOE) and NYC Public Schools in a several ways:
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \tightlist
 \item
-  More directed instruction to enable useful skill transfer in preparatory courses
+  It would provide insights to the NYC DOE and NYC Public Schools which would enable them to tailor instructional approaches and develop targeted curricula that specifically address college preparedness.
 \item
-  Better use of resourcing available to public schools to increase the percentage of college-ready students
+  It would allow for strategic allocation of resources to address identified areas that significantly impact college readiness, ensuring that resources are utilized efficiently to increase the percentage of college-ready students across NYC Public Schools.
 \end{enumerate}
 
-For point 2 above, it's well correlated that students who attend 4-year institutions increase their career potential earnings significantly.
+It is well-established that attending 4-year institutions significantly enhances career potential earnings. Ensuring that high school students are adequately prepared for their college careers not only benefits their immediate educational success but also contributes to their long-term success in life.
 
 \hypertarget{literature-review}{%
 \section{Literature Review}\label{literature-review}}
 
-One of the main predictors of academic performance is the socioeconomic background of a student. Students from low-income families are nearly four times more likely to drop out of high school than students from wealthy families \emph{Education Statistics (2008)}.
+One of the main predictors of academic performance is a student's socioeconomic background. According to the National Center for Education Statistics (NCES), students from low-income families are nearly four times more likely to drop out of high school than students from wealthy families \emph{Education Statistics (2008)}.
 
-Several prior studies have made attempts to use more sophisticated modeling techniques, different data sources, and different predictor variables to predict educational outcomes similar to what we're trying to predict. \emph{Bernacki, Chavez, and Uesbeck (2020)} based their modeling on trying to predict educational achievement based on student digital behavior, rather than the social factors we'll be looking at. The model in this study reached an accuracy of 75\%, and was able to flag early interventions. This modeling technique attempts to predict a slightly different metric of student success than our modeling will, and the training data and predictor variables are different as well.
+Several prior studies have made attempts to use more sophisticated modeling techniques, different data sources, and different predictor variables to predict educational outcomes similar to what we're trying to predict. In one such study, \emph{Bernacki, Chavez, and Uesbeck (2020)} based their modeling on trying to predict educational achievement based on student digital behavior, rather than the social factors we intend to explore. The model in this study reached an accuracy of 75\%, and was able to flag early interventions. This modeling technique attempts to predict a slightly different metric of student success than our modeling will, and the training data and predictor variables differ as well.
 
-Similarly, \emph{Musso, Cascallar, Bostani, and Crawford (2020)} attempted to train an artificial neural network (ANN) to identify relationships between variables and educational performance data. They modeled educational performance of Vietnamese students in grade five. They included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in prediction accuracy of \(95-100%
-\), higher than other modeling techniques. Since the training data comes from a different country and therefore a different educational system, comparing modeling results from our analysis (or results from other US-centric studies) to theirs may not be prudent.
+Similarly, \emph{Musso, Cascallar, Bostani, and Crawford (2020)} attempted to train an artificial neural network (ANN) to identify relationships between variables and educational performance data. They modeled educational performance of Vietnamese students in grade five and included individual characteristics as well as information related to daily routines in their training data. This method uses a more sophisticated model, and resulted in an impressive prediction accuracy of \(95-100%
+\). However, as their training data comes from a different country with a different educational system and methods, it may not be prudent to compare the model's results to those of our model or of any other US-centric study.
 
-\emph{Yağcı (2022)} predicted final grade exams for Turkish students via machine learning models. Their input variables were prior exam grades, which can be good ``vacuum'' comparisons between one set of academic performance data and another. However, there is a concern that good exam grades in one or more subjects do not correspond to higher rates of career success later in life \emph{Afarian and Kleiner (2003)}. Additionally, a parent study also found a correlation of up to 0.3 between academic grades and later job performance \emph{Roth, BeVier, Switzer III, and Schippmann (1996)}. \textbf{The previous two sentences go a little off-topic since we're linking school demographics to college persistence, which is definitely a precursor to a career, but obviously different.}
+In another study, \emph{Yağcı (2022)} predicted final grade exams for Turkish students through machine learning models, using prior exam scores as their input variables. While this provides a valuable metric for academic performance, concerns arise regarding the direct correlation between good exam grades and later career success \emph{Afarian and Kleiner (2003)}. However, a parent study found a correlation of up to 0.3 between academic grades and later job performance \emph{Roth, BeVier, Switzer III, and Schippmann (1996)}, so it may be worthwhile to consider this metric as a measure to predict later success in life. Further analysis would have to be conducted in this respect.
 
 Measuring which predictors impact educational outcomes and how much is a difficult task. There are generally many confounding variables related to the student body being observed, and causal relationships can be difficult if not impossible to establish.
 
@@ -286,7 +284,7 @@ In addition to the school quality ratings based on survey responses, average and
 \hypertarget{methodology}{%
 \section{Methodology}\label{methodology}}
 
-Our primary interest is finding proxy variables within the data that can better serve as predictors of 4-year college persistence rates at a given NYC high school than the school survey ratings collected by the quality review. Toward this end, we'll need to first construct a baseline model that predicts a school's college persistence rate.
+Our primary interest is finding proxy variables within the data that can better serve as predictors of 4-year college persistence rates at a given NYC high school than the school survey ratings collected by the quality review. Toward this end, we will need to first construct a baseline model that predicts a school's college persistence rate.
 
 We will attempt to use three variables as a proxy for the school's survey rating in predicting college persistence:
 
@@ -295,24 +293,24 @@ We will attempt to use three variables as a proxy for the school's survey rating
 \begin{itemize}
 \tightlist
 \item
-  Percent of Students in Tempoarary Housing (\texttt{temp\_housing\_pct})
+  \texttt{temp\_housing\_pct} - The percentage of students living in temporary housing
 \item
-  \href{https://data.cccnewyork.org/data/bar/1371/student-economic-need-index\#1371/a/1/1622/127}{Economic Need Index} (\texttt{eni\_hs\_pct\_912}) - this is a measure of the percent of students facing economic hardship at a school \textbf{noauthor\_student\_2021 (fix, not in references)}. This measures the economic hardship faced by students measured along a few criteria:
+  \texttt{eni\_hs\_pct\_912} - \href{https://data.cccnewyork.org/data/bar/1371/student-economic-need-index\#1371/a/1/1622/127}{Economic Need Index}. This is a measure of the percentage of students facing economic hardship at a school \textbf{noauthor\_student\_2021 (fix, not in references)}. This measures the economic hardship faced by students measured along a few criteria:
 
   \begin{itemize}
   \tightlist
   \item
-    The student is eligible for public assistance from the NYC Human Resources Administration (HRA)
+    Whether the student is eligible for public assistance from the NYC Human Resources Administration (HRA).
   \item
-    The student lived in temporary housing in the past four years
+    Whether the student lived in temporary housing in the past four years.
   \item
-    The student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
+    Whether the student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
   \end{itemize}
 \item
-  Chronic Absenteeism (\texttt{val\_chronic\_absent\_hs\_all})
+  \texttt{val\_chronic\_absent\_hs\_all} - The percentage of students who are chronically absent.
 \end{itemize}
 
-We take a look at a summary of the dataset's completeness.
+We begin by taking a look at a summary of the dataset's completeness.
 
 \begin{table}[H]
 
@@ -391,7 +389,7 @@ To check underlying modeling assumptions, we plot distributions and relationship
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/unnamed-chunk-4-1} \caption{ }\label{fig:unnamed-chunk-4}
 \end{figure}
 
-We see a relatively normal distribution of college persistence rates. In the case of NYC high schools, the peak is at around 50\%. This is inline with national averages released by \emph{US Census Bureau (2023)}
+We see a relatively normal distribution of college persistence rates. In the case of NYC high schools, the peak is at around 50\%. This is inline with national averages released by the \emph{US Census Bureau (2023)}.
 
 The below plot shows the raw correlation between each variable in our pared down dataset (\emph{Collaborative Teaching}, \emph{Trust}, etc) and the response variable of interest: \emph{4-Year College Persistence Rate}.
 
@@ -401,7 +399,7 @@ The below plot shows the raw correlation between each variable in our pared down
 
 From our correlation plot above, we can see strong negative relationships between our proxy variables of interest (\emph{Temporary Housing Rate} and \emph{Economic Need Index}) and our target variable: \emph{College Persistence Rate}. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
 
-Now we can plot the distributions of our proxy variables of interest. First we can plot the temp housing rate:
+Now we can plot the distributions of our proxy variables of interest. First we can plot the temporary housing rate:
 
 \begin{figure}[H]
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/temp-housing-rates-1} \caption{ }\label{fig:temp-housing-rates}
@@ -415,7 +413,7 @@ We see this distribution of the percentage of students in temporary housing per 
 
 We see a left-skewed distribution for our economic need index. This is a candidate for transformation before feeding into our proxy variable model.
 
-First, we should check an assumption of linearity between our predictors and our response variable. Here, we produce scatter plots of the response variable versus the percentage of students in temporary housing, the economic need index, the enrollment level, and chronic absenteism.
+First, we should check an assumption of linearity between our predictors and our response variable. Here, we produce scatter plots of the response variable versus the percentage of students in temporary housing, the economic need index, the enrollment level, and chronic absenteeism.
 
 \begin{figure}[H]
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/unnamed-chunk-6-1} \caption{ }\label{fig:unnamed-chunk-6}
@@ -432,7 +430,7 @@ Only 1 school where chronic absenteeism is greater than or equal to 0.5 achieves
 \hypertarget{modeling}{%
 \subsubsection{Modeling}\label{modeling}}
 
-For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to
+For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to predict the college persistence rate of a given high school. The model diagnostic statistics are pritned below:
 
 \begin{verbatim}
 ## 
@@ -462,7 +460,7 @@ For evaluation purposes, we create a linear model based on the survey ratings pr
 
 We find our base model for the school survey ratings produces an adjusted R-squared of \(R^2_{adj} = 0.22\). This is lower than the predictive model in \emph{Roth et al. (1996)} produces.
 
-We then create a basic multiple least squares linear model between the response and our two socioeconomic proxy variables: \emph{Temporary Housing Percentage of a School} and \emph{Average Economic Need Index}.
+We then create a basic multiple least squares linear model between the response and our two socioeconomic proxy variables: \emph{Temporary Housing Percentage of a School} and \emph{Average Economic Need Index}. The summary statistics of the socieoeconomic model are shown below.
 
 \begin{verbatim}
 ## 
@@ -486,11 +484,34 @@ We then create a basic multiple least squares linear model between the response 
 ## F-statistic: 181.7 on 2 and 387 DF,  p-value: < 2.2e-16
 \end{verbatim}
 
+In addition, the plot below shows the diagnostic plots for our proxy socioeconmic model. We see no strong trend in the residuals vs fitted plot, indicating heteroscedasticity
+
 \begin{figure}[H]
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/plot-proxy-model-1} \caption{ }\label{fig:plot-proxy-model}
 \end{figure}
 
-Given the
+We can also test the assumption of normally-distributed residuals via a \href{https://en.wikipedia.org/wiki/Shapiro–Wilk_test}{Shapiro-Wilk test for normality}. Here we operate with the null \(H_0\) and alternative hypotheses \(H_a\):
+
+\begin{itemize}
+\tightlist
+\item
+  \(H_0\): the error terms of the socioeconomic proxy model come from a normally-distributed population
+\item
+  \(H_a\): the error terms of the socioeconomic proxy model come from a population that is \textbf{not} normally distributed
+\end{itemize}
+
+Running a Shapiro test for normality at a 95\% threshold, we receive a p-value of 0.5848, higher than our threshold, so we cannot reject our null hypothesis
+
+\begin{verbatim}
+## 
+##  Shapiro-Wilk normality test
+## 
+## data:  proxy_model$residuals
+## W = 0.9966, p-value = 0.5848
+\end{verbatim}
+
+Plotting our proxy model's residuals, we can confirm normality as well visually:
+\includegraphics{final-project_files/figure-latex/proxy-residual-plot-1.pdf}
 
 \begin{verbatim}
 ## 
@@ -543,7 +564,7 @@ We can also use the Akaike and Bayesian Information Criterion for evaluatng the 
 \end{verbatim}
 
 \begin{verbatim}
-## AIC for WLS model: -480.874854356931
+## AIC for WLS model: -480.874854356932
 \end{verbatim}
 
 \begin{verbatim}
@@ -551,11 +572,11 @@ We can also use the Akaike and Bayesian Information Criterion for evaluatng the 
 \end{verbatim}
 
 \begin{verbatim}
-## BIC for proxy variable model: -461.345483538977
+## BIC for proxy variable model: -461.345483538978
 \end{verbatim}
 
 \begin{verbatim}
-## BIC for WLS model: -465.010267400436
+## BIC for WLS model: -465.010267400437
 \end{verbatim}
 
 \hypertarget{conclusion}{%
@@ -566,8 +587,6 @@ We can also use the Akaike and Bayesian Information Criterion for evaluatng the 
 
 \begin{itemize}
 \tightlist
-\item
-  Merge/Join in ACT/SAT information by DBN
 \item
   Model Selection
 \end{itemize}
@@ -666,10 +685,10 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{p1 }\OtherTok{\textless{}{-}} \FunctionTok{plot\_missing}\NormalTok{(train\_data, }\AttributeTok{missing\_only =} \ConstantTok{FALSE}\NormalTok{,}
                    \AttributeTok{ggtheme =} \FunctionTok{theme\_classic}\NormalTok{(), }\AttributeTok{title =} \StringTok{"Missing Values"}\NormalTok{)}
 
+\CommentTok{\# Plot missing value percentages by cols of interest}
 \NormalTok{p1 }\OtherTok{\textless{}{-}}\NormalTok{ p1 }\SpecialCharTok{+} 
     \FunctionTok{scale\_fill\_brewer}\NormalTok{(}\AttributeTok{palette =} \StringTok{"Paired"}\NormalTok{)}
 \NormalTok{p1}
-
 \NormalTok{imp }\OtherTok{\textless{}{-}} \FunctionTok{mice}\NormalTok{(train\_data, }\AttributeTok{method=}\StringTok{"pmm"}\NormalTok{, }\AttributeTok{seed=}\DecValTok{42}\NormalTok{, }\AttributeTok{printFlag =} \ConstantTok{FALSE}\NormalTok{)}
 \NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{complete}\NormalTok{(imp)}
 \NormalTok{test\_data }\OtherTok{\textless{}{-}}\NormalTok{ test[, cols]}
@@ -704,7 +723,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 \CommentTok{\# Plot temp housing rates}
 \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct)) }\SpecialCharTok{+}
   \FunctionTok{geom\_histogram}\NormalTok{() }\SpecialCharTok{+}
-  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% of Students in Temporary Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Number of NYC Schools"}\NormalTok{)}
+  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% of Students in Temporary Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Number of NYC Schools"}\NormalTok{, }\AttributeTok{title=}\StringTok{"Histogram of the Percentage of Students Living in Temporary Housing:}\SpecialCharTok{\textbackslash{}n}\StringTok{NYC High Schools 2020{-}2021"}\NormalTok{)}
 \CommentTok{\# Plot economic need index}
 \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{economic\_need)) }\SpecialCharTok{+}
   \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
@@ -742,6 +761,9 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mai=}\FunctionTok{c}\NormalTok{(.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{))}
 \FunctionTok{plot}\NormalTok{(proxy\_model)}
+\CommentTok{\# Test proxy model for normality of residuals}
+\FunctionTok{shapiro.test}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals)}
+\FunctionTok{hist}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals)}
 \CommentTok{\# Calculating weights for WLS}
 \NormalTok{weights }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{/} \FunctionTok{lm}\NormalTok{(}\FunctionTok{abs}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals) }\SpecialCharTok{\textasciitilde{}}\NormalTok{ proxy\_model}\SpecialCharTok{$}\NormalTok{fitted.values)}\SpecialCharTok{$}\NormalTok{fitted.values}\SpecialCharTok{\^{}}\DecValTok{2}
 
