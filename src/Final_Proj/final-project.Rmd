@@ -56,6 +56,7 @@ library(modelr)
 library("papaja")
 library(DataExplorer)
 library(cowplot)
+library(car)
 r_refs("r-references.bib")
 ```
 
@@ -66,7 +67,7 @@ The survey has changed over the years. These changes have come from the recommen
 
 **Research Question:** Our analysis aims to determine whether NYC School Quality Survey ratings accurately reflect educational outcomes or if these outcomes could be better predicted by proxy variables related to the student body.
 
-The primary measure of success we aim to predict is the 4-year college persistence rate for NYC high schools. This measure is defined as the percentage of students who graduate from a high school and eventually complete a 4-year college program. Identifying the key indicators of a school's ability to successfully prepare students for college could benefit the NYC Department of Education (DOE) and NYC Public Schools in a several ways:
+The primary measure of success we aim to predict is the 4-year college persistence rate for NYC high schools. This measure is defined as the percentage of students who graduate from a high school and eventually complete a 4-year college program. Identifying the key indicators of a school's ability to successfully prepare students for college could benefit the NYC Department of Education (DOE) and NYC Public Schools in several ways:
 
 1. It would provide insights to the NYC DOE and NYC Public Schools which would enable them to tailor instructional approaches and develop targeted curricula that specifically address college preparedness. 
 2. It would allow for strategic allocation of resources to address identified areas that significantly impact college readiness, ensuring that resources are utilized efficiently to increase the percentage of college-ready students across NYC Public Schools. 
@@ -99,14 +100,9 @@ Our primary interest is finding proxy variables within the data that can better 
 
 We will attempt to use three variables as a proxy for the school's survey rating in predicting college persistence:
 
-**improve these bullets**
-
-- `temp_housing_pct` - The percentage of students living in temporary housing
-- `eni_hs_pct_912` - [Economic Need Index](https://data.cccnewyork.org/data/bar/1371/student-economic-need-index#1371/a/1/1622/127). This is a measure of the percentage of students facing economic hardship at a school **noauthor_student_2021 (fix, not in references)**. This measures the economic hardship faced by students measured along a few criteria:
-    - Whether the student is eligible for public assistance from the NYC Human Resources Administration (HRA).
-    - Whether the student lived in temporary housing in the past four years.
-    - Whether the student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
-- `val_chronic_absent_hs_all` - The percentage of students who are chronically absent. 
+- `temp_housing_pct`: the percentage of students living in temporary housing
+- `eni_hs_pct_912`: [Economic Need Index](https://data.cccnewyork.org/data/bar/1371/student-economic-need-index#1371/a/1/1622/127): a measure of the percentage of students facing economic hardship at a school^[**noauthor_student_2021 (fix, not in references)** Economic hardship in this context is based on three criteria: whether the student is 1) eligible for public assistance from the NYC Human Resources Administration (HRA); 2) lived in temporary housing in the past four years; 3) is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.]
+- `val_chronic_absent_hs_all`: the percentage of students who are chronically absent^[Chronic absenteeism is defined by the NYC DOE as "students who are absent 10 percent or more of the total days."]
 
 ```{r, echo=FALSE, warning=FALSE}
 label_cols <- c("dbn", "school_name", "school_type")
@@ -199,7 +195,7 @@ ggplot(train, aes(x=college_rate)) +
     geom_density() + 
     labs(x="4-Year College Persistence Rate",
          y="Density of NYC High Schools",
-         title="Average 4-Year Colege Persistence Rates: NYC High Schools 2020-2021",
+         title="Average 4-Year College Persistence Rates: NYC High Schools 2020-2021",
          caption="The average NYC high school sees ~50% of students go on to have 4-year college persistence.")
 
 theme_set(theme_apa())
@@ -227,27 +223,38 @@ train_renamed <- train %>%
 corMatrix <- cor(train_renamed)
 corrplot(corMatrix, method="color", type="lower", tl.col="black")
 ```
-From our correlation plot above, we can see strong negative relationships between our proxy variables of interest (*Temporary Housing Rate* and *Economic Need Index*) and our target variable: *College Persistence Rate*. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
+From our correlation plot above, we can see strong negative relationships between two of our proxy variables of interest (*Temporary Housing Rate* and *Economic Need Index*) and our target variable: *College Persistence Rate*. There is also a negative relationship between *Chronic Absenteeism* and *College Persistence Rate*, but to a lesser degree. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
 
-Now we can plot the distributions of our proxy variables of interest. First we can plot the temporary housing rate:
+*Enrollment* has only a slightly positive relationship with *College Persistence Rate*. We expected school size might be important when modeling, but that does not appear to be likely. 
+
+We also see that the survey ratings are all at least somewhat positively correlated with one another, and the only survey rating that appears to have a relationship with *College Persistence Rate* is *Rigorous Instruction*. That relationship is only slightly positive. This signals that constructing a model based on one or more of the survey ratings might not give as much insight into college persistence as the proxy variables could. 
+
+Now we can plot the distributions of our proxy variables of interest.
 
 ```{r temp-housing-rates, fig.pos='H', out.width="\\textwidth"}
 # Plot temp housing rates
-ggplot(train, aes(x=temp_housing_pct)) +
-  geom_histogram() +
-  labs(x="% of Students in Temporary Housing", y="Number of NYC Schools", title="Histogram of the Percentage of Students Living in Temporary Housing:\nNYC High Schools 2020-2021")
-```
-We see this distribution of the percentage of students in temporary housing per school to be skewed right. This will be an important piece of information as we model these relationships later. We also show the distribution of schools' economic need indices (also between 0 and 1). This index is closer to 1 the more economic hardship a student at a school faces (temporary housing use or food assistance, for instance). 
-```{r economic-need-index, fig.pos='H', out.width="\\textwidth"}
+pa <- ggplot(train, aes(x=temp_housing_pct)) +
+    geom_density() +
+    labs(x="% Students Temp Housing", y="Density")
 # Plot economic need index
-ggplot(train, aes(x=economic_need)) +
-  geom_density() +
-  labs(x="Economic Need Index", y="Density of NYC Schools",
-       title="Density of Economic Need Index: NYC High Schools 2020-2021")
-```
-We see a left-skewed distribution for our economic need index. This is a candidate for transformation before feeding into our proxy variable model.
+pb <- ggplot(train, aes(x=economic_need)) +
+    geom_density() +
+    labs(x="Economic Need Index", y="Density")
+# Plot enrollment
+pc <- ggplot(train, aes(x=enrollment)) +
+    geom_density() +
+    labs(x="Enrollment", y="Density")
+# Plot chronic absenteeism
+pd <- ggplot(train, aes(x=val_chronic_absent_hs_all)) +
+    geom_density() +
+    labs(x="Chronic Absenteeism", y="Density")
+p <- plot_grid(pa, pb, pc, pd, nrow = 2, ncol = 2, align = "hv", axis = "t")
+p
 
-First, we should check an assumption of linearity between our predictors and our response variable. Here, we produce scatter plots of the response variable versus the percentage of students in temporary housing, the economic need index, the enrollment level, and chronic absenteeism. 
+```
+We see the distribution of *Temporary Housing Rate* is right-skewed. We also see the distribution of *Economic Need Index* is left-skewed. The closer the index is to 1, the more economic hardship students at that school face, so schools with high rates of students facing economic hardship are more prevalent than schools with low rates. These variables are both candidates for transformation due to their skew. Our model will not likely feature *Enrollment*, as observations are so concentrated at the low end, and we already noted it is not as correlated with our target variable as the other proxies we're considering. *Chronic Absenteeism* is closer to a normal distribution than the other variables, but it is still slightly right-skewed, so there are more schools in this dataset with pretty low rates and fewer schools with pretty high rates. 
+
+We check an assumption of linearity between our proxy predictors and our response variable by producing scatter plots of the response variable versus each of the proxy predictors. 
 
 ```{r fig.pos='H', out.width="\\textwidth"}
 # Plot temp housing percentage vs college persistence rate
@@ -278,10 +285,10 @@ We also see a non-linear relationship between the response variable and the econ
 
 Schools with lower enrollment levels have a wider range of college persistence rates than schools with higher enrollment levels.
 
-Only 1 school where chronic absenteeism is greater than or equal to 0.5 achieves college persistence levels above 80 percent. However, college persistence varies widely at most chronic absenteeism levels. **Investigate why this variable can take such high rates and whether there's anything that can collectively be said about the 12 schools with values greater than 0.8 for this variable. Make sure we understand what it's measuring correctly.**
+Only one school where chronic absenteeism is greater than or equal to 50 percent achieves college persistence levels above 80 percent. However, college persistence varies widely at most chronic absenteeism levels. 
 
-### Modeling
-For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to predict the college persistence rate of a given high school. The model diagnostic statistics are pritned below:
+# Modeling
+For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to predict the college persistence rate of a given high school. The model summary is printed below:
 
 ```{r base-rating-model}
 base_formula <- college_rate ~ survey_pp_CT + survey_pp_RI + survey_pp_SE + survey_pp_ES + survey_pp_SF + survey_pp_TR
@@ -289,46 +296,83 @@ rating_model <- lm(base_formula,
                    train)
 summary(rating_model)
 ```
-We find our base model for the school survey ratings produces an adjusted R-squared of $R^2_{adj} = 0.22$. This is lower than the predictive model in *@roth_meta-analyzing_1996* produces. 
+We find our base model for the school survey ratings produces an adjusted R-squared of $R^2_{adj} = 0.24$. This is lower than the predictive model in *@roth_meta-analyzing_1996* produces. The two survey ratings that appear to be statistically significant to the model are *Rigorous Instruction*, which we expected based on our correlation analysis, and *Supportive Environment*, which we did not expect. We reduce the model via backward selection, and *Effective Leadership* becomes statistically significant as well. We reprint a summary below:
 
-We then create a basic multiple least squares linear model between the response and our two socioeconomic proxy variables: *Temporary Housing Percentage of a School* and *Average Economic Need Index*. The summary statistics of the socieoeconomic model are shown below.
+```{r base-rating-model-backward-selection}
+rating_model <- update(rating_model, ~ . - survey_pp_CT - survey_pp_SF - survey_pp_TR)
+summary(rating_model)
+```
+The adjusted R-squared is the same due to rounding. We check for suspected multicollinearity within this model:
+
+```{r base-rating-model-vif-check}
+vif_df <- as.data.frame(vif(rating_model))
+colnames(vif_df) <- c("VIF Value")
+apa_table(vif_df, caption = "Variance Inflation Factors", placement = "H")
+
+
+```
+
+Surprisingly, none of the variance inflation factors are greater than five, so there are no multicollinearity issues to address for this model.
+
+We then create a basic multiple least squares linear model between the response and our three socioeconomic proxy variables: *Temporary Housing Rate*, *Economic Need Index*, and *Chronic Absenteeism*. We include *Enrollment* as well. The summary statistics of the socieoeconomic model are shown below.
 
 ```{r proxy-mlm}
 # Create OLS linear model based on our proxy variables: no transforms
-proxy_formula <- college_rate ~ temp_housing_pct + economic_need
+proxy_formula <- college_rate ~ temp_housing_pct + economic_need + val_chronic_absent_hs_all + enrollment
 proxy_model <- lm(proxy_formula, train)
 summary(proxy_model)
 ```
+*Enrollment* is not statistically significant, so we remove it and reprint a summary.
 
-In addition, the plot below shows the diagnostic plots for our proxy socioeconmic model. We see no strong trend in the residuals vs fitted plot, indicating heteroscedasticity
+```{r proxy-model-reprint}
+proxy_model <- update(proxy_model, ~ . - enrollment)
+summary(proxy_model)
+
+```
+We find our proxy socioeconomic model produces an adjusted R-squared of $R^2_{adj} = 0.52$.
+
+We check for multicollinearity within this model. Unlike with the base model based on the survey ratings, we do not expect any such issues with this model.
+
+```{r proxy-model-vif-check}
+vif_df <- as.data.frame(vif(proxy_model))
+colnames(vif_df) <- c("VIF Value")
+apa_table(vif_df, caption = "Variance Inflation Factors", placement = "H")
+
+```
+
+None of the variance inflation factors are greater than five, so there are no multicollinearity issues to address for this model.
+
+We produce diagnostic plots for the model below. 
 
 ```{r plot-proxy-model, fig.pos='H', out.width="\\textwidth"}
 par(mfrow=c(2,2))
 par(mai=c(.3,.3,.3,.3))
 plot(proxy_model)
 ```
-We can also  test the assumption of normally-distributed residuals via a [Shapiro-Wilk test for normality](https://en.wikipedia.org/wiki/Shapiro–Wilk_test). Here we operate with the null $H_0$ and alternative hypotheses $H_a$:
+We see no strong trend in the residuals vs. fitted plot, indicating heteroscedasticity.
+
+We can also test the assumption of normally-distributed residuals via a [Shapiro-Wilk test for normality](https://en.wikipedia.org/wiki/Shapiro–Wilk_test). Here we operate with the null $H_0$ and alternative hypotheses $H_a$:
 
 - $H_0$: the error terms of the socioeconomic proxy model come from a normally-distributed population
 - $H_a$:  the error terms of the socioeconomic proxy model come from a population that is **not** normally distributed
 
-Running a Shapiro test for normality at a 95% threshold, we receive a p-value of 0.5848, higher than our threshold, so we cannot reject our null hypothesis
 ```{r shapiro-proxy-model}
 # Test proxy model for normality of residuals
 shapiro.test(proxy_model$residuals)
 ```
+Running a Shapiro test for normality at a 95% threshold, we receive a p-value of 0.5848, higher than our threshold, so we cannot reject our null hypothesis.
 
 Plotting our proxy model's residuals, we can confirm normality as well visually:
 ```{r proxy-residual-plot}
 hist(proxy_model$residuals)
 ```
 
-
 ```{r weighted-least-squares}
 # Calculating weights for WLS
 weights <- 1 / lm(abs(proxy_model$residuals) ~ proxy_model$fitted.values)$fitted.values^2
 
 #perform weighted least squares regression
+proxy_formula <- proxy_model$call$formula
 wls_model <- lm(proxy_formula, data = train, weights=weights)
 
 summary(wls_model)
@@ -344,7 +388,7 @@ rmse(rating_model, test)
 modelr::rmse(proxy_model, test)
 modelr::rmse(wls_model, test)
 ```
-We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models. We're using fewer variables in our proxy and WLS models, so we'd expect better results (minimized values) for each of those criteria
+We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models.
 
 ```{r aic-bic}
 # Print AIC for each model type
