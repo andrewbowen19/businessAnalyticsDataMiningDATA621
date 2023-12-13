@@ -3,8 +3,8 @@ title: "DATA 621 - HW5"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-11-27"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -28,7 +28,7 @@ library(car)
 library(finalfit)
 library(pscl)
 library(faraway)
-library(vcd)
+library(caret)
 ```
 
 
@@ -45,7 +45,9 @@ Below is a short description of all the variables of interest in the data set, i
 
 ```{r load_input, echo=F}
 git_link = 'https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/wine_training_data.csv'
+eval_link = 'https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/wine_evaluation_data.csv'
 input_df <- read_csv(git_link,show_col_types = FALSE)
+eval_df <- read_csv(eval_link,show_col_types=FALSE)
 ```
 
 |VARIABLE NAME|DEFINITION|
@@ -55,7 +57,7 @@ input_df <- read_csv(git_link,show_col_types = FALSE)
 |`ACIDINDEX`|Proprietary method of testing total acidity of wine by using a weighted average|
 |`ALCOHOL`|Alcohol Content|
 |`CHLORIDES`|Chloride content of wine|
-|`CITRICACID`|Citric Acide Content|
+|`CITRICACID`|Citric Acid Content|
 |`DENSITY`|Density of Wine|
 |`FIXEDACIDITY`|Fixed Acidity of Wine|
 |`FREESULFURDIOXIDE`|Sulfur Dioxide Content of Wine|
@@ -80,12 +82,22 @@ How many observations have negative values (excluding NA values)?
 
 ```{r rev_negatives,echo=F}
 excl_neg <- c('INDEX','TARGET','pH','STARS')
-#neg_df <- input_df |> dplyr::select(-all_of(excl_neg))
+
 neg_cnts <- sapply(input_df |> dplyr::select(-all_of(excl_neg)), function(x) sum(!is.na(x) & x<0))
-knitr::kable(t(neg_cnts), format = "simple")
+knitr::kable(neg_cnts, format = "simple")
 ```
 
-Given the proclivity of negative values across multiple columns it would appear to be too widespread an occurrence unless many of the measurements were incorrectly assessed or recorded. It is also not appropriate to change the sign of said observations when it is unclear if that would be a more accurate representation of the data. This may make it a bit harder to explain certain relationships that are encountered in the regression models.
+Given the proclivity of negative values across multiple columns it would appear to be too widespread an occurrence unless many of the measurements were incorrectly assessed or recorded. It is also not appropriate to change the sign of said observations when it is unclear if that would be a more accurate representation of the data. This may make it a bit harder to explain certain relationships that are encountered in the regression models. The only column that makes sense to have negative values is `LabelAppeal` given that a customer could have a negative rating on a specific type of label.
+
+Are there also negative values in the evaluation data?
+
+```{r eval_neg,echo=F}
+excl_eval_neg <- c('IN','TARGET')
+neg_eval_cnts <- sapply(eval_df |> dplyr::select(-all_of(excl_eval_neg)), function(x) sum(!is.na(x) & x<0))
+knitr::kable(neg_eval_cnts, format = "simple")
+```
+
+There are also negative values in all of the same columns as in the training data, which begs the question of how to appropriately handle these occurrences. Excluding that number of observations in training data would distort the model and make it less likely to extrapolate well to the evaluation. Therefore, we are forced to exclude any of these predictors from the model given that negative measurements of specific chemical properties do not make sense and are so common that there are limited alternatives available to us.
 
 Let's review the frequency of missing values overall across the training dataset:
 
@@ -190,7 +202,7 @@ mod_df <- input_df |> dplyr::select(-INDEX) |> mutate(STARS=as.factor(ifelse(is.
 
 The remaining columns with missing values are far less clear to evaluate and will need a more standardized imputation method:
 
-One more comprehensive method to evaluate if the data is Missing Completely at random (MCAR) is running Little's test although this is unlikely to be the case for most real world datasets.
+One more comprehensive method to evaluate if the data is Missing Completely at random (MCAR) is running Little's test although it is unlikely to generate a statistically significant difference for most real world datasets.
 
 ```{r missing_completely_at_random}
 littles_test <- input_df |>
@@ -222,7 +234,7 @@ ggplot(na_freq,aes(x=num_na)) +
     geom_bar() +
     labs(x='Number of NA columns',y='Number of Rows',title='Distribution of NA Values across columns')
 
-print(glue("Only {pull(na_freq |> filter(num_na>1)|>summarise(total=n()))} rows have more than 1 column with NA, which is only {format(round(pull(na_freq |> filter(num_na>1)|>summarise(total=n())/nrow(na_freq))*100,2),nsmall=2)}%"))
+print(glue("Only {pull(na_freq |> filter(num_na>1)|>summarise(total=n()))} rows have more than 1 column with NA, which is only {format(round(pull(na_freq |> filter(num_na>1)|>summarise(total=n())/nrow(na_freq))*100,2),nsmall=2)}% of the observations that have NAs"))
 
 ```
 
@@ -430,9 +442,9 @@ Before proceeding further let's double check the correlations of the target and 
 corrplot(cor(train_df_imputed_input |> dplyr::select(-STARS)),method="color",diag=FALSE,type="lower",addCoef.col = "black",number.cex=0.60)
 ```
 
-By modifying the `STARS` into a factor we have excluded it from the correlation plot but would expect it remains one of the stronger correlated predictors. The `LabelAppeal` value seems to have decreased quite a bit although it's relationship is far stronger than most of the other potential predictors. Perhaps it's worth considering modifying this variable into a factor as well to see if that impacts the performance. Depending on model performance this might be something worth exploring. `AcidIndex` has the strongest negative relationship among the predictors based on the imputed observations has a somewhat strengthened relationship with `FixedAcidity`. Semantically the two names of these variables appear as though they should have some relationship, but it is not that strong of a correlation.
+By modifying the `STARS` into a factor we have excluded it from the correlation plot but would expect it remains one of the stronger correlated predictors. The `LabelAppeal` value seems to have decreased quite a bit although it's relationship is far stronger than most of the other potential predictors. Perhaps it's worth considering modifying this variable into a factor as well to see if that impacts the performance. Depending on model performance this might be something worth exploring. `AcidIndex` has the strongest negative relationship among the predictors based on the imputed observations and has a somewhat strengthened relationship with `FixedAcidity`. Semantically the two names of these variables appear as though they should have some relationship, but it is not that strong of a correlation.
 
-One means of prediction using OLS for count data is taking the $ln y$ as a means of replicating the Poisson linear transformation by applying it on the response. This transformation is based on a UC Davis [publication] (https://cameron.econ.ucdavis.edu/racd/simplepoisson.pdf) on count regression. Therefore we will prepare an alternative response variable although some minor modifications are needed since there are many zero values.
+One means of prediction using OLS for count data is taking the $ln y$ as a means of replicating the Poisson linear transformation by applying it on the response. This transformation is based on a UC Davis (publication) [https://cameron.econ.ucdavis.edu/racd/simplepoisson.pdf] on count regression. Therefore we will prepare an alternative response variable although some minor modifications are needed since there are many zero values.
 
 Let's review what the Box-Cox method proposes for the transformation:
 
@@ -457,19 +469,21 @@ hist(train_df_imputed_input$TARGET.TF)
 
 #### Model POIS:1 - Full Poisson Count Model with All Missing Values Imputed using Averages - Reduced via Stepwise AIC Model Selection
 
+As indicated in the exploratory section of this analysis the negative variables are fairly commonplace and present a unique challenge given the limitations around exclusion. Therefore, we will begin the modeling utilizing the remaining predictors available that did not have illogical negative values. 
+
 We create Model 1: Poisson with all missing values imputed and we perform stepwise model selection to select the model with the smallest AIC value using the `stepAIC()` function from the `MASS` package. 
 
 A summary of Model 1: Poisson below:
 
 ```{r pois1,echo=F}
-mod1_pois <- glm(TARGET ~ ., family = 'poisson',
+mod1_pois <- glm(TARGET ~ STARS + LabelAppeal + pH + Density + AcidIndex, family = 'poisson',
                    data = avg_impute_train_df)
 mod1_pois <- stepAIC(mod1_pois, trace = 0)
 summary(mod1_pois)
 
 ```
 
-The AIC of Model 1 is 32072 which appears to be very high and may indicate other problems that have been discussed during the explanatory section. We will assess the predictors more formally after building a zero inflated equivalent as a comparison.
+The AIC of Model 1 is 32101 which appears to be very high and may indicate other problems that have been discussed during the explanatory section. We will assess the predictors more formally after building a zero inflated equivalent as a comparison. When conducting backward stepwise regression it appears that `pH` and `Density` were not significant in the poisson regression model.
 
 Residual Deviance: Chi-Squared Test:
 
@@ -500,13 +514,13 @@ faraway::halfnorm(residuals(mod1_pois))
 
 ```
 
-The half-norm plot highlights two points at the top right of the graph, but does not appear to show substantial divergence to warrant classifying observations 624 and 3467 as outliers.
+The half-norm plot highlights two points at the top right of the graph, but does not appear to show substantial divergence to warrant classifying observations 6243 and 3467 as outliers.
 
 ```{r mod1_influence,echo=F}
 car::influencePlot(mod1_pois)
 ```
 
-The influence plot appears that point 1130 is a leverage point; however, it doesn't cross the -2 boundary that would classify it as an outlier for the model. There are other points listed below the graph as well that have much larger standardized residual values but don't have divergent case predictions and therefore do not appear to be outliers.
+The influence plot appears to show that point 1888 is a leverage point; however, it doesn't cross the -2 boundary that would classify it as an outlier for the model. There are other points listed below the graph as well that have much larger standardized residual values but don't have divergent case predictions and therefore do not appear to be outliers as well.
 
 ```{r mod1_dev,echo=F}
 res <- residuals(mod1_pois, type="deviance")
@@ -535,7 +549,7 @@ It appears there is a decent amount of under-dispersion in this model as the ide
 #### Model POIS:2 - Zero Inflated Poisson Count Model (ZIP) with All Missing Values Imputed with MICE
 
 ```{r zero_inflated_poisson,echo=F}
-mod2_zip <- pscl::zeroinfl(formula=TARGET ~ STARS + LabelAppeal + Alcohol + AcidIndex| STARS + LabelAppeal,data=train_df_imputed_input,dist='poisson')
+mod2_zip <- pscl::zeroinfl(formula=TARGET ~ STARS + LabelAppeal + AcidIndex |STARS + LabelAppeal,data=train_df_imputed_input,dist='poisson')
 
 
 summary(mod2_zip)
@@ -578,7 +592,7 @@ p_zip2 <- length(coef(mod2_zip)) # '+1' is for variance parameter in NB
 sum(E2_zip2^2) / (N_zip2 - p_zip2)
 ```
 
-There is more substantial underdispersion captured in this model than the other poisson regression one and this may be one reason why another model is ultimately selected as we would like to avoid any under/over dispersion that exists.
+There is more substantial underdispersion captured in this model than the other poisson regression one and we would like to avoid any under/over dispersion that exists.
 
 Let's compare the Akaike Information Criterion for both poisson based models:
 
@@ -588,23 +602,23 @@ AIC(mod1_pois,mod2_zip)
 
 While the AIC values are not vastly different it is apparent that the zero inflated Poisson regression model is preferable to the first poisson regression model. This likely has to do with the strong concentration of zero values that exist in the response variable that is accounted for as a separate logistic model in the zero inflated method. 
 
-Let's review both of the models to compare the similarities and differences from the summaries and model coefficients despite some obvious limitations identified with the the first model using standard poisson regression. In terms of coefficients we will begin with the most influential which alternate between `STARS` and `LabelAppeal` although both have appear to have the same p-value between both models. (note that some resources online suggest applying a robust method of convergence to determine the standard error which would influence the significance value). It makes sense that these two predictors are in some ways the biggest drivers for distributors because on paper it would seem the reviews of customers implies sales potential for a given wine type. Irrespective of the chemical makeup of the wines the customers will drive companies to meet that demand.  `Alcohol` and `AcidIndex` were the only other significant predictors in the zero inflated poisson (ZIP) model. Both predictors have the same direction for their coefficients and it appears the `AcidIndex` will decrease the number of sold wine cases. The other main difference between the two is the number of significant predictors based on poisson, which may be based on the fact that the model is attempting to capture the concentration of zero values.
+Let's review both of the models to compare the similarities and differences from the summaries and model coefficients despite some obvious limitations identified with the the first model using standard poisson regression. In terms of coefficients we will begin with the most influential which alternate between `STARS` and `LabelAppeal` although both have appear to have the same p-value between both models. (note that some resources online suggest applying a robust method of convergence to determine the standard error which would influence the significance value). It makes sense that these two predictors are in some ways the biggest drivers for distributors because on paper it would seem the reviews of customers implies sales potential for a given wine type. Irrespective of the chemical makeup of the wines the customers will drive companies to meet that demand.  `AcidIndex` was the only other significant predictors in the zero inflated poisson (ZIP) model. The predictor has the same direction for it's coefficient and it appears the `AcidIndex` will decrease the number of sold wine cases.
 
 
 #### Model NB:1 - Negative Binomial Count Model with All Imputed Variables based on Averages
 
 ```{r mod3_nb,echo=F}
 
-mod3_nb <- glm.nb(TARGET ~ STARS + LabelAppeal + Alcohol + AcidIndex + VolatileAcidity + FreeSulfurDioxide + TotalSulfurDioxide,data = avg_impute_train_df)
+mod3_nb <- glm.nb(TARGET ~ STARS + LabelAppeal + AcidIndex,data = avg_impute_train_df)
 
 # summary of results
 summary(mod3_nb)
 
 ```
 
-The negative binomial distribution can sometimes better approximate dispersion when the mean and variance are not equal to one another which would violate the Poisson distribution and related assumptions for Poisson Count regression. Therefore, we will use most of the same variables as selected in the backward selection aside from the non-significant predictors to try to create a similar comparison aside from the distribution used.
+The negative binomial distribution can sometimes better approximate dispersion when the mean and variance are not equal to one another which would violate the Poisson distribution and related assumptions for Poisson Count regression. Therefore, we will use the same variables as selected in the backward selection to try to create a similar comparison. It appears that the algorithm is unable to converge with a negative binomial distribution.
 
-In terms of the strength of the coefficients, the `STARS`,`LabelAppeal`, and `AcidIndex` are the largest predictors in both models and all have the same sign. It makes sense that these are likely the most important independent variables. The remainder of the predictors are somewhat consistent across both variations of the models as well.
+In terms of the strength of the coefficients, the `STARS`,`LabelAppeal`, and `AcidIndex` are the largest predictors in both models and all have the same sign. It makes sense that these are likely the most important independent variables.
 
 One way to assess the negative binomial model is to run a likelihood ratio test to compare Model 3 using the negative binomial family against Model 1 using the Poisson family.
 
@@ -612,7 +626,7 @@ One way to assess the negative binomial model is to run a likelihood ratio test 
 pchisq(2 * (logLik(mod3_nb) - logLik(mod1_pois)), df = 1, lower.tail = FALSE)
 ```
 
-Based on this test it would appear that the negative binomial model, Model 3, is more appropriate than Model 1 given the significance of this likelihood value.
+Based on this test it would appear that the negative binomial model is also not appropriate as the result is above the generally accepted alpha level at 5%.
 
 ```{r mod3_res,echo=F}
 plot(residuals(mod3_nb) ~
@@ -629,7 +643,9 @@ qqline(res_mod_nb)
 
 ```
 
-When using the pearson residuals we can see that for the interquartile range the negative binomial model tracks well with the expected distribution, but ultimately diverges on both tails somewhat similarly to the other ZIP model.
+When using the pearson residuals we can see that for the interquartile range the negative binomial model tracks well with the expected distribution, but ultimately diverges on both tails somewhat similarly to the other ZIP model. On the higher end there is substantial skew which would indicate that the residuals are not normally distributed.
+
+Let's calculate the dispersion for this model:
 
 ```{r nb_disp,echo=F}
 E2_mod3 <- resid(mod3_nb, type = "pearson")
@@ -638,13 +654,14 @@ p_mod3  <- length(coef(mod3_nb)) + 1 # added for variance parameter
 sum(E2_mod3^2) / (N - p_mod3)
 ```
 
+It appears there is even more underdispersion than identified in the poisson model although it is not as low as the zero inflated model.
 
 #### Model NB:2 - Zero Inflated Negative Binomial (ZINB) using Imputed values with MICE
 
 Let's try to evaluate the data based on a zero inflated negative binomial:
 
 ```{r mod4_zinb,warning=FALSE,echo=F}
-mod4_zinb <- pscl::zeroinfl(formula=TARGET ~ STARS + LabelAppeal + Alcohol + AcidIndex| STARS + LabelAppeal,data=train_df_imputed_input,dist='negbin')
+mod4_zinb <- pscl::zeroinfl(formula=TARGET ~ STARS + LabelAppeal + AcidIndex| STARS + LabelAppeal,data=train_df_imputed_input,dist='negbin')
 
 summary(mod4_zinb)
 ```
@@ -662,6 +679,17 @@ abline(0, 1, col = "red")
 
 The QQplot aligns more closely with the distribution line; however, similar to the other distributions there are a lot of points on the right tail that are skewed.
 
+Let's calculate the dispersion from the model:
+
+```{r zinb_disp,echo=F}
+E2_mod4 <- resid(mod4_zinb, type = "pearson")
+N  <- nrow(input_df)
+p_mod4  <- length(coef(mod4_zinb)) + 1 # added for variance parameter
+sum(E2_mod4^2) / (N - p_mod4)
+```
+
+The dispersion statistic is in line with the other zero inflated model, which appears to be a knock on both models.
+
 ```{r aic_compare,echo=F}
 aic_compare2<- AIC(mod1_pois,mod2_zip,mod3_nb,mod4_zinb)
 knitr::kable(aic_compare2, format = "simple")
@@ -674,16 +702,16 @@ When comparing the performance of the models using the AIC statistic, both zero 
 
 
 ```{r mod5,echo=F}
-mod5_mlr <- lm(TARGET ~ .,data=avg_impute_train_df)
+mod5_mlr <- lm(TARGET ~ STARS + LabelAppeal + pH + Density + AcidIndex,data=avg_impute_train_df)
 mod5_mlr <- stepAIC(mod5_mlr, trace = 0)
 summary(mod5_mlr)
 ```
 
-When running backward selection on the variables in multiple linear regression we see that two variables (`Density` and `Sulphates`) remain despite being classified as insignificant. In the poisson regression (Model 1) `Sulphates` was also included although `Chlorides` was not in Poisson;however, that does closely align somewhat with the negative binomial model (Model 3). The signs for each coefficient match Model 3 (NB) and the most significant predictors remain `STARS`, `LabelAppeal`, and `AcidIndex`. The F-statistic indicates that the model is better than a pure intercept approach when running MLR.
+When running backward selection on the variables in multiple linear regression we see that `Density` variable remain despite being classified as insignificant. The signs for each coefficient match Model 3 (NB) and the most significant predictors remain `STARS`, `LabelAppeal`, and `AcidIndex`. The F-statistic indicates that the model is better than a pure intercept approach when running MLR.
 
-The residuals appears to be somewhat evenly spread around zero although there is a partial right skew. The $R^2_{adj}$ value shows about 53.47% of the variability can be explained by the variation in the predictors.
+The residuals appears to be somewhat evenly spread around zero although there is a partial right skew. The $R^2_{adj}$ value shows about 53.12% of the variability can be explained by the variation in the predictors.
 
-Is there any multicollinearity concerns in this model?
+Are there any multicollinearity concerns in this model?
 
 ```{r mod5_vif,echo=F}
 knitr::kable(vif(mod5_mlr), format = "simple")
@@ -691,8 +719,6 @@ knitr::kable(vif(mod5_mlr), format = "simple")
 
 No issues between multicollinearity which is to be expected given the low correlation values across many of the predictors in the correlation plot from the explanatory section.
 
-
-MLR Diagnostic Plots:
 
 Let's review the diagnostic plots to assess if any assumptions are violated:
 
@@ -703,16 +729,17 @@ plot(mod5_mlr)
 
 The Fitted vs Residuals appears to show a slight pattern with the majority of the residuals above zero although this kind of makes sense given the heavy concentration of zeros and the fact that predicted number of cases will never be negative. The QQ plot seems to follow the assumption that the residuals follow a normal distribution and the right skew does not diverge that substantially from the expected case. The Standardized residuals show a clear pattern at each discrete value which is generally one reason why OLS is not encouraged for count data as it does not appear to as if a linear model adequately captures the relationship between the predictors and the response variables. Not a ton of high leverage points that exist although 7699 appears to be close to the Cook's distance statistic.
 
+
 #### Model MLR 6: Multiple Linear Regression on All Imputed Variables based on MICE and ln y response
 
 
 ```{r mod6,echo=F}
-mod6_mlr <- lm(TARGET.TF ~ . - TARGET,data=train_df_imputed_input)
+mod6_mlr <- lm(TARGET.TF ~ STARS + LabelAppeal + pH + Density + AcidIndex - TARGET,data=train_df_imputed_input)
 mod6_mlr <- stepAIC(mod6_mlr, trace = 0)
 summary(mod6_mlr)
 ```
 
-Both this variation of the model and model 5 which both use OLS have very similar coefficients for all of the significant variables after running backward selection. They appear to emphasize the importance of `STARS`, `LabelAppeal`, and `AcidIndex` much like the other models. `Alcohol` is less significant in this model though. The $R^2_{adj}$ is slightly lesser than Model 5 at 48.88% and the residual standard error is about half the equivalent in Model 5. The interpretability of the model is certainly reduced when considering the $ln y$ because it is a percentage change in cases of wine given a one unit change in a given predictor.
+Both this variation of the model and model 5 which both use OLS have very similar coefficients for all of the significant variables after running backward selection. They appear to emphasize the importance of `STARS`, `LabelAppeal`, and `AcidIndex` much like the other models. `pH` instead of `Density` is kept in this model although neither is significant. The $R^2_{adj}$ is slightly lesser than Model 5 at 48.45% and the residual standard error is about half the equivalent in Model 5. The interpretability of the model is certainly reduced when considering the $ln y$ because it is a percentage change in cases of wine given a one unit change in a given predictor.
 
 Is there any multicollinearity concerns in this version of the model?
 
@@ -722,8 +749,6 @@ knitr::kable(vif(mod6_mlr), format = "simple")
 
 No issues between multicollinearity which is to be expected given the low correlation values across many of the predictors in the correlation plot from the explanatory section.
 
-
-MLR Diagnostic Plots:
 
 Let's review the diagnostic plots to assess if any assumptions are violated:
 
@@ -736,7 +761,7 @@ The fitted residuals are not evenly distributed around zero although the varianc
 
 
 ```{r mlr_aic,echo=F}
-AIC(mod_5_mlr,mod6_mlr)
+AIC(mod5_mlr,mod6_mlr)
 ```
 
 Despite the fact that each MLR model has a lower AIC value it would be unwise to use these models further given the violation of assumptions as previously mentioned when reviewing the diagnostic plots in prior sections.
@@ -745,17 +770,117 @@ Despite the fact that each MLR model has a lower AIC value it would be unwise to
 
 Based on the fact that multiple models that were tested in the prior section had somewhat serious flaws, we are going to evaluate the zero inflated models against the hold out set in order to make a final selection of the "best" model. It still appears as though there are some challenges in accurately identifying all of the zero cases scenarios.
 
+Let's review the AIC for each model again:
+
+```{r aic_recap,echo=F}
+AIC(mod2_zip,mod4_zinb)
+```
+
+The zero inflated poisson model slightly edges the zero inflated negative binomial model. From a closer review these models also appear to be highly similar to one with nearly identical estimates for given predictors.
+
 ```{r pred,echo=F}
-zip_pred <- predict(mod2_zip,test_df_imputed_input,type='count')
-zinb_pred <- predict(mod4_zinb,test_df_imputed_input,type='count')
-holdout_zip <- as.data.frame(cbind(test_df_imputed_input,zip_pred,zinb_pred))
-head(holdout_zip)
-holdout_zip |> group_by(TARGET) |> summarize(total=n(),round(zip_pred,0))
+zip_pred <- predict(mod2_zip,test_df_imputed_input,type='response')
+zip_zero <- predict(mod2_zip,test_df_imputed_input,type='zero')
+zinb_pred <- predict(mod4_zinb,test_df_imputed_input,type='response')
+zinb_zero <- predict(mod4_zinb,test_df_imputed_input,type='zero')
+holdout_zi <- as.data.frame(cbind(test_df_imputed_input,zip_pred,zinb_pred,zip_zero,zinb_zero)) |> dplyr::select(c(TARGET,zip_pred,zinb_pred,zip_zero,zinb_zero)) |> mutate(zip_pred_rnd= ifelse(zip_zero>=0.5,0,round(zip_pred,0)),zinb_pred_rnd=ifelse(zinb_zero>=0.5,0,round(zinb_pred,0)),zip_match=ifelse(zip_zero>0.5,ifelse(TARGET==0,1,0),ifelse(TARGET==zip_pred_rnd,1,0)),zinb_match=ifelse(zinb_zero>0.5,ifelse(TARGET==0,1,0),ifelse(TARGET==zinb_pred_rnd,1,0)),zip_res=TARGET-zip_pred_rnd,zinb_res=TARGET-zinb_pred_rnd,zip_fact=as.factor(zip_match),zinb_fact=as.factor(zinb_match),is_zip_zero=ifelse(zip_zero>0.5,'0',as.character(zip_pred_rnd)),is_zinb_zero=ifelse(zinb_zero>0.5,'0',as.character(zinb_pred_rnd)),is_zero=ifelse(TARGET==0,'Y','N'))
+
+```
+
+The process for determining the correct prediction is to first determine if the logistic model classified zero values. After rounding the predicted values to the closest discrete value for both variations of the model it appears that the the ZIP and ZINB models are returning identical predictions for the holdout set. While the expected values are slightly different to the decimal place that has not impacted the end discrete prediction.
+
+Each model's accuracy is not that strong at 1627/3813 ~ 42.67%
+
+
+```{r accur_metric,echo=F}
+knitr::kable(cbind(holdout_zi |> group_by(zip_match) |> summarize(cnt=n()),holdout_zi |> group_by(zinb_match) |> summarize(cnt=n())), format = "simple")
 ```
 
 
-```{r plot_pred,echo=F}
-ggplot(holdout_zip,aes(x=zip_pred,y=TARGET)) +
-    geom_point()
+```{r plot_zip_preds,echo=F}
+ggplot(data=holdout_zi,aes(x=TARGET,fill=zip_fact)) +
+    geom_bar() +
+    scale_fill_manual(values=c('black', 'red'),labels = c("Correct","Incorrect")) +
+    guides(color = guide_legend(title = "Discrete Predictions"))
 ```
 
+```{r plot_zinb_preds,echo=F}
+ggplot(data=holdout_zi,aes(x=TARGET,fill=zinb_fact)) +
+    geom_bar() +
+    scale_fill_manual(values=c('black', 'red'),labels = c("Correct","Incorrect")) +
+    guides(color = guide_legend(title = "Discrete Predictions"))
+```
+
+Let's review a comparison of the Target to the predicted value.
+
+``` {r zip_heatmap,echo=F}
+ggplot(holdout_zi,aes(x=TARGET,y=is_zip_zero,fill=zip_res)) +
+    xlim(-1,8) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral") +
+    labs(y='Predicted Value') +
+    guides(color = guide_legend(title = "Target - Prediction"))
+```
+
+```{r zinb_heatmap,echo=F}
+ggplot(holdout_zi,aes(x=TARGET,y=is_zinb_zero,fill=zinb_res)) +
+    xlim(-1,8) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral") +
+    labs(y='Predicted Value')+
+    guides(color = guide_legend(title = "Target - Prediction"))
+```
+
+Both models struggled to correctly identify the skewed ends of the target and were most divergent for zero values and the high end number of cases sold.
+
+Based on all of the above criteria, it would appear that the Zero Inflated Poisson just edges at the Zero Inflated Negative Binomial given it's slightly lower AIC metric. All the other criteria stacks up fairly evently between these two models.
+
+### Evaluation
+
+Let's check for missing values in the evaluation set:
+
+```{r missing_eval_data, echo=F}
+p1 <- plot_missing(eval_df, missing_only = TRUE,
+                   ggtheme = theme_classic(), title = "Missing Values")
+
+```
+
+Since most of the missing values are in predictors with negative values that have been excluded from the model, we will need to impute for `STARS` only as the `pH` did not make it as a significant predictor in the final model.
+
+```{r review_eval, echo=F}
+in_model_vars <- c('STARS','LabelAppeal','AcidIndex')
+dist_eval_df <- eval_df |> dplyr::select(all_of(in_model_vars)) 
+
+par(mfrow=c(1,3))
+variables_eval <- names(dist_eval_df)
+for (i in 1:(length(variables_eval))) {
+  hist(dist_eval_df[[variables_eval[i]]], main = variables_eval[i], col = "lightblue",xlab='')
+}
+
+mod_eval_df <- dist_eval_df |> mutate(STARS=as.factor(ifelse(is.na(STARS),0,STARS)))
+```
+
+
+```{r final_eval,echo=F}
+eval_pred <- predict(mod2_zip,mod_eval_df,type='response')
+eval_pred_zero <- predict(mod2_zip,mod_eval_df,type='zero')
+final_pred_df <- as.data.frame(cbind(mod_eval_df,eval_pred,eval_pred_zero)) |> mutate(predicted_cases=ifelse(eval_pred_zero>=0.5,0,round(eval_pred,0)))
+
+ggplot(final_pred_df,aes(x=predicted_cases)) +
+    geom_bar()
+
+
+```
+
+The final predicted distribution appears to expect less zero values than what was in the training dataset; however, it is in line what prior data and appears to follow the general shape of a Poisson distribution.
+
+```{r eval_creation,echo=F}
+write.csv(final_pred_df,'HW5_Eval_Predictions.csv')
+```
+
+
+### Appendix
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
