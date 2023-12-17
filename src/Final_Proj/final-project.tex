@@ -247,7 +247,7 @@ The survey has changed over the years. These changes have come from the recommen
 
 \textbf{Research Question:} Our analysis aims to determine whether NYC School Quality Survey ratings accurately reflect educational outcomes or if these outcomes could be better predicted by proxy variables related to the student body.
 
-The primary measure of success we aim to predict is the 4-year college persistence rate for NYC high schools. This measure is defined as the percentage of students who graduate from a high school and eventually complete a 4-year college program. Identifying the key indicators of a school's ability to successfully prepare students for college could benefit the NYC Department of Education (DOE) and NYC Public Schools in a several ways:
+The primary measure of success we aim to predict is the 4-year college persistence rate for NYC high schools. This measure is defined as the percentage of students who graduate from a high school and eventually complete a 4-year college program. Identifying the key indicators of a school's ability to successfully prepare students for college could benefit the NYC Department of Education (DOE) and NYC Public Schools in several ways:
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
@@ -288,26 +288,14 @@ Our primary interest is finding proxy variables within the data that can better 
 
 We will attempt to use three variables as a proxy for the school's survey rating in predicting college persistence:
 
-\textbf{improve these bullets}
-
 \begin{itemize}
 \tightlist
 \item
-  \texttt{temp\_housing\_pct} - The percentage of students living in temporary housing
+  \texttt{temp\_housing\_pct}: the percentage of students living in temporary housing
 \item
-  \texttt{eni\_hs\_pct\_912} - \href{https://data.cccnewyork.org/data/bar/1371/student-economic-need-index\#1371/a/1/1622/127}{Economic Need Index}. This is a measure of the percentage of students facing economic hardship at a school \textbf{noauthor\_student\_2021 (fix, not in references)}. This measures the economic hardship faced by students measured along a few criteria:
-
-  \begin{itemize}
-  \tightlist
-  \item
-    Whether the student is eligible for public assistance from the NYC Human Resources Administration (HRA).
-  \item
-    Whether the student lived in temporary housing in the past four years.
-  \item
-    Whether the student is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.
-  \end{itemize}
+  \texttt{eni\_hs\_pct\_912}: \href{https://data.cccnewyork.org/data/bar/1371/student-economic-need-index\#1371/a/1/1622/127}{Economic Need Index}: a measure of the percentage of students facing economic hardship at a school\footnote{\textbf{noauthor\_student\_2021 (fix, not in references)} Economic hardship in this context is based on three criteria: whether the student is 1) eligible for public assistance from the NYC Human Resources Administration (HRA); 2) lived in temporary housing in the past four years; 3) is in high school, has a home language other than English, and entered the NYC DOE for the first time within the last four years.}
 \item
-  \texttt{val\_chronic\_absent\_hs\_all} - The percentage of students who are chronically absent.
+  \texttt{val\_chronic\_absent\_hs\_all}: the percentage of students who are chronically absent\footnote{Chronic absenteeism is defined by the NYC DOE as ``students who are absent 10 percent or more of the total days.''}
 \end{itemize}
 
 We begin by taking a look at a summary of the dataset's completeness.
@@ -397,23 +385,21 @@ The below plot shows the raw correlation between each variable in our pared down
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/unnamed-chunk-5-1} \caption{ }\label{fig:unnamed-chunk-5}
 \end{figure}
 
-From our correlation plot above, we can see strong negative relationships between our proxy variables of interest (\emph{Temporary Housing Rate} and \emph{Economic Need Index}) and our target variable: \emph{College Persistence Rate}. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
+From our correlation plot above, we can see strong negative relationships between two of our proxy variables of interest (\emph{Temporary Housing Rate} and \emph{Economic Need Index}) and our target variable: \emph{College Persistence Rate}. There is also a negative relationship between \emph{Chronic Absenteeism} and \emph{College Persistence Rate}, but to a lesser degree. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
 
-Now we can plot the distributions of our proxy variables of interest. First we can plot the temporary housing rate:
+\emph{Enrollment} has only a slightly positive relationship with \emph{College Persistence Rate}. We expected school size might be important when modeling, but that does not appear to be likely.
+
+We also see that the survey ratings are all at least somewhat positively correlated with one another, and the only survey rating that appears to have a relationship with \emph{College Persistence Rate} is \emph{Rigorous Instruction}. That relationship is only slightly positive. This signals that constructing a model based on one or more of the survey ratings might not give as much insight into college persistence as the proxy variables could.
+
+Now we can plot the distributions of our proxy variables of interest.
 
 \begin{figure}[H]
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/temp-housing-rates-1} \caption{ }\label{fig:temp-housing-rates}
 \end{figure}
 
-We see this distribution of the percentage of students in temporary housing per school to be skewed right. This will be an important piece of information as we model these relationships later. We also show the distribution of schools' economic need indices (also between 0 and 1). This index is closer to 1 the more economic hardship a student at a school faces (temporary housing use or food assistance, for instance).
+We see the distribution of \emph{Temporary Housing Rate} is right-skewed. We also see the distribution of \emph{Economic Need Index} is left-skewed. The closer the index is to 1, the more economic hardship students at that school face, so schools with high rates of students facing economic hardship are more prevalent than schools with low rates. These variables are both candidates for transformation due to their skew. Our model will not likely feature \emph{Enrollment}, as observations are so concentrated at the low end, and we already noted it is not as correlated with our target variable as the other proxies we're considering. \emph{Chronic Absenteeism} is closer to a normal distribution than the other variables, but it is still slightly right-skewed, so there are more schools in this dataset with pretty low rates and fewer schools with pretty high rates.
 
-\begin{figure}[H]
-\includegraphics[width=\textwidth]{final-project_files/figure-latex/economic-need-index-1} \caption{ }\label{fig:economic-need-index}
-\end{figure}
-
-We see a left-skewed distribution for our economic need index. This is a candidate for transformation before feeding into our proxy variable model.
-
-First, we should check an assumption of linearity between our predictors and our response variable. Here, we produce scatter plots of the response variable versus the percentage of students in temporary housing, the economic need index, the enrollment level, and chronic absenteeism.
+We check an assumption of linearity between our proxy predictors and our response variable by producing scatter plots of the response variable versus each of the proxy predictors.
 
 \begin{figure}[H]
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/unnamed-chunk-6-1} \caption{ }\label{fig:unnamed-chunk-6}
@@ -425,12 +411,12 @@ We also see a non-linear relationship between the response variable and the econ
 
 Schools with lower enrollment levels have a wider range of college persistence rates than schools with higher enrollment levels.
 
-Only 1 school where chronic absenteeism is greater than or equal to 0.5 achieves college persistence levels above 80 percent. However, college persistence varies widely at most chronic absenteeism levels. \textbf{Investigate why this variable can take such high rates and whether there's anything that can collectively be said about the 12 schools with values greater than 0.8 for this variable. Make sure we understand what it's measuring correctly.}
+Only one school where chronic absenteeism is greater than or equal to 50 percent achieves college persistence levels above 80 percent. However, college persistence varies widely at most chronic absenteeism levels.
 
 \hypertarget{modeling}{%
-\subsubsection{Modeling}\label{modeling}}
+\section{Modeling}\label{modeling}}
 
-For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to predict the college persistence rate of a given high school. The model diagnostic statistics are pritned below:
+For evaluation purposes, we create a linear model based on the survey ratings present per school in our data. We fit this multiple least-squares model to predict the college persistence rate of a given high school. The model summary is printed below:
 
 \begin{verbatim}
 ## 
@@ -458,9 +444,59 @@ For evaluation purposes, we create a linear model based on the survey ratings pr
 ## F-statistic: 21.22 on 6 and 383 DF,  p-value: < 2.2e-16
 \end{verbatim}
 
-We find our base model for the school survey ratings produces an adjusted R-squared of \(R^2_{adj} = 0.22\). This is lower than the predictive model in \emph{Roth et al. (1996)} produces.
+We find our base model for the school survey ratings produces an adjusted R-squared of \(R^2_{adj} = 0.24\). This is lower than the predictive model in \emph{Roth et al. (1996)} produces. The two survey ratings that appear to be statistically significant to the model are \emph{Rigorous Instruction}, which we expected based on our correlation analysis, and \emph{Supportive Environment}, which we did not expect. We reduce the model via backward selection, and \emph{Effective Leadership} becomes statistically significant as well. We reprint a summary below:
 
-We then create a basic multiple least squares linear model between the response and our two socioeconomic proxy variables: \emph{Temporary Housing Percentage of a School} and \emph{Average Economic Need Index}. The summary statistics of the socieoeconomic model are shown below.
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = college_rate ~ survey_pp_RI + survey_pp_SE + survey_pp_ES, 
+##     data = train)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -0.53159 -0.11178  0.00553  0.11225  0.46053 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)    0.5234     0.1369   3.824 0.000153 ***
+## survey_pp_RI   2.1816     0.1951  11.182  < 2e-16 ***
+## survey_pp_SE  -1.5291     0.2379  -6.426 3.86e-10 ***
+## survey_pp_ES  -0.4134     0.1232  -3.355 0.000873 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.1579 on 386 degrees of freedom
+## Multiple R-squared:  0.2459, Adjusted R-squared:  0.2401 
+## F-statistic: 41.97 on 3 and 386 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+The adjusted R-squared is the same due to rounding. We check for suspected multicollinearity within this model:
+
+\begin{table}[H]
+
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:base-rating-model-vif-check}Variance Inflation Factors}
+
+\begin{tabular}{ll}
+\toprule
+ & \multicolumn{1}{c}{VIF Value}\\
+\midrule
+survey\_pp\_RI & 2.04\\
+survey\_pp\_SE & 2.12\\
+survey\_pp\_ES & 1.59\\
+\bottomrule
+\end{tabular}
+
+\end{threeparttable}
+\end{center}
+
+\end{table}
+
+Surprisingly, none of the variance inflation factors are greater than five, so there are no multicollinearity issues to address for this model.
+
+We then create a basic multiple least squares linear model between the response and our three socioeconomic proxy variables: \emph{Temporary Housing Rate}, \emph{Economic Need Index}, and \emph{Chronic Absenteeism}. We include \emph{Enrollment} as well. The summary statistics of the socieoeconomic model are shown below.
 
 \begin{verbatim}
 ## 
@@ -469,26 +505,84 @@ We then create a basic multiple least squares linear model between the response 
 ## 
 ## Residuals:
 ##      Min       1Q   Median       3Q      Max 
-## -0.48637 -0.08608  0.00436  0.08041  0.36890 
+## -0.45147 -0.08833  0.00416  0.08316  0.31536 
 ## 
 ## Coefficients:
-##                  Estimate Std. Error t value Pr(>|t|)    
-## (Intercept)       1.06204    0.03612  29.405  < 2e-16 ***
-## temp_housing_pct -0.54224    0.12278  -4.416  1.3e-05 ***
-## economic_need    -0.56982    0.05877  -9.696  < 2e-16 ***
+##                             Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)                1.045e+00  3.776e-02  27.675  < 2e-16 ***
+## temp_housing_pct          -5.449e-01  1.193e-01  -4.565 6.72e-06 ***
+## economic_need             -4.528e-01  6.124e-02  -7.394 8.97e-13 ***
+## val_chronic_absent_hs_all -2.008e-01  3.805e-02  -5.279 2.18e-07 ***
+## enrollment                 6.561e-06  9.261e-06   0.708    0.479    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 0.1304 on 387 degrees of freedom
-## Multiple R-squared:  0.4843, Adjusted R-squared:  0.4816 
-## F-statistic: 181.7 on 2 and 387 DF,  p-value: < 2.2e-16
+## Residual standard error: 0.1261 on 385 degrees of freedom
+## Multiple R-squared:  0.5198, Adjusted R-squared:  0.5149 
+## F-statistic: 104.2 on 4 and 385 DF,  p-value: < 2.2e-16
 \end{verbatim}
 
-In addition, the plot below shows the diagnostic plots for our proxy socioeconmic model. We see no strong trend in the residuals vs fitted plot, indicating heteroscedasticity
+\emph{Enrollment} is not statistically significant, so we remove it and reprint a summary.
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = college_rate ~ temp_housing_pct + economic_need + 
+##     val_chronic_absent_hs_all, data = train)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -0.45236 -0.08473  0.00471  0.08199  0.31786 
+## 
+## Coefficients:
+##                           Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)                1.05498    0.03494  30.192  < 2e-16 ***
+## temp_housing_pct          -0.55304    0.11872  -4.659 4.39e-06 ***
+## economic_need             -0.45928    0.06053  -7.588 2.46e-13 ***
+## val_chronic_absent_hs_all -0.20141    0.03802  -5.298 1.97e-07 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.1261 on 386 degrees of freedom
+## Multiple R-squared:  0.5192, Adjusted R-squared:  0.5155 
+## F-statistic:   139 on 3 and 386 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+We find our proxy socioeconomic model produces an adjusted R-squared of \(R^2_{adj} = 0.52\).
+
+We check for multicollinearity within this model. Unlike with the base model based on the survey ratings, we do not expect any such issues with this model.
+
+\begin{table}[H]
+
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:proxy-model-vif-check}Variance Inflation Factors}
+
+\begin{tabular}{ll}
+\toprule
+ & \multicolumn{1}{c}{VIF Value}\\
+\midrule
+temp\_housing\_pct & 2.08\\
+economic\_need & 2.35\\
+val\_chronic\_absent\_hs\_all & 1.26\\
+\bottomrule
+\end{tabular}
+
+\end{threeparttable}
+\end{center}
+
+\end{table}
+
+None of the variance inflation factors are greater than five, so there are no multicollinearity issues to address for this model.
+
+We produce diagnostic plots for the model below.
 
 \begin{figure}[H]
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/plot-proxy-model-1} \caption{ }\label{fig:plot-proxy-model}
 \end{figure}
+
+We see no strong trend in the residuals vs.~fitted plot, indicating heteroscedasticity.
 
 We can also test the assumption of normally-distributed residuals via a \href{https://en.wikipedia.org/wiki/Shapiro–Wilk_test}{Shapiro-Wilk test for normality}. Here we operate with the null \(H_0\) and alternative hypotheses \(H_a\):
 
@@ -500,15 +594,15 @@ We can also test the assumption of normally-distributed residuals via a \href{ht
   \(H_a\): the error terms of the socioeconomic proxy model come from a population that is \textbf{not} normally distributed
 \end{itemize}
 
-Running a Shapiro test for normality at a 95\% threshold, we receive a p-value of 0.5848, higher than our threshold, so we cannot reject our null hypothesis
-
 \begin{verbatim}
 ## 
 ##  Shapiro-Wilk normality test
 ## 
 ## data:  proxy_model$residuals
-## W = 0.9966, p-value = 0.5848
+## W = 0.99654, p-value = 0.5668
 \end{verbatim}
+
+Running a Shapiro test for normality at a 95\% threshold, we receive a p-value of 0.5848, higher than our threshold, so we cannot reject our null hypothesis.
 
 Plotting our proxy model's residuals, we can confirm normality as well visually:
 \includegraphics{final-project_files/figure-latex/proxy-residual-plot-1.pdf}
@@ -520,19 +614,20 @@ Plotting our proxy model's residuals, we can confirm normality as well visually:
 ## 
 ## Weighted Residuals:
 ##     Min      1Q  Median      3Q     Max 
-## -4.7873 -0.8136  0.0381  0.7939  3.5364 
+## -4.4992 -0.8375  0.0549  0.8169  3.1001 
 ## 
 ## Coefficients:
-##                  Estimate Std. Error t value Pr(>|t|)    
-## (Intercept)       1.05037    0.03324  31.603  < 2e-16 ***
-## temp_housing_pct -0.63748    0.12934  -4.929 1.23e-06 ***
-## economic_need    -0.53930    0.05640  -9.562  < 2e-16 ***
+##                           Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)                1.03959    0.03078  33.776  < 2e-16 ***
+## temp_housing_pct          -0.68658    0.12684  -5.413 1.09e-07 ***
+## economic_need             -0.41046    0.05692  -7.211 2.96e-12 ***
+## val_chronic_absent_hs_all -0.21632    0.03831  -5.646 3.19e-08 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 1.254 on 387 degrees of freedom
-## Multiple R-squared:  0.5101, Adjusted R-squared:  0.5076 
-## F-statistic: 201.5 on 2 and 387 DF,  p-value: < 2.2e-16
+## Residual standard error: 1.244 on 386 degrees of freedom
+## Multiple R-squared:  0.5589, Adjusted R-squared:  0.5554 
+## F-statistic:   163 on 3 and 386 DF,  p-value: < 2.2e-16
 \end{verbatim}
 
 \hypertarget{experimentation-and-results}{%
@@ -542,41 +637,41 @@ Plotting our proxy model's residuals, we can confirm normality as well visually:
 \subsubsection{Model Evaluation}\label{model-evaluation}}
 
 \begin{verbatim}
-## [1] 0.1662838
+## [1] 0.1645167
 \end{verbatim}
 
 \begin{verbatim}
-## [1] 0.1394362
+## [1] 0.1425847
 \end{verbatim}
 
 \begin{verbatim}
-## [1] 0.1395916
+## [1] 0.1434627
 \end{verbatim}
 
-We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models. We're using fewer variables in our proxy and WLS models, so we'd expect better results (minimized values) for each of those criteria
+We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models.
 
 \begin{verbatim}
-## AIC for base model (rating results): -322.903528891558
-\end{verbatim}
-
-\begin{verbatim}
-## AIC for proxy variable model: -477.210070495472
+## AIC for base model (rating results): -327.068181870516
 \end{verbatim}
 
 \begin{verbatim}
-## AIC for WLS model: -480.874854356932
+## AIC for proxy variable model: -502.587529886915
 \end{verbatim}
 
 \begin{verbatim}
-## BIC for base model (rating results): -291.174354978569
+## AIC for WLS model: -508.994310071707
 \end{verbatim}
 
 \begin{verbatim}
-## BIC for proxy variable model: -461.345483538978
+## BIC for base model (rating results): -307.237448174897
 \end{verbatim}
 
 \begin{verbatim}
-## BIC for WLS model: -465.010267400437
+## BIC for proxy variable model: -482.756796191296
+\end{verbatim}
+
+\begin{verbatim}
+## BIC for WLS model: -489.163576376089
 \end{verbatim}
 
 \hypertarget{conclusion}{%
@@ -642,6 +737,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{library}\NormalTok{(}\StringTok{"papaja"}\NormalTok{)}
 \FunctionTok{library}\NormalTok{(DataExplorer)}
 \FunctionTok{library}\NormalTok{(cowplot)}
+\FunctionTok{library}\NormalTok{(car)}
 \FunctionTok{r\_refs}\NormalTok{(}\StringTok{"r{-}references.bib"}\NormalTok{)}
 \CommentTok{\# Read in our dataset from GitHub}
 \CommentTok{\# https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v{-}cvch}
@@ -699,7 +795,7 @@ Below is the code used to generate this report. It's also available on \href{htt
     \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+} 
     \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"4{-}Year College Persistence Rate"}\NormalTok{,}
          \AttributeTok{y=}\StringTok{"Density of NYC High Schools"}\NormalTok{,}
-         \AttributeTok{title=}\StringTok{"Average 4{-}Year Colege Persistence Rates: NYC High Schools 2020{-}2021"}\NormalTok{,}
+         \AttributeTok{title=}\StringTok{"Average 4{-}Year College Persistence Rates: NYC High Schools 2020{-}2021"}\NormalTok{,}
          \AttributeTok{caption=}\StringTok{"The average NYC high school sees \textasciitilde{}50\% of students go on to have 4{-}year college persistence."}\NormalTok{)}
 
 \FunctionTok{theme\_set}\NormalTok{(}\FunctionTok{theme\_apa}\NormalTok{())}
@@ -721,14 +817,24 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{corMatrix }\OtherTok{\textless{}{-}} \FunctionTok{cor}\NormalTok{(train\_renamed)}
 \FunctionTok{corrplot}\NormalTok{(corMatrix, }\AttributeTok{method=}\StringTok{"color"}\NormalTok{, }\AttributeTok{type=}\StringTok{"lower"}\NormalTok{, }\AttributeTok{tl.col=}\StringTok{"black"}\NormalTok{)}
 \CommentTok{\# Plot temp housing rates}
-\FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct)) }\SpecialCharTok{+}
-  \FunctionTok{geom\_histogram}\NormalTok{() }\SpecialCharTok{+}
-  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% of Students in Temporary Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Number of NYC Schools"}\NormalTok{, }\AttributeTok{title=}\StringTok{"Histogram of the Percentage of Students Living in Temporary Housing:}\SpecialCharTok{\textbackslash{}n}\StringTok{NYC High Schools 2020{-}2021"}\NormalTok{)}
+\NormalTok{pa }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct)) }\SpecialCharTok{+}
+    \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
+    \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"\% Students Temp Housing"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Density"}\NormalTok{)}
 \CommentTok{\# Plot economic need index}
-\FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{economic\_need)) }\SpecialCharTok{+}
-  \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
-  \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Economic Need Index"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Density of NYC Schools"}\NormalTok{,}
-       \AttributeTok{title=}\StringTok{"Density of Economic Need Index: NYC High Schools 2020{-}2021"}\NormalTok{)}
+\NormalTok{pb }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{economic\_need)) }\SpecialCharTok{+}
+    \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
+    \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Economic Need Index"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Density"}\NormalTok{)}
+\CommentTok{\# Plot enrollment}
+\NormalTok{pc }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{enrollment)) }\SpecialCharTok{+}
+    \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
+    \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Enrollment"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Density"}\NormalTok{)}
+\CommentTok{\# Plot chronic absenteeism}
+\NormalTok{pd }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{val\_chronic\_absent\_hs\_all)) }\SpecialCharTok{+}
+    \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
+    \FunctionTok{labs}\NormalTok{(}\AttributeTok{x=}\StringTok{"Chronic Absenteeism"}\NormalTok{, }\AttributeTok{y=}\StringTok{"Density"}\NormalTok{)}
+\NormalTok{p }\OtherTok{\textless{}{-}} \FunctionTok{plot\_grid}\NormalTok{(pa, pb, pc, pd, }\AttributeTok{nrow =} \DecValTok{2}\NormalTok{, }\AttributeTok{ncol =} \DecValTok{2}\NormalTok{, }\AttributeTok{align =} \StringTok{"hv"}\NormalTok{, }\AttributeTok{axis =} \StringTok{"t"}\NormalTok{)}
+\NormalTok{p}
+
 \CommentTok{\# Plot temp housing percentage vs college persistence rate}
 \NormalTok{pa }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct, }\AttributeTok{y=}\NormalTok{college\_rate)) }\SpecialCharTok{+}
   \FunctionTok{geom\_point}\NormalTok{() }\SpecialCharTok{+}
@@ -754,10 +860,24 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{rating\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(base\_formula,}
 \NormalTok{                   train)}
 \FunctionTok{summary}\NormalTok{(rating\_model)}
+\NormalTok{rating\_model }\OtherTok{\textless{}{-}} \FunctionTok{update}\NormalTok{(rating\_model, }\SpecialCharTok{\textasciitilde{}}\NormalTok{ . }\SpecialCharTok{{-}}\NormalTok{ survey\_pp\_CT }\SpecialCharTok{{-}}\NormalTok{ survey\_pp\_SF }\SpecialCharTok{{-}}\NormalTok{ survey\_pp\_TR)}
+\FunctionTok{summary}\NormalTok{(rating\_model)}
+\NormalTok{vif\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{vif}\NormalTok{(rating\_model))}
+\FunctionTok{colnames}\NormalTok{(vif\_df) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"VIF Value"}\NormalTok{)}
+\FunctionTok{apa\_table}\NormalTok{(vif\_df, }\AttributeTok{caption =} \StringTok{"Variance Inflation Factors"}\NormalTok{, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
+
+
 \CommentTok{\# Create OLS linear model based on our proxy variables: no transforms}
-\NormalTok{proxy\_formula }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need}
+\NormalTok{proxy\_formula }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need }\SpecialCharTok{+}\NormalTok{ val\_chronic\_absent\_hs\_all }\SpecialCharTok{+}\NormalTok{ enrollment}
 \NormalTok{proxy\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, train)}
 \FunctionTok{summary}\NormalTok{(proxy\_model)}
+\NormalTok{proxy\_model }\OtherTok{\textless{}{-}} \FunctionTok{update}\NormalTok{(proxy\_model, }\SpecialCharTok{\textasciitilde{}}\NormalTok{ . }\SpecialCharTok{{-}}\NormalTok{ enrollment)}
+\FunctionTok{summary}\NormalTok{(proxy\_model)}
+
+\NormalTok{vif\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{vif}\NormalTok{(proxy\_model))}
+\FunctionTok{colnames}\NormalTok{(vif\_df) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"VIF Value"}\NormalTok{)}
+\FunctionTok{apa\_table}\NormalTok{(vif\_df, }\AttributeTok{caption =} \StringTok{"Variance Inflation Factors"}\NormalTok{, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
+
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mai=}\FunctionTok{c}\NormalTok{(.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{))}
 \FunctionTok{plot}\NormalTok{(proxy\_model)}
@@ -768,6 +888,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{weights }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{/} \FunctionTok{lm}\NormalTok{(}\FunctionTok{abs}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals) }\SpecialCharTok{\textasciitilde{}}\NormalTok{ proxy\_model}\SpecialCharTok{$}\NormalTok{fitted.values)}\SpecialCharTok{$}\NormalTok{fitted.values}\SpecialCharTok{\^{}}\DecValTok{2}
 
 \CommentTok{\#perform weighted least squares regression}
+\NormalTok{proxy\_formula }\OtherTok{\textless{}{-}}\NormalTok{ proxy\_model}\SpecialCharTok{$}\NormalTok{call}\SpecialCharTok{$}\NormalTok{formula}
 \NormalTok{wls\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, }\AttributeTok{data =}\NormalTok{ train, }\AttributeTok{weights=}\NormalTok{weights)}
 
 \FunctionTok{summary}\NormalTok{(wls\_model)}
