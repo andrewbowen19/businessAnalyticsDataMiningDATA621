@@ -548,9 +548,7 @@ We then create a basic multiple least squares linear model between the response 
 ## F-statistic:   139 on 3 and 386 DF,  p-value: < 2.2e-16
 \end{verbatim}
 
-We find our proxy socioeconomic model produces an adjusted R-squared of \(R^2_{adj} = 0.52\).
-
-We check for multicollinearity within this model. Unlike with the base model based on the survey ratings, we do not expect any such issues with this model.
+We find our proxy socioeconomic model produces an adjusted R-squared of \(R^2_{adj} = 0.52\). We also check for multicollinearity within this model. Unlike with the base model based on the survey ratings, we do not expect any such issues with this model.
 
 \begin{table}[H]
 
@@ -651,40 +649,37 @@ Plotting our proxy model's residuals, we can confirm normality as well visually:
 We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models.
 
 \begin{verbatim}
-## AIC for base model (rating results): -327.068181870516
+## 
+## Model selection based on AICc:
+## 
+##                        K    AICc Delta_AICc AICcWt Cum.Wt     LL
+## Weighted Least-Squares 5 -508.84       0.00   0.96   0.96 259.50
+## Proxy Variables        5 -502.43       6.41   0.04   1.00 256.29
+## Survey Ratings         5 -326.91     181.93   0.00   1.00 168.53
 \end{verbatim}
 
 \begin{verbatim}
-## AIC for proxy variable model: -502.587529886915
+## 
+## Model selection based on BIC:
+## 
+##                        K     BIC Delta_BIC BICWt Cum.Wt     LL
+## Weighted Least-Squares 5 -489.16      0.00  0.96   0.96 259.50
+## Proxy Variables        5 -482.76      6.41  0.04   1.00 256.29
+## Survey Ratings         5 -307.24    181.93  0.00   1.00 168.53
 \end{verbatim}
 
-\begin{verbatim}
-## AIC for WLS model: -508.994310071707
-\end{verbatim}
-
-\begin{verbatim}
-## BIC for base model (rating results): -307.237448174897
-\end{verbatim}
-
-\begin{verbatim}
-## BIC for proxy variable model: -482.756796191296
-\end{verbatim}
-
-\begin{verbatim}
-## BIC for WLS model: -489.163576376089
-\end{verbatim}
+From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
 
-\hypertarget{todo}{%
-\subsection{TODO}\label{todo}}
+Overall, our model to predict a high school's college persistence rate based on socioeconomic proxy variables outperformed the NYC Schools Open Survey Quality ratings of schools. This is not to say that school ratings based on teacher, student, and parent responses are not valuable inputs. However, they should not be the sole basis upon which educational policy decisions are made, considering the colkective socioeconomic factors that most influence a school's performance.
 
-\begin{itemize}
-\tightlist
-\item
-  Model Selection
-\end{itemize}
+Some limitations of our approach would come from conflation between socioeconomic factors, as well as lacking a more robust imputation method. While our proxy variable model predicts college persistence better than one based off survey ratings, there could be error via omission of unseen variabels that are collinear with these inputs. This stems from the availability of data in our source data. We used a \href{https://stefvanbuuren.name/fimd/sec-pmm.html}{\emph{predictive mean matching} imputation method}, native to the \texttt{mice} R package (\emph{(\textbf{Flexible-imputation?})}). While this allows for realistic imputed values (no imputed value will fall outside the range of observed data), the underlying population distribution of those values could be non-normal.
+
+Future work could include joining in other academic performance metrics (average SAT/ACT scores, etc.) to see if our proxy variables also have predictive power. The dataset provided is indexed on a high school's \emph{district borough number} (DBN), which is present in several \href{https://opendata.cityofnewyork.us}{NYC Open Data} datasets on education in New York City. As mentioned above, joining in other data sources to augment this data could be a good way to address the omission of any variables that better correlate with college persistence rates.
+
+Overall, identifying the factors that most strongly correlate with academic performance and college persistence can improve in educational policy design. In addition, the public availability of educational data through open data platforms only serves to augment the relatioships that help this decision-making.
 
 \newpage
 
@@ -722,7 +717,7 @@ Yağcı, M. (2022). Educational data mining: Prediction of students' academic pe
 \hypertarget{appendices}{%
 \section{Appendices}\label{appendices}}
 
-Below is the code used to generate this report. It's also available on \href{https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main}{GitHub here}
+Below is the code used to generate this report. It's also available on \href{https://github.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main}{GitHub here}.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -738,6 +733,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{library}\NormalTok{(DataExplorer)}
 \FunctionTok{library}\NormalTok{(cowplot)}
 \FunctionTok{library}\NormalTok{(car)}
+\FunctionTok{library}\NormalTok{(AICcmodavg)}
 \FunctionTok{r\_refs}\NormalTok{(}\StringTok{"r{-}references.bib"}\NormalTok{)}
 \CommentTok{\# Read in our dataset from GitHub}
 \CommentTok{\# https://www.opendatanetwork.com/dataset/data.cityofnewyork.us/bm9v{-}cvch}
@@ -883,7 +879,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{plot}\NormalTok{(proxy\_model)}
 \CommentTok{\# Test proxy model for normality of residuals}
 \FunctionTok{shapiro.test}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals)}
-\FunctionTok{hist}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals)}
+\FunctionTok{hist}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals, }\AttributeTok{xlab=}\StringTok{"Proxy Model Residuals"}\NormalTok{)}
 \CommentTok{\# Calculating weights for WLS}
 \NormalTok{weights }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{/} \FunctionTok{lm}\NormalTok{(}\FunctionTok{abs}\NormalTok{(proxy\_model}\SpecialCharTok{$}\NormalTok{residuals) }\SpecialCharTok{\textasciitilde{}}\NormalTok{ proxy\_model}\SpecialCharTok{$}\NormalTok{fitted.values)}\SpecialCharTok{$}\NormalTok{fitted.values}\SpecialCharTok{\^{}}\DecValTok{2}
 
@@ -893,19 +889,17 @@ Below is the code used to generate this report. It's also available on \href{htt
 
 \FunctionTok{summary}\NormalTok{(wls\_model)}
 \CommentTok{\# Compute RMSE for each model on our testing data}
-\CommentTok{\# }\AlertTok{TODO}\CommentTok{: Put in table with AIC and BIC results}
 \FunctionTok{rmse}\NormalTok{(rating\_model, test)}
 \NormalTok{modelr}\SpecialCharTok{::}\FunctionTok{rmse}\NormalTok{(proxy\_model, test)}
 \NormalTok{modelr}\SpecialCharTok{::}\FunctionTok{rmse}\NormalTok{(wls\_model, test)}
-\CommentTok{\# Print AIC for each model type}
-\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"AIC for base model (rating results): \{AIC(rating\_model)\}"}\NormalTok{))}
-\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"AIC for proxy variable model: \{AIC(proxy\_model)\}"}\NormalTok{))}
-\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"AIC for WLS model: \{AIC(wls\_model)\}"}\NormalTok{))}
+\NormalTok{model\_list }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{(rating\_model, proxy\_model, wls\_model)}
+\NormalTok{model\_names }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Survey Ratings"}\NormalTok{, }\StringTok{"Proxy Variables"}\NormalTok{, }\StringTok{"Weighted Least{-}Squares"}\NormalTok{)}
 
-\CommentTok{\# BIC results}
-\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"BIC for base model (rating results): \{BIC(rating\_model)\}"}\NormalTok{))}
-\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"BIC for proxy variable model: \{BIC(proxy\_model)\}"}\NormalTok{))}
-\FunctionTok{print}\NormalTok{(}\FunctionTok{glue}\NormalTok{(}\StringTok{"BIC for WLS model: \{BIC(wls\_model)\}"}\NormalTok{))}
+\CommentTok{\# Print AIC results}
+\FunctionTok{aictab}\NormalTok{(model\_list, }\AttributeTok{modnames=}\NormalTok{model\_names)}
+
+\CommentTok{\# Print BIC for each model}
+\FunctionTok{bictab}\NormalTok{(model\_list, }\AttributeTok{modnames=}\NormalTok{model\_names)}
 \end{Highlighting}
 \end{Shaded}
 
