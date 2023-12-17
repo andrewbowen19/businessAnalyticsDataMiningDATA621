@@ -58,6 +58,7 @@ library(DataExplorer)
 library(cowplot)
 library(car)
 library(AICcmodavg)
+library(glmnet)
 r_refs("r-references.bib")
 ```
 
@@ -147,7 +148,9 @@ set.seed(42)
 
 # Adding a 20% holdout of our input data for model evaluation later
 train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
+train_full_all <- train
 test  <- dplyr::anti_join(df, train, by = 'dbn')
+test_full_all <- test
 ```
 For ease of single-node computation, we'll select the variables of interest from our dataset. Notably, these are the survey ratings, enrollment levels, and our preferred proxy variables for each school.
 
@@ -181,6 +184,21 @@ We impute both our training and evaluation datasets. Given we are dealing with c
 ```{r impute-train, echo=FALSE, message=FALSE}
 imp <- mice(train_data, method="pmm", seed=42, printFlag = FALSE)
 train <- complete(imp)
+```
+
+Alternatively, we are going to try to use LASSO regression as a means of feature selection and will therefore need to impute missing values for a larger share of predictors using MICE. If a column from the dataset has more 50% null values we will excluded it from the LASSO model as it will be mostly imputations. 
+
+```{r imput_train_lasso,echo=FALSE,message=FALSE}
+char_cols <- c('school_name','school_type')
+all_review <- pull(train_full_all |> dplyr::select(-all_of(char_cols)) |> pivot_longer(cols=!dbn,names_to='col_names',values_to='values') |>
+    filter(is.na(values)) |> group_by(col_names) |> summarise(perc_na=n()/nrow(df)) |> filter(perc_na>0.5) |> dplyr::select(col_names))
+
+full_train_df <- train_full_all[,all_review]
+imp_full <- mice(full_train_df, method="pmm", seed=42, printFlag = FALSE)
+train_full <- complete(imp_full)
+
+still_na <- names(which(colSums(is.na(train_full)) > 0))
+train_full_nonna <- train_full |> dplyr::select(-all_of(still_na))
 ```
 
 ```{r impute-test, echo=FALSE, message=FALSE}
@@ -376,6 +394,76 @@ wls_model <- lm(proxy_formula, data = train, weights=weights)
 
 summary(wls_model)
 ```
+
+# Running LASSO regression on larger number of features
+This modeling technique uses a penalty term, $\lambda$ , in order to regularize predictors and minimize to zero those variables that are less significant to the model. As part of the technique, we will optimize the lambda value using cross validation before applying it to the full model. Plotted below is the MSE results after each iterative modification of the penalty parameter. The model returns the independent variable coefficients that have been minimized:
+
+```{r lasso_reg,echo=FALSE}
+
+cv_model <- cv.glmnet(x=as.matrix(train_full_nonna),y=train$college_rate, alpha = 1)
+
+#find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+
+plot(cv_model) 
+```
+
+```{r lasso_reg2,echo=FALSE}
+best_model <- glmnet(x=as.matrix(train_full_nonna),y=train$college_rate, alpha = 1, lambda = best_lambda)
+coef_lasso <- coef(best_model)
+
+```
+
+# Need to review: model in LM doesn't return strong model although from reading it it not clear if this is the best practice to do rather than running predict in glmnet
+
+```{r lasso_lm_review}
+lasso_predictors <- rownames(coef(best_model))
+    #rownames(coef(best_model, s = 'lambda.min'))[coef(best_model, s = 'lambda.min')[,1]]
+
+lasso_predictors <- lasso_predictors[ !lasso_predictors == '(Intercept)']
+
+train_lasso <- as.data.frame(cbind(train_full_nonna |> dplyr::select(lasso_predictors),train$college_rate)) |> rename('college_rate'='train$college_rate')
+
+lasso.out <- lm(college_rate ~ ., train_lasso)
+summary(lasso.out)
+vif(lasso.out)
+```
+We need to impute for the variables in the test set that were highlighted by the LASSO training output:
+
+```{r test_lasso,echo=FALSE}
+
+test_lasso <- test_full[,colnames(train_lasso)]
+imp_test_lasso <- mice(as.data.frame(test_lasso), method="pmm", seed=42, printFlag = FALSE)
+test_lasso_imp <- complete(imp_test_lasso)
+```
+all of the test predictions are returning as NA
+
+```{r lasso_test,echo=FALSE}
+test_lasso_imp_mat <- as.matrix(test_lasso_imp |> dplyr::select(-college_rate))
+
+test_pred_lasso <- predict(best_model, newx=test_lasso_imp_mat,s = best_lambda)
+coef(test_pred_lasso)
+
+```
+
+```{r}
+
+test_lasso <- test_full[,colnames(train_lasso)]
+imp_test_lasso <- mice(as.data.frame(test_lasso), method="pmm", seed=42, printFlag = FALSE)
+test_lasso_imp <- complete(imp_test_lasso)
+```
+
+```{r}
+test_lasso_imp_mat <- as.matrix(test_lasso_imp |> dplyr::select(-college_rate))
+```
+
+```{r}
+#test_lasso_vars <- test_lasso_imp[,lasso_predictors]
+test_pred_lasso <- predict(best_model, newx=test_lasso_imp_mat,s = best_lambda)
+coef(test_pred_lasso)
+
+```
+
 # Experimentation and Results
 
 ### Model Evaluation
