@@ -230,7 +230,7 @@
 \affiliation{\vspace{0.5cm}\textsuperscript{1} City University of New York}
 
 \abstract{%
-Abstract coming soon!
+We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model.
 }
 
 
@@ -675,7 +675,7 @@ From our tables above, we can see smaller values of corrected AIC (which account
 
 Overall, our model to predict a high school's college persistence rate based on socioeconomic proxy variables outperformed the NYC Schools Open Survey Quality ratings of schools. This is not to say that school ratings based on teacher, student, and parent responses are not valuable inputs. However, they should not be the sole basis upon which educational policy decisions are made, considering the colkective socioeconomic factors that most influence a school's performance.
 
-Some limitations of our approach would come from conflation between socioeconomic factors, as well as lacking a more robust imputation method. While our proxy variable model predicts college persistence better than one based off survey ratings, there could be error via omission of unseen variabels that are collinear with these inputs. This stems from the availability of data in our source data. We used a \href{https://stefvanbuuren.name/fimd/sec-pmm.html}{\emph{predictive mean matching} imputation method}, native to the \texttt{mice} R package (\emph{(\textbf{Flexible-imputation?})}). While this allows for realistic imputed values (no imputed value will fall outside the range of observed data), the underlying population distribution of those values could be non-normal.
+Some limitations of our approach would come from conflation between socioeconomic factors, as well as lacking a more robust imputation method. While our proxy variable model predicts college persistence better than one based off survey ratings, there could be error via omission of unseen variabels that are collinear with these inputs. This stems from the availability of data in our source data. We used a \href{https://stefvanbuuren.name/fimd/sec-pmm.html}{\emph{predictive mean matching} imputation method}, native to the \texttt{mice} R package (\emph{Buuren (2018)}). While this allows for realistic imputed values (no imputed value will fall outside the range of observed data), the underlying population distribution of those values could be non-normal.
 
 Future work could include joining in other academic performance metrics (average SAT/ACT scores, etc.) to see if our proxy variables also have predictive power. The dataset provided is indexed on a high school's \emph{district borough number} (DBN), which is present in several \href{https://opendata.cityofnewyork.us}{NYC Open Data} datasets on education in New York City. As mentioned above, joining in other data sources to augment this data could be a good way to address the omission of any variables that better correlate with college persistence rates.
 
@@ -693,6 +693,9 @@ Afarian, R., \& Kleiner, B. (2003). The relationship between grades and career s
 
 \leavevmode\vadjust pre{\hypertarget{ref-BERNACKI2020103999}{}}%
 Bernacki, M. L., Chavez, M. M., \& Uesbeck, P. M. (2020). Predicting achievement and providing support before STEM majors begin to fail. \emph{Computers \& Education}, \emph{158}, 103999. https://doi.org/\url{https://doi.org/10.1016/j.compedu.2020.103999}
+
+\leavevmode\vadjust pre{\hypertarget{ref-Flexible-imputation}{}}%
+Buuren, S. van. (2018). \emph{Fleixble imputation of missing data}. Retrieved from \url{https://stefvanbuuren.name/fimd/sec-pmm.html}
 
 \leavevmode\vadjust pre{\hypertarget{ref-NCES-Dropout-Rates}{}}%
 Education Statistics, N. C. for. (2008). \emph{Percentage of high school dropouts among persons 16 through 24 years old}. Retrieved from \url{https://nces.ed.gov/programs/digest/d08/tables/dt08_110.asp}
@@ -811,7 +814,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 
 \CommentTok{\# Create correlation plot between vars of interest}
 \NormalTok{corMatrix }\OtherTok{\textless{}{-}} \FunctionTok{cor}\NormalTok{(train\_renamed)}
-\FunctionTok{corrplot}\NormalTok{(corMatrix, }\AttributeTok{method=}\StringTok{"color"}\NormalTok{, }\AttributeTok{type=}\StringTok{"lower"}\NormalTok{, }\AttributeTok{tl.col=}\StringTok{"black"}\NormalTok{)}
+\FunctionTok{corrplot}\NormalTok{(corMatrix, }\AttributeTok{method=}\StringTok{"color"}\NormalTok{, }\AttributeTok{type=}\StringTok{"lower"}\NormalTok{, }\AttributeTok{tl.col=}\StringTok{"black"}\NormalTok{, }\AttributeTok{addCoef.col =} \StringTok{"black"}\NormalTok{, }\AttributeTok{tl.cex =} \FloatTok{0.7}\NormalTok{, }\AttributeTok{number.cex =} \FloatTok{0.6}\NormalTok{)}
 \CommentTok{\# Plot temp housing rates}
 \NormalTok{pa }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct)) }\SpecialCharTok{+}
     \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
