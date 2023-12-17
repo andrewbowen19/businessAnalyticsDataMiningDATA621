@@ -57,6 +57,7 @@ library("papaja")
 library(DataExplorer)
 library(cowplot)
 library(car)
+library(AICcmodavg)
 r_refs("r-references.bib")
 ```
 
@@ -329,9 +330,7 @@ proxy_model <- update(proxy_model, ~ . - enrollment)
 summary(proxy_model)
 
 ```
-We find our proxy socioeconomic model produces an adjusted R-squared of $R^2_{adj} = 0.52$.
-
-We check for multicollinearity within this model. Unlike with the base model based on the survey ratings, we do not expect any such issues with this model.
+We find our proxy socioeconomic model produces an adjusted R-squared of $R^2_{adj} = 0.52$. We also check for multicollinearity within this model. Unlike with the base model based on the survey ratings, we do not expect any such issues with this model.
 
 ```{r proxy-model-vif-check}
 vif_df <- as.data.frame(vif(proxy_model))
@@ -364,7 +363,7 @@ Running a Shapiro test for normality at a 95% threshold, we receive a p-value of
 
 Plotting our proxy model's residuals, we can confirm normality as well visually:
 ```{r proxy-residual-plot}
-hist(proxy_model$residuals)
+hist(proxy_model$residuals, xlab="Proxy Model Residuals")
 ```
 
 ```{r weighted-least-squares}
@@ -383,28 +382,26 @@ summary(wls_model)
 
 ```{r RMSE}
 # Compute RMSE for each model on our testing data
-
 rmse(rating_model, test)
 modelr::rmse(proxy_model, test)
 modelr::rmse(wls_model, test)
 ```
 We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models.
 
-```{r aic-bic}
-# Print AIC for each model type
-print(glue("AIC for base model (rating results): {AIC(rating_model)}"))
-print(glue("AIC for proxy variable model: {AIC(proxy_model)}"))
-print(glue("AIC for WLS model: {AIC(wls_model)}"))
+```{r aic-bic, warning=FALSE}
+model_list <- list(rating_model, proxy_model, wls_model)
+model_names <- c("Survey Ratings", "Proxy Variables", "Weighted Least-Squares")
 
-# BIC results
-print(glue("BIC for base model (rating results): {BIC(rating_model)}"))
-print(glue("BIC for proxy variable model: {BIC(proxy_model)}"))
-print(glue("BIC for WLS model: {BIC(wls_model)}"))
+# Print AIC results
+aictab(model_list, modnames=model_names)
+
+# Print BIC for each model
+bictab(model_list, modnames=model_names)
 ```
+From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models
+
 # Conclusion
 
-## TODO
-- Model Selection
 
 \newpage
 
