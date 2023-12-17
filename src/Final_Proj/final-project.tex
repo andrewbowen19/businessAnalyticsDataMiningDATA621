@@ -673,6 +673,14 @@ From our tables above, we can see smaller values of corrected AIC (which account
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
 
+Overall, our model to predict a high school's college persistence rate based on socioeconomic proxy variables outperformed the NYC Schools Open Survey Quality ratings of schools. This is not to say that school ratings based on teacher, student, and parent responses are not valuable inputs. However, they should not be the sole basis upon which educational policy decisions are made, considering the colkective socioeconomic factors that most influence a school's performance.
+
+Some limitations of our approach would come from conflation between socioeconomic factors, as well as lacking a more robust imputation method. While our proxy variable model predicts college persistence better than one based off survey ratings, there could be error via omission of unseen variabels that are collinear with these inputs. This stems from the availability of data in our source data. We used a \href{https://stefvanbuuren.name/fimd/sec-pmm.html}{\emph{predictive mean matching} imputation method}, native to the \texttt{mice} R package (\emph{(\textbf{Flexible-imputation?})}). While this allows for realistic imputed values (no imputed value will fall outside the range of observed data), the underlying population distribution of those values could be non-normal.
+
+Future work could include joining in other academic performance metrics (average SAT/ACT scores, etc.) to see if our proxy variables also have predictive power. The dataset provided is indexed on a high school's \emph{district borough number} (DBN), which is present in several \href{https://opendata.cityofnewyork.us}{NYC Open Data} datasets on education in New York City. As mentioned above, joining in other data sources to augment this data could be a good way to address the omission of any variables that better correlate with college persistence rates.
+
+Overall, identifying the factors that most strongly correlate with academic performance and college persistence can improve in educational policy design. In addition, the public availability of educational data through open data platforms only serves to augment the relatioships that help this decision-making.
+
 \newpage
 
 \hypertarget{references}{%
