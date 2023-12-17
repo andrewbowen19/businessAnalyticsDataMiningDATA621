@@ -222,7 +222,7 @@ train_renamed <- train %>%
 
 # Create correlation plot between vars of interest
 corMatrix <- cor(train_renamed)
-corrplot(corMatrix, method="color", type="lower", tl.col="black")
+corrplot(corMatrix, method="color", type="lower", tl.col="black", addCoef.col = "black", tl.cex = 0.7, number.cex = 0.6)
 ```
 From our correlation plot above, we can see strong negative relationships between two of our proxy variables of interest (*Temporary Housing Rate* and *Economic Need Index*) and our target variable: *College Persistence Rate*. There is also a negative relationship between *Chronic Absenteeism* and *College Persistence Rate*, but to a lesser degree. This gives signal that constructing models based on these variables could give good insight into the factors that most influence college persistence.
 
