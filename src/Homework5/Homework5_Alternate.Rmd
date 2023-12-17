@@ -3,8 +3,8 @@ title: "DATA 621 - HW5"
 author: "Andrew Bowen, Glen Davis, Shoshana Farber, Joshua Forster, Charles Ugiagbe"
 date: "2023-11-27"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -111,7 +111,7 @@ knitr::kable(neg_eval_cnts, format = "simple")
 
 This leads us to the question of how to handle these occurrences appropriately. Although changing the sign for the negative observations might be the simplest way to fix this issue, it could be inappropriate due to the large number of observations this would affect, and it might not actually result in a more accurate representation of the data. Alternatively, excluding that number of observations from the training data might distort the model and make it less likely to extrapolate well to the evaluation data. So could excluding all these predictors.
 
-So we have decided to try two methods: A) one in which we exclude predictors with invalid negative observations from modeling and B) one in which we change the signs of the negative observations. In both, we will use only complete cases without any imputations. In the latter only, we will make some transformations. Before we make the drastic changes to the data required by Method B, we will continue exploring the data in its original state.
+So we have decided to try three methods: A) one in which we exclude predictors with invalid negative observations from modeling and B) one in which we change the signs of the negative observations. In both of these cases, we will use only complete cases without any imputations. In the latter only, we will make some transformations. Before we make the drastic changes to the data required by Method B, we will continue exploring the data in its original state. lastly in the third method C) we will only use columns without negative values, but will impute missing data points for these predictors.
 
 Let's review the frequency of missing values overall across the training dataset:
 
@@ -220,7 +220,7 @@ ggcorrplot(m, show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2.5,
 
 After excluding the zero response rows, `LabelAppeal` appears to have a stronger linear relationship with `TARGET` and to a lesser extent `STARS`. 
 
-### Data Preparation for Both Methods:
+### Data Preparation for All Methods:
 
 We coerce the `STARS` and `LabelAppeal` variables to factors as discussed. Wines with NA `STARS` values are likely to be wines that have not been rated by the experts, and it is also likely unrated wines are less interesting to distributors. We will order its factor from `NA` to `4` so that the missingness level is the lowest level. The `LabelAppeal` factor will be ordered naturally from -2 to 2. 
 
@@ -374,7 +374,7 @@ Modifying `STARS` into a factor increased the strength of its positive linear re
 
 `inv_AcidIndex` has the strongest positive relationship with `TARGET` among the transformed numeric predictors. It is also slightly negatively correlated with `sqrt_FixedAcidity`, which is not correlated with `TARGET`, so modeling might benefit from only including the former acid measure. 
 
-One means of prediction using OLS for count data is taking the $\text{ln }y$ as a means of replicating the Poisson linear transformation by applying it on the response. This transformation is based on a UC Davis (publication) [https://cameron.econ.ucdavis.edu/racd/simplepoisson.pdf] on count regression. Therefore we will prepare an alternative response variable, `TARGET.TF`, for Method B although some minor modifications are needed since there are many zero values.
+One means of prediction using OLS for count data is taking the $\text{ln }y$ as a means of replicating the Poisson linear transformation by applying it on the response. This transformation is based on a UC Davis [publication] (https://cameron.econ.ucdavis.edu/racd/simplepoisson.pdf) on count regression. Therefore we will prepare an alternative response variable, `TARGET.TF`, for Method B although some minor modifications are needed since there are many zero values.
 
 Let's review what the Box-Cox method proposes for the transformation:
 
@@ -394,6 +394,190 @@ method_b_test_df <- method_b_test_df |>
     mutate(TARGET.TF=log(ifelse(TARGET==0,0.5,TARGET)))
 hist(method_b_train_df$TARGET.TF)
 ```
+
+### Data Preparation for Method C:
+
+
+The remaining columns with missing values are far less clear to evaluate and will need a more standardized imputation method:
+
+One more comprehensive method to evaluate if the data is Missing Completely at random (MCAR) is running Little's test although it is unlikely to generate a statistically significant difference for most real world datasets.
+
+```{r missing_completely_at_random}
+littles_test <- mod_df |>
+    mcar_test()
+knitr::kable(littles_test, format = "simple")
+
+```
+
+The zero in the p-value indicates that the missing values across these columns are not in fact MCAR.
+
+Let's review if the NA values appear in similar observations:
+
+```{r missing_values_map,echo=F}
+na_cols <- c("pH", "Density", "Chlorides", "FreeSulfurDioxide",'Alcohol','TotalSulfurDioxide','Sulphates')
+na_col_review <- mod_df |>
+    dplyr::select(all_of(na_cols)) |>
+    missing_plot()
+na_col_review
+
+
+```
+
+The plot above highlights via a heat map all of the individuals rows where the independent predictors have NA values (shaded in light blue). It's a bit challenging to discern where observations have more than one null value, but there is definitely some overlap across records.
+
+```{r row_index,warning=FALSE,echo=F}
+na_freq <- mod_df |> dplyr::select(all_of(na_cols)) |> mutate(row_index=1:nrow(mod_df)) |> pivot_longer(cols=na_cols,names_to='header') |> filter(is.na(value)) |> group_by(row_index) |> summarise(num_na=n())
+
+ggplot(na_freq,aes(x=num_na)) +
+    geom_bar() +
+    labs(x='Number of NA columns',y='Number of Rows',title='Distribution of NA Values across columns')
+
+print(glue("Only {pull(na_freq |> filter(num_na>1)|>summarise(total=n()))} rows have more than 1 column with NA, which is only {format(round(pull(na_freq |> filter(num_na>1)|>summarise(total=n())/nrow(na_freq))*100,2),nsmall=2)}% of the observations that have NAs"))
+
+```
+
+It does not appear that many observations have more than 1 NA value and the heatmap was a little bit less clear in helping us identify overlapping columns.
+
+Let's split the data into train and test sets to provide some observations to evaluate the selected model as a holdout set:
+
+```{r train_test_split,echo=F}
+set.seed(19)
+rows <- sample(nrow(mod_df))
+sample <- sample(c(TRUE, FALSE), nrow(mod_df), replace=TRUE,
+                 prob=c(0.7,0.3))
+method_c_train_df <- mod_df[sample, ]
+method_c_test_df <- mod_df[!sample, ]
+
+```
+
+Alternatively, we will use the MICE package to fill the NA values:
+
+```{r imputation_mice,echo=F}
+
+df_names <- colnames(method_c_train_df)
+non_na_cols <- df_names[!df_names %in% na_cols]
+
+if (file.exists("imputed_wine_test_df.csv") & file.exists("imputed_wine_train_df.csv")){
+    train_df_imputed_input <- read.csv("imputed_wine_train_df.csv", na.strings = "")
+    test_df_imputed_input <- read.csv("imputed_wine_test_df.csv", na.strings = "")
+    method_c_train_df_imp <- train_df_imputed_input |> mutate(STARS=factor(STARS, levels = c(NA, 1, 2, 3, 4),
+                        exclude = "",
+                        ordered = TRUE),
+           LabelAppeal=factor(LabelAppeal, levels = c(-2, -1, 0, 1, 2),
+                        ordered = TRUE))
+    method_c_test_df_imp <- test_df_imputed_input |> mutate(STARS=factor(STARS, levels = c(NA, 1, 2, 3, 4),
+                        exclude = "",
+                        ordered = TRUE),
+           LabelAppeal=factor(LabelAppeal, levels = c(-2, -1, 0, 1, 2),
+                        ordered = TRUE))
+ 
+}else{
+        #Train Data Imputation First
+    init = mice(train_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    
+    
+    meth[non_na_cols] = ""
+    
+    meth[c("pH")] = "pmm"
+    meth[c("ResidualSugar")] = "pmm"
+    meth[c("Chlorides")] = "pmm"
+    meth[c("FreeSulfurDioxide")] = "pmm"
+    meth[c("Alcohol")] = "pmm"
+    meth[c("TotalSulfurDioxide")] = "pmm"
+    meth[c("Sulphates")] = "pmm"
+
+    imputed_train = mice(train_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    train_df_imputed <- complete(imputed_train)
+    write.csv(train_df_imputed, "imputed_wine_train_df.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+    
+    #Repeat for test_df
+    init = mice(test_df, maxit=0) 
+    meth = init$method
+    predM = init$predictorMatrix
+    meth[non_na_cols] = ""
+    meth[c("pH")] = "pmm"
+    meth[c("ResidualSugar")] = "pmm"
+    meth[c("Chlorides")] = "pmm"
+    meth[c("FreeSulfurDioxide")] = "pmm"
+    meth[c("Alcohol")] = "pmm"
+    meth[c("TotalSulfurDioxide")] = "pmm"
+    meth[c("Sulphates")] = "pmm"
+    imputed_test = mice(test_df, method=meth, predictorMatrix=predM, m=5,
+                   printFlag = FALSE)
+    imputed_test_df <- complete(imputed_test)
+    write.csv(imputed_test_df, "imputed_wine_test_df.csv", row.names = FALSE,
+              fileEncoding = "UTF-8")
+
+}
+
+```
+
+Let's confirm that the imputation filled all the null values for MICE:
+
+```{r impute_mice_check,echo=F}
+x <- sapply(train_df_imputed_input, function(x) sum(is.na(x)))
+y <- sapply(test_df_imputed_input, function(x) sum(is.na(x)))
+sum(x, y) == 0
+```
+
+As expected the MICE imputed estimate values for all the missing fields and we can now include all observations within the model.
+
+Let's review the distributions of the train and test imputed datasets to confirm they remain similar to the initial unmodified dataset:
+
+```{r review_imputedistrib, warning = FALSE, message = FALSE}
+#need to fix for spacing
+sub_vars <- c('Chlorides','pH','Sulphates')
+other_nas <- c('ResidualSugar','FreeSulfurDioxide','Alcohol','TotalSulfurDioxide')
+impute_train_input <- method_c_train_df_imp |>
+    dplyr::select(all_of(sub_vars)) |>
+    mutate(Set = "Train")
+impute_test_input <- method_c_test_df_imp |>
+    dplyr::select(all_of(sub_vars)) |>
+    mutate(Set = "Test")
+impute_both <- impute_train_input |>
+    bind_rows(impute_test_input)
+impute_pivot <- impute_both |>
+    pivot_longer(!Set, names_to = "Variable", values_to = "Value")
+impute_plot <- impute_pivot |>
+    ggplot(aes(x = Value)) +
+    geom_density(fill = "lightblue", color = "black") +
+    labs(y = "Density") +
+    facet_grid(rows = vars(Set), cols = vars(Variable),
+               switch = "y", scales = "free_x")
+impute_plot
+
+```
+
+These columns were separated as they had higher density points distorting the remainder of predictors that had NA values in the density plots. Across train and test sets it still appears to be similarly distributed and not substantially different from the initial input data.
+
+```{r review_other_imputedistrib, warning = FALSE, message = FALSE}
+
+
+impute_train_input2 <- method_c_train_df_imp |>
+    dplyr::select(all_of(other_nas)) |>
+    mutate(Set = "Train")
+impute_test_input2 <- method_c_test_df_imp |>
+    dplyr::select(all_of(other_nas)) |>
+    mutate(Set = "Test")
+impute_both2 <- impute_train_input2 |>
+    bind_rows(impute_test_input2)
+impute_pivot2 <- impute_both2 |>
+    pivot_longer(!Set, names_to = "Variable", values_to = "Value")
+impute_plot2 <- impute_pivot2 |>
+    ggplot(aes(x = Value)) +
+    geom_density(fill = "lightblue", color = "black") +
+    labs(y = "Density") +
+    facet_grid(rows = vars(Set), cols = vars(Variable),
+               switch = "y", scales = "free_x")
+impute_plot2
+
+```
+
+The remaining columns that had imputations also mirror one another in the train and test sets as well as the initial distributions. 
 
 ### Modeling
 
@@ -698,6 +882,104 @@ AIC(mod5_mlr,mod6_mlr)
 
 Despite the fact that Model MLR:2 has the lowest AIC value, it would probably be unwise to use this model given the violation of assumptions we just mentioned.
 
+#### Model POIS:3 - Zero Inflated Poisson Count Model (ZIP) using Method C
+
+* Ignoring predictors with negative values
+
+* Imputing missing values using MICE
+
+```{r zero_inflated_poisson_c,echo=F}
+mod7_zip <- pscl::zeroinfl(formula=TARGET ~ STARS + LabelAppeal + AcidIndex |STARS + LabelAppeal,data=method_c_train_df,dist='poisson')
+
+
+summary(mod7_zip)
+```
+
+This predictors included in this model were based on the items that were significant to the model rather than including a full one with all of the variables.  The logit model used the predictors (`STARS` and `LabelAppeal`) to identify the instances when no cases were expected to be sold based on the expectation that negative customer evaluation and missing expert reviews would prompt distributors to not purchases cases of these wines. Only some levels of both predictors were signnificant in the model.
+
+Let's run a Chi-Squared Test to evaluate the goodness of fit:
+
+```{r zip7_chisq,echo=F}
+m7null <- update(mod7_zip, . ~ 1)
+
+pchisq(2 * (logLik(mod7_zip) - logLik(m7null)), df = 7, lower.tail = FALSE)
+```
+
+A statistically significant result in the Chi-Squared Test would seem to indicate that there is a goodness of fit for the ZIP model. The degrees of freedom is based on the number of predictors in the model excluding the intercept (the null model)
+
+```{r mod7_res,echo=F}
+plot(residuals(mod7_zip) ~
+      fitted(mod7_zip),xlab="Fitted",ylab="Residuals")
+abline(h=0)
+```
+
+When assessing the fitted vs residuals plot there is some pattern to the residuals and the largest ones still exist for the zero cases examples it would appear. They are still centered around zero.
+
+```{r mod7_qq,echo=F}
+res_mod7 <- residuals(mod7_zip,'pearson')
+qqnorm(res_mod7)
+qqline(res_mod7)
+
+abline(0, 1, col = "red")
+```
+
+The residuals primarily follow the QQline for most of the quantiles, but appear to diverge on the higher end and follow a line tracking from zero to one. 
+
+```{r mod7_disp,echo=F}
+E2_zip7 <- resid(mod2_zip, type = "pearson")
+N_zip7 <- nrow(input_df)
+p_zip7 <- length(coef(mod7_zip)) # '+1' is for variance parameter in NB
+sum(E2_zip7^2) / (N_zip7 - p_zip7)
+```
+
+There is more substantial underdispersion captured in this model than the other poisson regression one and we would like to avoid any under/over dispersion that exists.
+
+Let's review the Akaike Information Criterion for this ZIP model using method C:
+
+```{r aic_pois7,echo=F}
+AIC(mod7_zip)
+```
+
+#### Model NB:3 - Zero Inflated Negative Binomial (ZINB) using Method C
+
+Let's try to evaluate the data based on a zero inflated negative binomial:
+
+```{r mod8_zinb,warning=FALSE,echo=F}
+mod8_zinb <- pscl::zeroinfl(formula=TARGET ~ STARS + LabelAppeal + AcidIndex| STARS + LabelAppeal,data=method_c_train_df,dist='negbin')
+
+summary(mod8_zinb)
+```
+
+We tried to be consistent with the zero inflated model for the negative binomial using this method and used the same independent variables as what was identified as significant in zero inflated poisson model using method C. From a review of the summary, the residuals appear to be distributed around zero although there is a slight positive skew as compared to the negative. `STARS` appears to be less significant in the logistic model although only the lowest level is significant for the count model.
+
+
+```{r res_mod8,echo=F}
+res_mod8 <- residuals(mod8_zinb,'pearson')
+qqnorm(res_mod8)
+qqline(res_mod8)
+
+abline(0, 1, col = "red")
+```
+
+The QQplot aligns more closely with the distribution line; however, similar to the other distributions there are a lot of points on the right tail that are skewed.
+
+Let's calculate the dispersion from the model:
+
+```{r zinb_disp_8,echo=F}
+E2_mod8 <- resid(mod8_zinb, type = "pearson")
+N  <- nrow(input_df)
+p_mod8  <- length(coef(mod8_zinb)) + 1 # added for variance parameter
+sum(E2_mod8^2) / (N - p_mod8)
+```
+
+The dispersion statistic is in line with the other zero inflated model, which appears to be a knock on both models.
+
+```{r mod_c_aic,echo=F}
+AIC(mod7_zip,mod8_zinb)
+```
+
+Both AIC values for these models are much higher than the other methods. It appears as though the imputation that was done may not be valid with the negative values present in so many potential predictors.
+
 #### Select Models
 
 Based on the fact that multiple models that were tested in the prior section had somewhat serious flaws, we are going to evaluate the zero inflated models against the hold out set in order to make a final selection of the "best" model. It still appears as though there are some challenges in accurately identifying all of the zero cases scenarios.
@@ -808,7 +1090,7 @@ ggplot(final_pred_df,aes(x=predicted_cases)) +
 
 ```
 
-The final predicted distribution appears to expect less zero values than what was in the training dataset; however, it is in line with prior data and appears to follow the general shape of a Poisson distribution.
+The final predicted distribution appears to expect less zero values than what was in the training dataset; however, it is in line with prior data and appears to follow the general shape of the other data available on wines.
 
 ```{r eval_creation,echo=F}
 write.csv(final_pred_df,'HW5_Eval_Predictions_Alternate.csv')
