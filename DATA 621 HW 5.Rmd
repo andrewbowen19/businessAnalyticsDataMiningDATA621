@@ -1,0 +1,344 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-12-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(Amelia)
+library(kableExtra)
+library(ggcorrplot)
+library(MASS)
+library(timeDate)
+library(caret)
+library(corrplot)
+library(RColorBrewer)
+library(caTools)
+library(visdat)
+```
+
+
+## load the Dataset
+```{r}
+url_eval <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/wine_evaluation_data.csv"
+url_training <- "https://raw.githubusercontent.com/andrewbowen19/businessAnalyticsDataMiningDATA621/main/data/wine_training_data.csv"
+```
+
+
+```{r}
+eval_df <- read.csv(url_eval) %>% as.tibble()
+training_df <- read.csv(url_training) %>% as.tibble()
+```
+
+
+We take a glimpse at the wine evalutation data set which contains 16 variables including the target variable 'TARGET' variable and 3335 observations. 
+
+```{r}
+glimpse(eval_df)
+```
+
+We take a glimpse at the wine training data set which contains 16 variables including the target variable 'TARGET' variable and 12795 observations.  
+```{r}
+glimpse(training_df)
+```
+
+
+```{r}
+colnames(training_df) 
+```
+
+From the glimpse view, We see that the dataset contains only numerical variables, some are  discrete with limited number of values.
+Since the Index column had no impact on the target variable, it can be dropped from training and evaluation data.
+
+```{r}
+df_train <- training_df %>% dplyr::select(-c(INDEX))
+
+df_eval <- eval_df %>% dplyr::select(-IN)
+```
+
+
+**We observe the summary statistics**
+```{r}
+summary(df_train)
+```
+
+**Lets observe the distribution of each variable in each dataset.**
+```{r}
+gather_df <- df_train %>% 
+  gather(key = 'variable', value = 'value')
+
+# Histogram plots of each variable
+ggplot(gather_df) + 
+  geom_histogram(aes(x=value, y = ..density..), bins=30) + 
+  facet_wrap(. ~variable, scales='free', ncol=4) 
+```
+
+
+From the histogram plot,We see that most variables are somewhat normally distributed. The distribution profiles show right skew in variables 'AcidIndex', and 'STARS'. 
+
+Also we notice that some of these variables like STARS, Target, LabelAppeal etc. have discrete values, meaning they are categorical.
+
+
+**We analyze the spread of each variables using a box-plot.**
+
+```{r, fig.height = 7, fig.width = 10, echo=FALSE}
+# Boxplots for each variable
+ggplot(gather_df, aes(variable, value)) + 
+  geom_boxplot() + 
+  facet_wrap(. ~variable, scales='free', ncol=6)
+```
+
+
+There are not many outliers in the variables.
+
+We have already noticed that there are many missing values in the dataset. Let's analyze the distribution of missing values.
+
+```{r echo=FALSE}
+is_missing <- function(x){
+  missing_strs <- c('', 'null', 'na', 'nan', 'inf', '-inf', '-9', 'unknown', 'missing')
+  ifelse((is.na(x) | is.nan(x) | is.infinite(x)), TRUE,
+         ifelse(trimws(tolower(x)) %in% missing_strs, TRUE, FALSE))
+}
+
+missing_summary<-summarise_all(df_train, ~(sum(is_missing(.) / nrow(df_train))))
+
+stack(sort(missing_summary, decreasing = TRUE))
+
+```
+```{r missingness-map}
+missmap(df_train, col = c("yellow", "black"), main = "Missingness Map - Training Dataset")
+```
+
+We see STARS has lot of missing values, almost 26%, which we can replace with zero.
+
+```{r echo=TRUE}
+df_train["STARS"][is.na(df_train["STARS"])] <- 0
+df_eval["STARS"][is.na(df_eval["STARS"])] <- 0
+```
+
+
+Then, let's look at the correlation with Target.
+
+```{r echo=FALSE}
+clean_df <- df_train
+stack(sort(cor(clean_df[,1], clean_df[,2:ncol(clean_df)])[,], decreasing=TRUE))
+```
+
+We see that 'STARS`, 'LabelAppeal', and 'AcidIndex' have the highest correlation with 'TARGET'.
+
+We create a correlation plot to check for multicollinearity.
+
+```{r echo=FALSE, fig.height=8}
+correlation = cor(clean_df, use = 'pairwise.complete.obs')
+corrplot(correlation, 'ellipse', type = 'lower', order = 'hclust',
+         col=brewer.pal(n=8, name="RdYlBu"))
+```
+We see that the features have very low correlations with each other, meaning that there is not much multicolinearity present in the dataset. 
+
+This means that the assumptions of linear regression are more likely to be met.
+```{r}
+correlation = cor(clean_df, use = 'pairwise.complete.obs')
+corrplot::corrplot(correlation)
+```
+
+
+## 2. Data Preparation
+
+First we can address all missing values in the dataset and replace with the mean:  
+
+```{r}
+is_missing <- function(x){
+  missing_strs <- c('', 'null', 'na', 'nan', 'inf', '-inf', '-9', 'unknown', 'missing')
+  ifelse((is.na(x) | is.nan(x) | is.infinite(x)), TRUE,
+         ifelse(trimws(tolower(x)) %in% missing_strs, TRUE, FALSE))
+}
+```
+
+
+```{r replace-missing-training}
+clean_df$STARS[is_missing(clean_df$STARS)] <- median(clean_df$STARS, na.rm = TRUE)
+clean_df$Sulphates[is_missing(clean_df$Sulphates)] <- mean(clean_df$Sulphates, na.rm = TRUE)
+clean_df$TotalSulfurDioxide[is_missing(clean_df$TotalSulfurDioxide)] <- mean(clean_df$TotalSulfurDioxide, na.rm = TRUE)
+clean_df$FreeSulfurDioxide[is_missing(clean_df$FreeSulfurDioxide)] <- mean(clean_df$FreeSulfurDioxide, na.rm = TRUE)
+clean_df$Alcohol[is_missing(clean_df$Alcohol)] <- mean(clean_df$Alcohol, na.rm = TRUE)
+clean_df$Chlorides[is_missing(clean_df$Chlorides)] <- mean(clean_df$Chlorides, na.rm = TRUE)
+clean_df$ResidualSugar[is_missing(clean_df$ResidualSugar)] <- mean(clean_df$ResidualSugar, na.rm = TRUE)
+clean_df$pH[is_missing(clean_df$pH)] <- mean(clean_df$pH, na.rm = TRUE)
+clean_df$FixedAcidity[is_missing(clean_df$FixedAcidity)] <- mean(clean_df$FixedAcidity, na.rm = TRUE)
+# assign the clean dataframe to training
+training = clean_df
+```
+
+```{r missingness-map-visdat}
+vis_dat(training)
+```
+
+
+```{r missingness-map-training-amelia}
+missmap(training, col = c("yellow", "black"), main = "Missingness Map - Training Dataset")
+```
+
+
+We do the same for the evaluation dataset. 
+
+```{r replace-missing-eval}
+df_eval$STARS[is_missing(df_eval$STARS)] <- median(df_eval$STARS, na.rm = TRUE)
+df_eval$Sulphates[is_missing(df_eval$Sulphates)] <- mean(df_eval$Sulphates, na.rm = TRUE)
+df_eval$TotalSulfurDioxide[is_missing(df_eval$TotalSulfurDioxide)] <- mean(df_eval$TotalSulfurDioxide, na.rm = TRUE)
+df_eval$FreeSulfurDioxide[is_missing(df_eval$FreeSulfurDioxide)] <- mean(df_eval$FreeSulfurDioxide, na.rm = TRUE)
+df_eval$Alcohol[is_missing(df_eval$Alcohol)] <- mean(df_eval$Alcohol, na.rm = TRUE)
+df_eval$Chlorides[is_missing(df_eval$Chlorides)] <- mean(df_eval$Chlorides, na.rm = TRUE)
+df_eval$ResidualSugar[is_missing(df_eval$ResidualSugar)] <- mean(df_eval$ResidualSugar, na.rm = TRUE)
+df_eval$pH[is_missing(df_eval$pH)] <- mean(df_eval$pH, na.rm = TRUE)
+df_eval$FixedAcidity[is_missing(df_eval$FixedAcidity)] <- mean(df_eval$FixedAcidity, na.rm = TRUE)
+df_eval$VolatileAcidity[is_missing(df_eval$VolatileAcidity)] <- mean(df_eval$VolatileAcidity, na.rm = TRUE)
+df_eval$CitricAcid[is_missing(df_eval$CitricAcid)] <- mean(df_eval$CitricAcid, na.rm = TRUE)
+df_eval$Density[is_missing(df_eval$Density)] <- mean(df_eval$Density, na.rm = TRUE)
+df_eval$LabelAppeal[is_missing(df_eval$LabelAppeal)] <- mean(df_eval$LabelAppeal, na.rm = TRUE)
+df_eval$AcidIndex[is_missing(df_eval$AcidIndex)] <- mean(df_eval$AcidIndex, na.rm = TRUE)
+evaluation = df_eval
+```
+
+
+Then we split the dataset into test and train. 
+
+```{r split-dataset}
+set.seed(101)
+
+# Split the sample
+sample <- sample.split(training$TARGET, SplitRatio = 0.8)
+
+# Training sample data
+wine_train <- subset(training, sample == TRUE)
+
+# Test sample data
+wine_test <- subset(training, sample == FALSE)
+```
+
+
+## 3. Build Models 
+
+*Poisson Regression Model 1*: 
+In this Poisson Regression model, we will include all variables.
+
+```{r model 1}
+prmodel1 <- glm(TARGET ~ ., data = wine_train, family = poisson)
+summary(prmodel1)
+```
+
+*Poisson Regression Model 2*: 
+In this model we will only look at significant variables.
+
+```{r model 2}
+prmodel2 <- glm(TARGET ~ . -CitricAcid -FixedAcidity -Chlorides - ResidualSugar -Density - TotalSulfurDioxide - FreeSulfurDioxide - Alcohol -pH -Sulphates, data = wine_train, family = poisson)
+summary(prmodel2)
+```
+*Negative Binomial Regression Model 1*: 
+In this Negative Binomial Regression model, we will include all variables.
+
+```{r model 3}
+nbrm1 <- glm.nb(TARGET ~ ., data = wine_train)
+summary(nbrm1)
+```
+
+We see Citric Acid, Residual Sugar, Free Sulfur Dioxide, Total Sulfur Dioxide, Alcohol and Stars are significant variables.
+
+*Negative Binomial Regression Model 2*: In this Negative Binomial Regression Model, we will look at those significant variables.
+
+```{r model 4}
+nbrm2 <- glm.nb(TARGET ~ . +CitricAcid +ResidualSugar +TotalSulfurDioxide +FreeSulfurDioxide +Alcohol +STARS, data = wine_train)
+summary(nbrm2)
+```
+
+*Multiple Linear Regression Model 1*: In this Multiple Linear Regression model, we will look at all variables.
+
+```{r model 5}
+mlr1 <- lm(TARGET ~ ., data = wine_train)
+summary(mlr1)
+```
+Here we see an adjusted R-square of 0.5281.  
+
+
+*Multiple Linear Regression Model 2*: In this model, we will look at those significant variables.
+
+```{r model 6}
+mlr2 <- lm(TARGET ~ . -CitricAcid -FixedAcidity -Chlorides - ResidualSugar -Density - TotalSulfurDioxide - FreeSulfurDioxide - Alcohol -pH -Sulphates, data = wine_train)
+summary(mlr2)
+```
+We see that the adjusted R-squared value of 0.5249 was actually worse than our first MLR model.
+
+## 4. Select Models 
+
+```{r}
+model_test <- function(model, wine_test, trainY) {
+  # Evaluate Model 1 with testing data set
+  predictedY <- predict(model, newdata=wine_test)
+  model_results <- data.frame(obs = trainY, pred=predictedY)
+  colnames(model_results) = c('obs', 'pred')
+  
+  # This grabs RMSE, Rsquaredand MAE by default
+  model_eval <- defaultSummary(model_results)
+  
+  # Add AIC score to the results
+  if ('aic' %in% model) {
+    model_eval[4] <- model$aic
+  } else {
+    model_eval[4] <- AIC(model)
+  }
+  
+  names(model_eval)[4] <- 'aic'
+ 
+  # Add BIC score to the results
+  model_eval[5] <- BIC(model)
+  names(model_eval)[5] <- 'bic'
+  
+  
+  model_eval[6] <- paste0(deparse(substitute(model)))
+  names(model_eval)[6] <- "model"
+   
+  return(model_eval)}
+```
+
+
+```{r}
+trainY <- wine_test %>% dplyr::select(TARGET)
+
+models = list(prmodel1, prmodel2, nbrm1, nbrm2,mlr1,mlr2)
+
+
+prmodel1_eval = model_test(prmodel1, wine_test, trainY)
+prmodel2_eval = model_test(prmodel2, wine_test, trainY)
+nbrm1_eval= model_test(nbrm1, wine_test, trainY)
+nbrm2_eval= model_test(nbrm2, wine_test, trainY)
+mlr1_eval= model_test(mlr1, wine_test, trainY)
+mlr2_eval= model_test(mlr2, wine_test, trainY)
+
+models_summary <- rbind(prmodel1_eval, prmodel2_eval, nbrm1_eval, nbrm2_eval, mlr1_eval,mlr2_eval)
+kable(models_summary) %>% 
+  kable_styling(bootstrap_options = "basic", position = "center")
+```
+
+```{r}
+models_summary
+```
+This table showcases the RMSE, R2, MAE, AIC and BIC for the six models. The Linear regressions, mlr1 and mlr2, had the best  performances based on RMSE and R2.. Also, mlr1 had the best aic and mlr2 had the best bic.
+
+Both RMSE an R2 were not significantly different across the 6 models, so we chose MLR 1 as our final model since it had the lowest AIC.
+
+<center> <h4> **Top Model Evaluation** </h4> </center>
+
+```{r}
+eval_data <- df_eval %>% dplyr::select(-TARGET)
+predictions <- predict(mlr1, eval_data)
+
+eval_data$TARGET <- predictions
+
+write.csv(eval_data, 'eval_predictions.csv', row.names=FALSE)
+
+head(eval_data)
+```
