@@ -401,6 +401,7 @@ Plotting our proxy model's residuals, we can confirm normality as well visually:
 hist(proxy_model$residuals, xlab="Proxy Model Residuals")
 ```
 
+
 We also fit a weighted-least squares (WLS) model to our proxy variables to account for unqual variances among measurements' residuals. The approach can be used to mitigate the effects of heteroscedastic data when modeling.
 
 ```{r weighted-least-squares}
@@ -423,9 +424,11 @@ plot(wls_model)
 
 From our diagnostic plots of the WLS model above, we see no general pattern in the *Residuals vs Fitted* plot. In addition, our Q-Q plot shows general normality behavior, with some behavior off the trendline near the tails of the distribution. Similar to above, we can run a Shapiro test on the residuals of the WLS model to assess normality of residuals, with the same alternative and null hypotheses as above:
 
+
 ```{r wls-shapiro}
 shapiro.test(wls_model$residuals)
 ```
+
 Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed.
 
 In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured so far, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. SVMs effectively find hyperplanes that divide classes within data well, and they are particularly useful for datasets with large numbers of features. (Predictors with `NA` values in the original dataset have been excluded from consideration due to the undesirably large amount of imputation that would have been required, as SVMs can't handle missing data.) Radial Basis is simply one of several kernel functions we could have chosen, and it effectively defines the shape of the classification boundaries the model makes.
@@ -595,6 +598,7 @@ lasso_coefs <- lasso_coefs |>
 
 To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has `NA` values imputed. The second group of models will be the SVM:RB, Important Features, and Lasso models. This group uses the full dataset (excluding predictors that had `NA` values, as well as observations that had `NA` values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense. 
 
+
 ### Group 1 Models:
 
 ```{r pred-rsquared-RMSE}
@@ -625,9 +629,11 @@ tbl <- tbl |>
 apa_table(tbl, placement = "H")
 
 ```
+
 In Group 1, the Proxy Variables model has the highest Predictive R-Squared and the lowest RMSE. 
 
 We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of the Group 1 models.
+
 
 ```{r aic-bic, warning=FALSE}
 model_names <- c("Survey Ratings", "Proxy Variables", "Weighted Least-Squares")
