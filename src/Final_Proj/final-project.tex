@@ -230,7 +230,7 @@
 \affiliation{\vspace{0.5cm}\textsuperscript{1} City University of New York}
 
 \abstract{%
-We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model.
+We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model. Additionally, we create a lasso regression model in order to improve our model selection.
 }
 
 
@@ -605,6 +605,8 @@ Running a Shapiro test for normality at a 95\% threshold, we receive a p-value o
 Plotting our proxy model's residuals, we can confirm normality as well visually:
 \includegraphics{final-project_files/figure-latex/proxy-residual-plot-1.pdf}
 
+We also fit a weighted-least squares (WLS) model to our proxy variables to account for unqual variances among measurements' residuals. The approach can be used to mitigate the effects of heteroscedastic data when modeling.
+
 \begin{verbatim}
 ## 
 ## Call:
@@ -627,6 +629,22 @@ Plotting our proxy model's residuals, we can confirm normality as well visually:
 ## Multiple R-squared:  0.5589, Adjusted R-squared:  0.5554 
 ## F-statistic:   163 on 3 and 386 DF,  p-value: < 2.2e-16
 \end{verbatim}
+
+\begin{figure}[H]
+\includegraphics[width=\textwidth]{final-project_files/figure-latex/plot-wls-model-1} \caption{ }\label{fig:plot-wls-model}
+\end{figure}
+
+From our diagnostic plots of the WLS model above, we see no general pattern in the \emph{Residuals vs Fitted} plot. In addition, our QQ plot shows general normality behavior, with some behavior off the trendline near the tails of the distribution. Similar to above, we can run a Shapiro test on the residuals of the WLS model to assess normality of residuals, with the same alternative and null hypotheses as above:
+
+\begin{verbatim}
+## 
+##  Shapiro-Wilk normality test
+## 
+## data:  wls_model$residuals
+## W = 0.99724, p-value = 0.7594
+\end{verbatim}
+
+Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed,
 
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
@@ -864,8 +882,6 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{vif\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{vif}\NormalTok{(rating\_model))}
 \FunctionTok{colnames}\NormalTok{(vif\_df) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"VIF Value"}\NormalTok{)}
 \FunctionTok{apa\_table}\NormalTok{(vif\_df, }\AttributeTok{caption =} \StringTok{"Variance Inflation Factors"}\NormalTok{, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
-
-
 \CommentTok{\# Create OLS linear model based on our proxy variables: no transforms}
 \NormalTok{proxy\_formula }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need }\SpecialCharTok{+}\NormalTok{ val\_chronic\_absent\_hs\_all }\SpecialCharTok{+}\NormalTok{ enrollment}
 \NormalTok{proxy\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, train)}
@@ -891,6 +907,10 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{wls\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, }\AttributeTok{data =}\NormalTok{ train, }\AttributeTok{weights=}\NormalTok{weights)}
 
 \FunctionTok{summary}\NormalTok{(wls\_model)}
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mai=}\FunctionTok{c}\NormalTok{(.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{))}
+\FunctionTok{plot}\NormalTok{(wls\_model)}
+\FunctionTok{shapiro.test}\NormalTok{(wls\_model}\SpecialCharTok{$}\NormalTok{residuals)}
 \CommentTok{\# Compute RMSE for each model on our testing data}
 \FunctionTok{rmse}\NormalTok{(rating\_model, test)}
 \NormalTok{modelr}\SpecialCharTok{::}\FunctionTok{rmse}\NormalTok{(proxy\_model, test)}
