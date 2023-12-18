@@ -579,16 +579,18 @@ apa_table(lasso_imp, placement = "H")
 
 In the lasso model, `temp_housing_pct` and `economic_need` are relatively more important than any race or gender percentage variables, unlike in the SVM:RB model. The most important variable is `hs_overage_undercredit_hoi_pct`. 
 
-Here is a summary of the predicted coefficients in the lasso model, including those given zero weight:
+Here is a summary of the predicted coefficients in the lasso model, excluding those given zero weight:
 
 ```{r }
 lasso_coefs <- as.data.frame(predict.enet(lassoTune$finalModel, s=lassoTune$bestTune[1, "fraction"], type="coef", mode="fraction")$coefficients)
 lasso_coefs <- lasso_coefs |>
     rownames_to_column()
-cols <- c("Predcitor", "Coef")
+cols <- c("Predictor", "Coef")
 colnames(lasso_coefs) <- cols
 lasso_coefs <- lasso_coefs |>
-    arrange(desc(abs(Coef)))
+    arrange(desc(abs(Coef))) |>
+    filter(abs(round(Coef, 2)) > 0)
+apa_table(lasso_coefs, placement = "H")
 
 ```
 

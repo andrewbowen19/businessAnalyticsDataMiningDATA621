@@ -818,7 +818,51 @@ cap\_ctt\_pct & 33.81\\
 
 In the lasso model, \texttt{temp\_housing\_pct} and \texttt{economic\_need} are relatively more important than any race or gender percentage variables, unlike in the SVM:RB model. The most important variable is \texttt{hs\_overage\_undercredit\_hoi\_pct}.
 
-Here is a summary of the predicted coefficients in the lasso model, including those given zero weight:
+Here is a summary of the predicted coefficients in the lasso model, excluding those given zero weight:
+
+\begin{table}[H]
+
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:unnamed-chunk-13}}
+
+\begin{tabular}{ll}
+\toprule
+Predictor & \multicolumn{1}{c}{Coef}\\
+\midrule
+hs\_overage\_undercredit\_hoi\_pct & -0.06\\
+ethnicity\_pacific\_pct\_boro & -0.06\\
+economic\_need & -0.05\\
+ethnicity\_asian\_pct & 0.04\\
+n\_attendance\_hs\_all & -0.03\\
+temp\_housing\_pct & -0.03\\
+ethnicity\_white\_pct\_boro & -0.03\\
+cap\_ctt\_pct & -0.03\\
+gender\_male\_pct & -0.03\\
+ethnicity\_hispanic\_pct\_boro & -0.02\\
+ethnicity\_asian\_pct\_boro & 0.02\\
+near\_pct\_amerindian & -0.01\\
+val\_attendance\_remote\_hs\_all & 0.01\\
+ethnicity\_black\_pct & 0.01\\
+IEP & -0.01\\
+median\_distance & -0.01\\
+near\_pct\_pacific & -0.01\\
+n\_credit\_10\_pct\_yr1 & 0.01\\
+n\_chronic\_absent\_hs\_alleh & -0.01\\
+enrollment & 0.01\\
+near\_pct\_white & 0.01\\
+ELL & 0.01\\
+n\_credit\_10\_pct\_yr1eh & 0.01\\
+cap\_setss\_pct & -0.01\\
+ethnicity\_pacific\_pct & 0.01\\
+\bottomrule
+\end{tabular}
+
+\end{threeparttable}
+\end{center}
+
+\end{table}
 
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
@@ -1278,10 +1322,12 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{lasso\_coefs }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{predict.enet}\NormalTok{(lassoTune}\SpecialCharTok{$}\NormalTok{finalModel, }\AttributeTok{s=}\NormalTok{lassoTune}\SpecialCharTok{$}\NormalTok{bestTune[}\DecValTok{1}\NormalTok{, }\StringTok{"fraction"}\NormalTok{], }\AttributeTok{type=}\StringTok{"coef"}\NormalTok{, }\AttributeTok{mode=}\StringTok{"fraction"}\NormalTok{)}\SpecialCharTok{$}\NormalTok{coefficients)}
 \NormalTok{lasso\_coefs }\OtherTok{\textless{}{-}}\NormalTok{ lasso\_coefs }\SpecialCharTok{|\textgreater{}}
     \FunctionTok{rownames\_to\_column}\NormalTok{()}
-\NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Predcitor"}\NormalTok{, }\StringTok{"Coef"}\NormalTok{)}
+\NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Predictor"}\NormalTok{, }\StringTok{"Coef"}\NormalTok{)}
 \FunctionTok{colnames}\NormalTok{(lasso\_coefs) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
 \NormalTok{lasso\_coefs }\OtherTok{\textless{}{-}}\NormalTok{ lasso\_coefs }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{arrange}\NormalTok{(}\FunctionTok{desc}\NormalTok{(}\FunctionTok{abs}\NormalTok{(Coef)))}
+    \FunctionTok{arrange}\NormalTok{(}\FunctionTok{desc}\NormalTok{(}\FunctionTok{abs}\NormalTok{(Coef))) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{filter}\NormalTok{(}\FunctionTok{abs}\NormalTok{(}\FunctionTok{round}\NormalTok{(Coef, }\DecValTok{2}\NormalTok{)) }\SpecialCharTok{\textgreater{}} \DecValTok{0}\NormalTok{)}
+\FunctionTok{apa\_table}\NormalTok{(lasso\_coefs, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
 
 \NormalTok{test\_pred1 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(rating\_model, test }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
 \NormalTok{test\_rsq1 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred1, test}\SpecialCharTok{$}\NormalTok{college\_rate, }\AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}
