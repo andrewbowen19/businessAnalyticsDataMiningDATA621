@@ -230,7 +230,7 @@
 \affiliation{\vspace{0.5cm}\textsuperscript{1} City University of New York}
 
 \abstract{%
-We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model. Lastly, we train a radial-basis support vector machine (SVM-RB) model to identify relationships in the underlying data not identified by our linear models. This model finds that the biggest indicators of a school's college persistence rate within our dataset are: conomic need, temporary housing percentages, and asian student percentage. From the features identified in our SVM we run a multiple linear regression model (MLR) to quantify these backward-selected variables' contributions.
+We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model. Lastly, we train a radial-basis support vector machine (SVM-RB) model and a Lasso regression model to identify relationships in the underlying data not identified by our linear models. From the features identified in our SVM we run a multiple linear regression model (MLR) to quantify these backward-selected variables' contributions as well, to identify the strongest predictors of a high school;s college persistence rate.
 }
 
 
@@ -826,7 +826,7 @@ Here is a summary of the predicted coefficients in the lasso model, including th
 \hypertarget{model-evaluation}{%
 \subsubsection{Model Evaluation}\label{model-evaluation}}
 
-To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has \texttt{NA} values imputed. The second group of models will be the SVM:RB, Important Features, and Lasso models. This group uses the full dataset (excluding predictors that had \texttt{NA} values, as well as observations that had \texttt{NA} values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense.
+To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has \texttt{NA} values imputed. The second group of models will be the SVM:RB, Important features, and Lasso models. This group uses the full dataset (excluding predictors that had \texttt{NA} values, as well as observations that had \texttt{NA} values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense.
 
 \hypertarget{group-1-models}{%
 \subsubsection{Group 1 Models:}\label{group-1-models}}
@@ -857,25 +857,49 @@ In Group 1, the Proxy Variables model has the highest Predictive R-Squared and t
 
 We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of the Group 1 models.
 
-\begin{verbatim}
-## 
-## Model selection based on AICc:
-## 
-##                        K    AICc Delta_AICc AICcWt Cum.Wt     LL
-## Weighted Least-Squares 5 -508.84       0.00   0.96   0.96 259.50
-## Proxy Variables        5 -502.43       6.41   0.04   1.00 256.29
-## Survey Ratings         5 -326.91     181.93   0.00   1.00 168.53
-\end{verbatim}
+\begin{table}[H]
 
-\begin{verbatim}
-## 
-## Model selection based on BIC:
-## 
-##                        K     BIC Delta_BIC BICWt Cum.Wt     LL
-## Weighted Least-Squares 5 -489.16      0.00  0.96   0.96 259.50
-## Proxy Variables        5 -482.76      6.41  0.04   1.00 256.29
-## Survey Ratings         5 -307.24    181.93  0.00   1.00 168.53
-\end{verbatim}
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:aic-bic}Akaike's Information criterion for model's within Group 1. Respectively, this includes our naive ratings model, our proxy variable model, and our WLS model}
+
+\begin{tabular}{llllllll}
+\toprule
+Modnames & \multicolumn{1}{c}{K} & \multicolumn{1}{c}{AICc} & \multicolumn{1}{c}{Delta\_AICc} & \multicolumn{1}{c}{ModelLik} & \multicolumn{1}{c}{AICcWt} & \multicolumn{1}{c}{LL} & \multicolumn{1}{c}{Cum.Wt}\\
+\midrule
+Weighted Least-Squares & 5.00 & -508.84 & 0.00 & 1.00 & 0.96 & 259.50 & 0.96\\
+Proxy Variables & 5.00 & -502.43 & 6.41 & 0.04 & 0.04 & 256.29 & 1.00\\
+Survey Ratings & 5.00 & -326.91 & 181.93 & 0.00 & 0.00 & 168.53 & 1.00\\
+\bottomrule
+\end{tabular}
+
+\end{threeparttable}
+\end{center}
+
+\end{table}
+
+\begin{table}[H]
+
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:aic-bic}Bayes Information criterion for model's within Group 1. Respectively, this includes our naive ratings model, our proxy variable model, and our WLS model}
+
+\begin{tabular}{llllllll}
+\toprule
+Modnames & \multicolumn{1}{c}{K} & \multicolumn{1}{c}{BIC} & \multicolumn{1}{c}{Delta\_BIC} & \multicolumn{1}{c}{ModelLik} & \multicolumn{1}{c}{BICWt} & \multicolumn{1}{c}{LL} & \multicolumn{1}{c}{Cum.Wt}\\
+\midrule
+Weighted Least-Squares & 5.00 & -489.16 & 0.00 & 1.00 & 0.96 & 259.50 & 0.96\\
+Proxy Variables & 5.00 & -482.76 & 6.41 & 0.04 & 0.04 & 256.29 & 1.00\\
+Survey Ratings & 5.00 & -307.24 & 181.93 & 0.00 & 0.00 & 168.53 & 1.00\\
+\bottomrule
+\end{tabular}
+
+\end{threeparttable}
+\end{center}
+
+\end{table}
 
 From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models.
 
@@ -1288,11 +1312,12 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{model\_names }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Survey Ratings"}\NormalTok{, }\StringTok{"Proxy Variables"}\NormalTok{, }\StringTok{"Weighted Least{-}Squares"}\NormalTok{)}
 \NormalTok{model\_list }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{(rating\_model, proxy\_model, wls\_model)}
 
+
 \CommentTok{\# Print AIC results}
-\FunctionTok{aictab}\NormalTok{(model\_list, }\AttributeTok{modnames=}\NormalTok{model\_names)}
+\FunctionTok{apa\_table}\NormalTok{(}\FunctionTok{aictab}\NormalTok{(model\_list, }\AttributeTok{modnames=}\NormalTok{model\_names), }\AttributeTok{placement=}\StringTok{"H"}\NormalTok{, }\AttributeTok{caption=}\StringTok{"Akaike\textquotesingle{}s Information criterion for model\textquotesingle{}s within Group 1. Respectively, this includes our naive ratings model, our proxy variable model, and our WLS model"}\NormalTok{)}
 
 \CommentTok{\# Print BIC for each model}
-\FunctionTok{bictab}\NormalTok{(model\_list, }\AttributeTok{modnames=}\NormalTok{model\_names)}
+\FunctionTok{apa\_table}\NormalTok{(}\FunctionTok{bictab}\NormalTok{(model\_list, }\AttributeTok{modnames=}\NormalTok{model\_names), }\AttributeTok{placement=}\StringTok{"H"}\NormalTok{, }\AttributeTok{caption=}\StringTok{"Bayes Information criterion for model\textquotesingle{}s within Group 1. Respectively, this includes our naive ratings model, our proxy variable model, and our WLS model"}\NormalTok{)}
 \NormalTok{test\_pred1 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(svmRBTuned, test\_svm }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
 \NormalTok{test\_rsq1 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred1, test\_svm}\SpecialCharTok{$}\NormalTok{college\_rate,}
                            \AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}

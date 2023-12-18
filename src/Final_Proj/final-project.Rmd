@@ -22,7 +22,7 @@ affiliation:
 
 
 abstract: | 
-  We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model. Lastly, we train a radial-basis support vector machine (SVM-RB) model to identify relationships in the underlying data not identified by our linear models. This model finds that the biggest indicators of a school's college persistence rate within our dataset are: conomic need, temporary housing percentages, and asian student percentage. From the features identified in our SVM we run a multiple linear regression model (MLR) to quantify these backward-selected variables' contributions.
+  We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model. Lastly, we train a radial-basis support vector machine (SVM-RB) model and a Lasso regression model to identify relationships in the underlying data not identified by our linear models. From the features identified in our SVM we run a multiple linear regression model (MLR) to quantify these backward-selected variables' contributions as well, to identify the strongest predictors of a high school;s college persistence rate.
 
   
   
@@ -596,7 +596,7 @@ lasso_coefs <- lasso_coefs |>
 
 ### Model Evaluation
 
-To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has `NA` values imputed. The second group of models will be the SVM:RB, Important Features, and Lasso models. This group uses the full dataset (excluding predictors that had `NA` values, as well as observations that had `NA` values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense. 
+To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has `NA` values imputed. The second group of models will be the SVM:RB, Important features, and Lasso models. This group uses the full dataset (excluding predictors that had `NA` values, as well as observations that had `NA` values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense. 
 
 
 ### Group 1 Models:
@@ -639,11 +639,12 @@ We can also use the Akaike and Bayesian Information Criterion for evaluating the
 model_names <- c("Survey Ratings", "Proxy Variables", "Weighted Least-Squares")
 model_list <- list(rating_model, proxy_model, wls_model)
 
+
 # Print AIC results
-aictab(model_list, modnames=model_names)
+apa_table(aictab(model_list, modnames=model_names), placement="H", caption="Akaike's Information criterion for model's within Group 1. Respectively, this includes our naive ratings model, our proxy variable model, and our WLS model")
 
 # Print BIC for each model
-bictab(model_list, modnames=model_names)
+apa_table(bictab(model_list, modnames=model_names), placement="H", caption="Bayes Information criterion for model's within Group 1. Respectively, this includes our naive ratings model, our proxy variable model, and our WLS model")
 ```
 From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models.
 
@@ -680,7 +681,7 @@ tbl <- tbl |>
 apa_table(tbl, placement = "H")
 
 ```
-In Group 2, the SVM:RB model has the highest Predictive R-Squared and the lowest RMSE, but it's a very close match between this model and the Lasso model. 
+In Group 2, the SVM:RB model has the highest Predictive R-Squared and the lowest RMSE, but it's a very close match between this model and the Lasso model.
 
 # Conclusion
 Overall, our model to predict a high school's college persistence rate based on socioeconomic proxy variables outperformed the NYC Schools Open Survey Quality ratings of schools. This is not to say that school ratings based on teacher, student, and parent responses are not valuable inputs. However, they should not be the sole basis upon which educational policy decisions are made, considering the collective socioeconomic factors that most influence a school's performance.
