@@ -312,9 +312,9 @@ We begin by taking a look at a summary of the dataset's completeness.
  & \multicolumn{1}{c}{}\\
 \midrule
 rows & 487\\
-columns & 393\\
+columns & 391\\
 all\_missing\_columns & 12\\
-total\_missing\_values & 47359\\
+total\_missing\_values & 47332\\
 complete\_rows & 0\\
 \bottomrule
 \end{tabular}
@@ -359,7 +359,7 @@ principal\\
 
 We create a 20\% holdout set of data to be used later on in order to evaluate the efficacy of our model's predictive capability. The remaining 80\% of the data is to be used for model training and exploratory data analysis (EDA).
 
-For ease of single-node computation, we'll select the variables of interest from our dataset. Notably, these are the survey ratings, enrollment levels, and our preferred proxy variables for each school.
+For ease of single-node computation, we reduce our primary datasets to our primary variables of interest. Notably, these are the survey ratings, enrollment levels, and our preferred proxy variables for each school. We retain secondary datasets, which contain all variables for which there are no missing values, for later use when developing certain models.
 
 We take a look at whether the reduced training dataset contains any missing values and what the spread is.
 
@@ -642,7 +642,7 @@ We also fit a weighted-least squares (WLS) model to our proxy variables to accou
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/plot-wls-model-1} \caption{ }\label{fig:plot-wls-model}
 \end{figure}
 
-From our diagnostic plots of the WLS model above, we see no general pattern in the \emph{Residuals vs Fitted} plot. In addition, our QQ plot shows general normality behavior, with some behavior off the trendline near the tails of the distribution. Similar to above, we can run a Shapiro test on the residuals of the WLS model to assess normality of residuals, with the same alternative and null hypotheses as above:
+From our diagnostic plots of the WLS model above, we see no general pattern in the \emph{Residuals vs Fitted} plot. In addition, our Q-Q plot shows general normality behavior, with some behavior off the trendline near the tails of the distribution. Similar to above, we can run a Shapiro test on the residuals of the WLS model to assess normality of residuals, with the same alternative and null hypotheses as above:
 
 \begin{verbatim}
 ## 
@@ -652,9 +652,9 @@ From our diagnostic plots of the WLS model above, we see no general pattern in t
 ## W = 0.99724, p-value = 0.7594
 \end{verbatim}
 
-Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed,
+Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed.
 
-In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. (Predictors with \texttt{NA} values have been excluded from consideration due to the undesirably large amount of imputation required.)
+In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured so far, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. SVMs effectively find hyperplanes that divide classes within data well, and they are particularly useful for datasets with large numbers of features. (Predictors with \texttt{NA} values in the original dataset have been excluded from consideration due to the undesirably large amount of imputation that would have been required, as SVMs can't handle missing data.) Radial Basis is simply one of several kernel functions we could have chosen, and it effectively defines the shape of the classification boundaries the model makes.
 
 A summary of the ideal tuning parameters and R-Squared value for the SVM:RB model is below:
 
@@ -669,7 +669,7 @@ A summary of the ideal tuning parameters and R-Squared value for the SVM:RB mode
 \toprule
 Model & \multicolumn{1}{c}{sigma} & \multicolumn{1}{c}{C} & \multicolumn{1}{c}{R-Squared}\\
 \midrule
-SVM:RB & 0.0244 & 1 & 0.6619\\
+SVM:RB & 0.025 & 0.5 & 0.6619\\
 \bottomrule
 \end{tabular}
 
@@ -681,9 +681,87 @@ SVM:RB & 0.0244 & 1 & 0.6619\\
 A summary of the estimated feature importance for the ten most important features in this SVM:RB model is below:
 
 \includegraphics{final-project_files/figure-latex/unnamed-chunk-9-1.pdf}
-We can see that the SVM:RB model includes two of our proxy variables in its top ten most important features list: \texttt{temp\_housing\_pct} and \texttt{economic\_need}. However, the single most important feature to the SVM:RB model is \texttt{ethnicity\_asian\_pct}, and the model considers other race and gender percentages important in predicting \texttt{college\_rate} as well. It is not surprising that race and gender play a role in the college persistence rate, and that could be another avenue of analysis. We will not evaluate the SVM:RB further, as our analysis is more focused on linear regression using our selected proxy variables.
+We can see that the SVM:RB model includes two of our proxy variables in its top ten most important features list: \texttt{temp\_housing\_pct} and \texttt{economic\_need}. However, the single most important feature to the SVM:RB model is \texttt{ethnicity\_asian\_pct}, and the model considers other race and gender percentages important in predicting \texttt{college\_rate} as well. It is not surprising that the student body race and gender percentages play a role in college persistence rates, and that could be a fruitful alternative avenue of analysis.
 
-Alternatively, we will train a lasso model as a means of feature selection. The ridge-regression penalty \(\lambda\) is fixed at 0, and we will tune over a number of lasso penalties. (Predictors with \texttt{NA} values have again been excluded from consideration due to the undesirably large amount of imputation required.)
+We build a multiple linear regression model using the ten most important features identified in the SVM:RB model, reduced via backward selection.
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = college_rate ~ ethnicity_asian_pct + hs_overage_undercredit_hoi_pct + 
+##     cap_ctt_pct + hra_elig_pct + gender_male_pct + ELL, data = train_svm)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -0.49534 -0.05954  0.00093  0.06959  0.26903 
+## 
+## Coefficients:
+##                                Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)                     1.00518    0.03444  29.186  < 2e-16 ***
+## ethnicity_asian_pct             0.23434    0.04685   5.002 8.93e-07 ***
+## hs_overage_undercredit_hoi_pct -1.19117    0.12917  -9.221  < 2e-16 ***
+## cap_ctt_pct                    -0.43102    0.12800  -3.367 0.000841 ***
+## hra_elig_pct                   -0.30990    0.04482  -6.914 2.17e-11 ***
+## gender_male_pct                -0.22074    0.04067  -5.427 1.06e-07 ***
+## ELL                            -0.08866    0.04444  -1.995 0.046818 *  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.1033 on 358 degrees of freedom
+## Multiple R-squared:  0.6838, Adjusted R-squared:  0.6785 
+## F-statistic:   129 on 6 and 358 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+The only predictors that remain after backward selection are \texttt{ethnicity\_asian\_pct}, \texttt{hs\_overage\_undercredit\_hoi\_pct}, \texttt{cap\_ctt\_pct}, \texttt{hra\_elig\_pct}, \texttt{gender\_male\_pct}, and \texttt{ELL}. A higher percentage of Asian students has a positive impact on college persistence rates, while having a higher percentage of overage students who are undercredited, having a higher percentage of students recommended for integrated co-teaching, having a higher rate of HRA eligible students, having a higher percentage of male students, and having a higher percentage of students whose language spoken at home is not English all have a negative impact on college persistence rates. (Note that while \texttt{economic\_need} was not significant to this model after backward selection, some variables that contribute to this composite variable were: \texttt{hra\_elig\_pct} and \texttt{ELL}.)
+
+We find our important features model produces an adjusted R-squared of \(R^2_{adj} = 0.68\). We also check for multicollinearity within this model.
+
+\begin{table}[H]
+
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:imp-feat-model-vif-check}Variance Inflation Factors}
+
+\begin{tabular}{ll}
+\toprule
+ & \multicolumn{1}{c}{VIF Value}\\
+\midrule
+ethnicity\_asian\_pct & 1.48\\
+hs\_overage\_undercredit\_hoi\_pct & 2.04\\
+cap\_ctt\_pct & 2.02\\
+hra\_elig\_pct & 1.80\\
+gender\_male\_pct & 1.08\\
+ELL & 2.27\\
+\bottomrule
+\end{tabular}
+
+\end{threeparttable}
+\end{center}
+
+\end{table}
+
+None of the variance inflation factors are greater than five, so there are no multicollinearity issues to address for this model.
+
+We produce diagnostic plots for the model below.
+
+\begin{figure}[H]
+\includegraphics[width=\textwidth]{final-project_files/figure-latex/plot-imp-feat-model-1} \caption{ }\label{fig:plot-imp-feat-model}
+\end{figure}
+
+There are some issues revealed by the diagnostic plots. The residuals vs.~fitted values aren't evenly distributed around zero, and the Q-Q residuals deviate from the normal line at the low end. There are no high leverage points, but point 62 comes closest and is one of the problematic points in all the diagnostic plots. We run a Shapiro test on the residuals of the Important Features model to assess normality of residuals, with the same alternative and null hypotheses as above.
+
+\begin{verbatim}
+## 
+##  Shapiro-Wilk normality test
+## 
+## data:  imp_feat_model$residuals
+## W = 0.97229, p-value = 1.914e-06
+\end{verbatim}
+
+The low p-value here suggests the residuals do not come from a normal distribution. This is not surprising after reviewing the diagnostic plots, and it makes sense that building a multiple linear regression model with variables selected by a nonlinear model could produce non-normal residuals.
+
+Lastly, we train a lasso model as an alternative means of feature selection. The ridge-regression penalty \(\lambda\) is fixed at 0, and we will tune over a number of lasso penalties. These lasso penalties penalize the model according to the sum of the absolute values of weights in it, and as such, we end up with a model where many less important variables are given zero weight. (Predictors with \texttt{NA} values in the original dataset have again been excluded from consideration due to the undesirably large amount of imputation that would have been required.)
 
 A summary of the ideal tuning parameters and R-Squared value for the lasso model is below:
 
@@ -692,13 +770,13 @@ A summary of the ideal tuning parameters and R-Squared value for the lasso model
 \begin{center}
 \begin{threeparttable}
 
-\caption{\label{tab:unnamed-chunk-10}}
+\caption{\label{tab:unnamed-chunk-11}}
 
 \begin{tabular}{llll}
 \toprule
 Model & \multicolumn{1}{c}{lambda} & \multicolumn{1}{c}{lasso penalty} & \multicolumn{1}{c}{R-Squared}\\
 \midrule
-Lasso & 0 & 0.05 & 0.6897\\
+Lasso & 0 & 0.05 & 0.6894\\
 \bottomrule
 \end{tabular}
 
@@ -707,14 +785,14 @@ Lasso & 0 & 0.05 & 0.6897\\
 
 \end{table}
 
-A summary of the estimated feature importance for the twenty-five most important features in this lasso model is below:
+A summary of the estimated feature importance for the ten most important features in this lasso model is below:
 
 \begin{table}[H]
 
 \begin{center}
 \begin{threeparttable}
 
-\caption{\label{tab:unnamed-chunk-11}}
+\caption{\label{tab:unnamed-chunk-12}}
 
 \begin{tabular}{ll}
 \toprule
@@ -722,7 +800,6 @@ Predictor & \multicolumn{1}{c}{Importance}\\
 \midrule
 hs\_overage\_undercredit\_hoi\_pct & 100.00\\
 temp\_housing\_pct & 87.81\\
-eni\_hs\_pct\_912 & 76.78\\
 economic\_need & 76.78\\
 ELL & 69.99\\
 hra\_elig\_pct & 68.80\\
@@ -731,20 +808,6 @@ ethnicity\_asian\_pct & 45.16\\
 ethnicity\_white\_pct & 40.30\\
 IEP & 39.84\\
 cap\_ctt\_pct & 33.81\\
-n\_credit\_10\_pct\_yr1 & 32.32\\
-ethnicity\_hispanic\_pct & 27.05\\
-enrollment & 21.46\\
-gender\_male\_pct & 21.37\\
-gender\_female\_pct & 21.34\\
-ethnicity\_black\_pct & 20.52\\
-n\_chronic\_absent\_hs\_all & 20.21\\
-near\_pct\_white & 20.01\\
-n\_attendance\_remote\_hs\_all & 19.79\\
-near\_pct\_asian & 19.40\\
-n\_attendance\_hs\_all & 17.88\\
-near\_pct\_hispanic & 11.95\\
-near\_pct\_black & 10.02\\
-n\_chronic\_absent\_hs\_alleh & 9.39\\
 \bottomrule
 \end{tabular}
 
@@ -753,7 +816,9 @@ n\_chronic\_absent\_hs\_alleh & 9.39\\
 
 \end{table}
 
-In the lasso model, \texttt{temp\_housing\_pct} and \texttt{economic\_need} are more important than any race or gender percentage variables, unlike in the SVM:RB model.
+In the lasso model, \texttt{temp\_housing\_pct} and \texttt{economic\_need} are relatively more important than any race or gender percentage variables, unlike in the SVM:RB model. The most important variable is \texttt{hs\_overage\_undercredit\_hoi\_pct}.
+
+Here is a summary of the predicted coefficients in the lasso model, including those given zero weight:
 
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
@@ -761,22 +826,25 @@ In the lasso model, \texttt{temp\_housing\_pct} and \texttt{economic\_need} are 
 \hypertarget{model-evaluation}{%
 \subsubsection{Model Evaluation}\label{model-evaluation}}
 
-We compute the Root mean-squared error (RMSE) for each model on our testing data.
+To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has \texttt{NA} values imputed. The second group of models will be the SVM:RB, Important Features, and Lasso models. This group uses the full dataset (excluding predictors that had \texttt{NA} values, as well as observations that had \texttt{NA} values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense.
+
+\hypertarget{group-1-models}{%
+\subsubsection{Group 1 Models:}\label{group-1-models}}
 
 \begin{table}[H]
 
 \begin{center}
 \begin{threeparttable}
 
-\caption{\label{tab:RMSE}}
+\caption{\label{tab:pred-rsquared-RMSE}}
 
-\begin{tabular}{ll}
+\begin{tabular}{llll}
 \toprule
-Model & \multicolumn{1}{c}{RMSE}\\
+Group & \multicolumn{1}{c}{Model} & \multicolumn{1}{c}{Predictive R-Squared} & \multicolumn{1}{c}{RMSE}\\
 \midrule
-Survey Ratings & 0.164516688701194\\
-Proxy Variables & 0.142584652490112\\
-Weighted Least-Squares & 0.143462660716711\\
+Group 1 & Survey Ratings & 0.0115 & 0.1645\\
+Group 1 & Proxy Variables & 0.2575 & 0.1426\\
+Group 1 & Weighted Least-Squares & 0.2483 & 0.1435\\
 \bottomrule
 \end{tabular}
 
@@ -785,7 +853,9 @@ Weighted Least-Squares & 0.143462660716711\\
 
 \end{table}
 
-The Proxy Variables model has the lowest RMSE. We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of our models.
+In Group 1, the Proxy Variables model has the highest Predictive R-Squared and the lowest RMSE.
+
+We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of the Group 1 models.
 
 \begin{verbatim}
 ## 
@@ -807,7 +877,34 @@ The Proxy Variables model has the lowest RMSE. We can also use the Akaike and Ba
 ## Survey Ratings         5 -307.24    181.93  0.00   1.00 168.53
 \end{verbatim}
 
-From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models
+From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models.
+
+\hypertarget{group-2-models}{%
+\subsubsection{Group 2 Models:}\label{group-2-models}}
+
+\begin{table}[H]
+
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:unnamed-chunk-14}}
+
+\begin{tabular}{llll}
+\toprule
+Group & \multicolumn{1}{c}{Model} & \multicolumn{1}{c}{Predictive R-Squared} & \multicolumn{1}{c}{RMSE}\\
+\midrule
+Group 2 & SVM:RB & 0.559 & 0.1097\\
+Group 2 & Important Features (MLR) & 0.4779 & 0.1194\\
+Group 2 & Lasso & 0.5579 & 0.1098\\
+\bottomrule
+\end{tabular}
+
+\end{threeparttable}
+\end{center}
+
+\end{table}
+
+In Group 2, the SVM:RB model has the highest Predictive R-Squared and the lowest RMSE, but it's a very close match between this model and the Lasso model.
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
@@ -887,7 +984,11 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(df[, label\_cols], }\FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{lapply}\NormalTok{(df[,}\SpecialCharTok{!}\FunctionTok{names}\NormalTok{(df) }\SpecialCharTok{\%in\%}\NormalTok{ label\_cols], as.numeric)))}
 
 \NormalTok{df}\SpecialCharTok{$}\NormalTok{college\_rate }\OtherTok{\textless{}{-}}\NormalTok{ df}\SpecialCharTok{$}\NormalTok{val\_persist3\_4yr\_all}
+\NormalTok{df }\OtherTok{\textless{}{-}}\NormalTok{ df }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{val\_persist3\_4yr\_all)}
 \NormalTok{df}\SpecialCharTok{$}\NormalTok{economic\_need }\OtherTok{\textless{}{-}}\NormalTok{ df}\SpecialCharTok{$}\NormalTok{eni\_hs\_pct\_912}
+\NormalTok{df }\OtherTok{\textless{}{-}}\NormalTok{ df }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{eni\_hs\_pct\_912)}
 \NormalTok{remove }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"discrete\_columns"}\NormalTok{, }\StringTok{"continuous\_columns"}\NormalTok{,}
             \StringTok{"total\_observations"}\NormalTok{, }\StringTok{"memory\_usage"}\NormalTok{)}
 \NormalTok{completeness }\OtherTok{\textless{}{-}} \FunctionTok{introduce}\NormalTok{(df) }\SpecialCharTok{|\textgreater{}}
@@ -911,8 +1012,19 @@ Below is the code used to generate this report. It's also available on \href{htt
 \CommentTok{\# Adding a 20\% holdout of our input data for model evaluation later}
 \NormalTok{train }\OtherTok{\textless{}{-}} \FunctionTok{subset}\NormalTok{(df[}\FunctionTok{sample}\NormalTok{(}\DecValTok{1}\SpecialCharTok{:}\FunctionTok{nrow}\NormalTok{(df)), ]) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{sample\_frac}\NormalTok{(}\FloatTok{0.8}\NormalTok{)}
 \NormalTok{train\_svm }\OtherTok{\textless{}{-}}\NormalTok{ train }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{all\_of}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"dbn"}\NormalTok{, }\StringTok{"school\_name"}\NormalTok{, }\StringTok{"school\_type"}\NormalTok{)))}
+\NormalTok{na\_count }\OtherTok{\textless{}{-}}\FunctionTok{sapply}\NormalTok{(train\_svm, }\ControlFlowTok{function}\NormalTok{(y) }\FunctionTok{sum}\NormalTok{(}\FunctionTok{length}\NormalTok{(}\FunctionTok{which}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(y)))))}
+\NormalTok{na\_count }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(na\_count)}
+\NormalTok{na\_count }\OtherTok{\textless{}{-}}\NormalTok{ na\_count }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{filter}\NormalTok{(na\_count }\SpecialCharTok{==} \DecValTok{0}\NormalTok{)}
+\NormalTok{incl }\OtherTok{\textless{}{-}} \FunctionTok{rownames}\NormalTok{(na\_count)}
+\NormalTok{train\_svm }\OtherTok{\textless{}{-}}\NormalTok{ train\_svm }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"college\_rate"}\NormalTok{, incl))) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{drop\_na}\NormalTok{(college\_rate)}
 \NormalTok{test  }\OtherTok{\textless{}{-}}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{anti\_join}\NormalTok{(df, train, }\AttributeTok{by =} \StringTok{\textquotesingle{}dbn\textquotesingle{}}\NormalTok{)}
 \NormalTok{test\_svm }\OtherTok{\textless{}{-}}\NormalTok{ test }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{all\_of}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"dbn"}\NormalTok{, }\StringTok{"school\_name"}\NormalTok{, }\StringTok{"school\_type"}\NormalTok{)))}
+\NormalTok{test\_svm }\OtherTok{\textless{}{-}}\NormalTok{ test\_svm }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"college\_rate"}\NormalTok{, incl))) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{drop\_na}\NormalTok{(college\_rate)}
 
 \NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"survey\_pp\_CT"}\NormalTok{, }\StringTok{"survey\_pp\_RI"}\NormalTok{,}
           \StringTok{"survey\_pp\_ES"}\NormalTok{, }\StringTok{"survey\_pp\_SE"}\NormalTok{,}
@@ -1046,13 +1158,6 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mai=}\FunctionTok{c}\NormalTok{(.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{))}
 \FunctionTok{plot}\NormalTok{(wls\_model)}
 \FunctionTok{shapiro.test}\NormalTok{(wls\_model}\SpecialCharTok{$}\NormalTok{residuals)}
-\NormalTok{na\_count }\OtherTok{\textless{}{-}}\FunctionTok{sapply}\NormalTok{(train\_svm, }\ControlFlowTok{function}\NormalTok{(y) }\FunctionTok{sum}\NormalTok{(}\FunctionTok{length}\NormalTok{(}\FunctionTok{which}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(y)))))}
-\NormalTok{na\_count }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(na\_count)}
-\NormalTok{na\_count }\OtherTok{\textless{}{-}}\NormalTok{ na\_count }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{filter}\NormalTok{(na\_count }\SpecialCharTok{==} \DecValTok{0}\NormalTok{)}
-\NormalTok{incl }\OtherTok{\textless{}{-}} \FunctionTok{rownames}\NormalTok{(na\_count)}
-\NormalTok{train\_svm }\OtherTok{\textless{}{-}}\NormalTok{ train\_svm }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{drop\_na}\NormalTok{(college\_rate)}
 \NormalTok{svmRBTuned }\OtherTok{\textless{}{-}} \FunctionTok{train}\NormalTok{(train\_svm }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(incl)), train\_svm}\SpecialCharTok{$}\NormalTok{college\_rate,}
                     \AttributeTok{method =} \StringTok{"svmRadial"}\NormalTok{,}
                     \AttributeTok{preProc =} \FunctionTok{c}\NormalTok{(}\StringTok{"center"}\NormalTok{, }\StringTok{"scale"}\NormalTok{),}
@@ -1099,7 +1204,22 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{mgraph}\NormalTok{(copy, }\AttributeTok{graph =} \StringTok{"IMP"}\NormalTok{, }\AttributeTok{leg =}\NormalTok{ names, }\AttributeTok{col =} \StringTok{"gray"}\NormalTok{,}
        \AttributeTok{PDF =} \StringTok{""}\NormalTok{)}
 
+\NormalTok{imp\_feat\_form }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ ethnicity\_asian\_pct }\SpecialCharTok{+}\NormalTok{ hs\_overage\_undercredit\_hoi\_pct }\SpecialCharTok{+}\NormalTok{ ethnicity\_amerindian\_pct }\SpecialCharTok{+}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ cap\_ctt\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need }\SpecialCharTok{+}\NormalTok{ hra\_elig\_pct }\SpecialCharTok{+}\NormalTok{ gender\_male\_pct }\SpecialCharTok{+}\NormalTok{ gender\_female\_pct }\SpecialCharTok{+}\NormalTok{ ELL}
+\NormalTok{imp\_feat\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(imp\_feat\_form, train\_svm)}
+\NormalTok{imp\_feat\_model }\OtherTok{\textless{}{-}} \FunctionTok{update}\NormalTok{(imp\_feat\_model, . }\SpecialCharTok{\textasciitilde{}}\NormalTok{ . }\SpecialCharTok{{-}}\NormalTok{ ethnicity\_amerindian\_pct }\SpecialCharTok{{-}}\NormalTok{ gender\_female\_pct }\SpecialCharTok{{-}}\NormalTok{ economic\_need }\SpecialCharTok{{-}}\NormalTok{ temp\_housing\_pct)}
+\FunctionTok{summary}\NormalTok{(imp\_feat\_model)}
+
+\NormalTok{vif\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{vif}\NormalTok{(imp\_feat\_model))}
+\FunctionTok{colnames}\NormalTok{(vif\_df) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"VIF Value"}\NormalTok{)}
+\FunctionTok{apa\_table}\NormalTok{(vif\_df, }\AttributeTok{caption =} \StringTok{"Variance Inflation Factors"}\NormalTok{, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
+
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mai=}\FunctionTok{c}\NormalTok{(.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{))}
+\FunctionTok{plot}\NormalTok{(imp\_feat\_model)}
+
+\FunctionTok{shapiro.test}\NormalTok{(imp\_feat\_model}\SpecialCharTok{$}\NormalTok{residuals)}
 \NormalTok{train\_lasso }\OtherTok{\textless{}{-}}\NormalTok{ train\_svm}
+\NormalTok{test\_lasso }\OtherTok{\textless{}{-}}\NormalTok{ test\_svm}
 \NormalTok{lassoGrid }\OtherTok{\textless{}{-}} \FunctionTok{expand.grid}\NormalTok{(}\AttributeTok{.lambda =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{),}
                          \AttributeTok{.fraction =} \FunctionTok{seq}\NormalTok{(.}\DecValTok{05}\NormalTok{, }\DecValTok{1}\NormalTok{, }\AttributeTok{length =} \DecValTok{20}\NormalTok{))}
 \NormalTok{ctrl }\OtherTok{\textless{}{-}} \FunctionTok{trainControl}\NormalTok{(}\AttributeTok{method =} \StringTok{"cv"}\NormalTok{, }\AttributeTok{number =} \DecValTok{10}\NormalTok{)}
@@ -1128,19 +1248,44 @@ Below is the code used to generate this report. It's also available on \href{htt
 \FunctionTok{colnames}\NormalTok{(lasso\_imp) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
 \NormalTok{lasso\_imp }\OtherTok{\textless{}{-}}\NormalTok{ lasso\_imp }\SpecialCharTok{|\textgreater{}}
     \FunctionTok{arrange}\NormalTok{(}\FunctionTok{desc}\NormalTok{(Importance)) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{top\_n}\NormalTok{(}\DecValTok{25}\NormalTok{)}
+    \FunctionTok{top\_n}\NormalTok{(}\DecValTok{10}\NormalTok{)}
 \FunctionTok{apa\_table}\NormalTok{(lasso\_imp, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
 
-\CommentTok{\# Compute RMSE for each model on our testing data}
-\NormalTok{model\_names }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Survey Ratings"}\NormalTok{, }\StringTok{"Proxy Variables"}\NormalTok{, }\StringTok{"Weighted Least{-}Squares"}\NormalTok{)}
-\NormalTok{rmse\_summ }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\FunctionTok{rmse}\NormalTok{(rating\_model, test),}
-\NormalTok{               modelr}\SpecialCharTok{::}\FunctionTok{rmse}\NormalTok{(proxy\_model, test),}
-\NormalTok{               modelr}\SpecialCharTok{::}\FunctionTok{rmse}\NormalTok{(wls\_model, test))}
-\NormalTok{rmse\_summ }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{cbind}\NormalTok{(model\_names, rmse\_summ))}
-\NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Model"}\NormalTok{, }\StringTok{"RMSE"}\NormalTok{)}
-\FunctionTok{colnames}\NormalTok{(rmse\_summ) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
-\FunctionTok{apa\_table}\NormalTok{(rmse\_summ, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
+\NormalTok{lasso\_coefs }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{predict.enet}\NormalTok{(lassoTune}\SpecialCharTok{$}\NormalTok{finalModel, }\AttributeTok{s=}\NormalTok{lassoTune}\SpecialCharTok{$}\NormalTok{bestTune[}\DecValTok{1}\NormalTok{, }\StringTok{"fraction"}\NormalTok{], }\AttributeTok{type=}\StringTok{"coef"}\NormalTok{, }\AttributeTok{mode=}\StringTok{"fraction"}\NormalTok{)}\SpecialCharTok{$}\NormalTok{coefficients)}
+\NormalTok{lasso\_coefs }\OtherTok{\textless{}{-}}\NormalTok{ lasso\_coefs }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{rownames\_to\_column}\NormalTok{()}
+\NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Predcitor"}\NormalTok{, }\StringTok{"Coef"}\NormalTok{)}
+\FunctionTok{colnames}\NormalTok{(lasso\_coefs) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
+\NormalTok{lasso\_coefs }\OtherTok{\textless{}{-}}\NormalTok{ lasso\_coefs }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{arrange}\NormalTok{(}\FunctionTok{desc}\NormalTok{(}\FunctionTok{abs}\NormalTok{(Coef)))}
 
+\NormalTok{test\_pred1 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(rating\_model, test }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
+\NormalTok{test\_rsq1 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred1, test}\SpecialCharTok{$}\NormalTok{college\_rate, }\AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}
+\NormalTok{test\_rmse1 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{RMSE}\NormalTok{(test\_pred1, test}\SpecialCharTok{$}\NormalTok{college\_rate))}
+\NormalTok{row1 }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(}\StringTok{"Survey Ratings"}\NormalTok{,}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rsq1, }\DecValTok{4}\NormalTok{)),}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rmse1, }\DecValTok{4}\NormalTok{)))}
+\NormalTok{test\_pred2 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(proxy\_model, test }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
+\NormalTok{test\_rsq2 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred2, test}\SpecialCharTok{$}\NormalTok{college\_rate, }\AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}
+\NormalTok{test\_rmse2 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{RMSE}\NormalTok{(test\_pred2, test}\SpecialCharTok{$}\NormalTok{college\_rate))}
+\NormalTok{row2 }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(}\StringTok{"Proxy Variables"}\NormalTok{,}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rsq2, }\DecValTok{4}\NormalTok{)),}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rmse2, }\DecValTok{4}\NormalTok{)))}
+\NormalTok{test\_pred3 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(wls\_model, test }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
+\NormalTok{test\_rsq3 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred3, test}\SpecialCharTok{$}\NormalTok{college\_rate, }\AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}
+\NormalTok{test\_rmse3 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{RMSE}\NormalTok{(test\_pred3, test}\SpecialCharTok{$}\NormalTok{college\_rate))}
+\NormalTok{row3 }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(}\StringTok{"Weighted Least{-}Squares"}\NormalTok{,}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rsq3, }\DecValTok{4}\NormalTok{)),}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rmse3, }\DecValTok{4}\NormalTok{)))}
+\NormalTok{tbl }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{rbind}\NormalTok{(row1, row2, row3))}
+\NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Model"}\NormalTok{, }\StringTok{"Predictive R{-}Squared"}\NormalTok{, }\StringTok{"RMSE"}\NormalTok{)}
+\FunctionTok{colnames}\NormalTok{(tbl) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
+\NormalTok{tbl }\OtherTok{\textless{}{-}}\NormalTok{ tbl }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{Group =} \StringTok{"Group 1"}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(Group, }\FunctionTok{everything}\NormalTok{())}
+\FunctionTok{apa\_table}\NormalTok{(tbl, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
+
+\NormalTok{model\_names }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Survey Ratings"}\NormalTok{, }\StringTok{"Proxy Variables"}\NormalTok{, }\StringTok{"Weighted Least{-}Squares"}\NormalTok{)}
 \NormalTok{model\_list }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{(rating\_model, proxy\_model, wls\_model)}
 
 \CommentTok{\# Print AIC results}
@@ -1148,6 +1293,34 @@ Below is the code used to generate this report. It's also available on \href{htt
 
 \CommentTok{\# Print BIC for each model}
 \FunctionTok{bictab}\NormalTok{(model\_list, }\AttributeTok{modnames=}\NormalTok{model\_names)}
+\NormalTok{test\_pred1 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(svmRBTuned, test\_svm }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
+\NormalTok{test\_rsq1 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred1, test\_svm}\SpecialCharTok{$}\NormalTok{college\_rate,}
+                           \AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}
+\NormalTok{test\_rmse1 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{RMSE}\NormalTok{(test\_pred1, test\_svm}\SpecialCharTok{$}\NormalTok{college\_rate))}
+\NormalTok{row1 }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(}\StringTok{"SVM:RB"}\NormalTok{,}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rsq1, }\DecValTok{4}\NormalTok{)),}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rmse1, }\DecValTok{4}\NormalTok{)))}
+\NormalTok{test\_pred2 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(imp\_feat\_model, test\_svm }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
+\NormalTok{test\_rsq2 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred2, test\_svm}\SpecialCharTok{$}\NormalTok{college\_rate,}
+                           \AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}
+\NormalTok{test\_rmse2 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{RMSE}\NormalTok{(test\_pred2, test\_svm}\SpecialCharTok{$}\NormalTok{college\_rate))}
+\NormalTok{row2 }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(}\StringTok{"Important Features (MLR)"}\NormalTok{,}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rsq2, }\DecValTok{4}\NormalTok{)),}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rmse2, }\DecValTok{4}\NormalTok{)))}
+\NormalTok{test\_pred3 }\OtherTok{\textless{}{-}} \FunctionTok{predict}\NormalTok{(lassoTune, test\_lasso }\SpecialCharTok{|\textgreater{}} \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{college\_rate))}
+\NormalTok{test\_rsq3 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{R2}\NormalTok{(test\_pred3, test\_lasso}\SpecialCharTok{$}\NormalTok{college\_rate,}
+                           \AttributeTok{form =} \StringTok{"traditional"}\NormalTok{))}
+\NormalTok{test\_rmse3 }\OtherTok{\textless{}{-}} \FunctionTok{as.numeric}\NormalTok{(}\FunctionTok{RMSE}\NormalTok{(test\_pred3, test\_lasso}\SpecialCharTok{$}\NormalTok{college\_rate))}
+\NormalTok{row3 }\OtherTok{\textless{}{-}} \FunctionTok{cbind}\NormalTok{(}\StringTok{"Lasso"}\NormalTok{,}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rsq3, }\DecValTok{4}\NormalTok{)),}
+              \FunctionTok{as.character}\NormalTok{(}\FunctionTok{round}\NormalTok{(test\_rmse3, }\DecValTok{4}\NormalTok{)))}
+\NormalTok{tbl }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{rbind}\NormalTok{(row1, row2, row3))}
+\NormalTok{cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Model"}\NormalTok{, }\StringTok{"Predictive R{-}Squared"}\NormalTok{, }\StringTok{"RMSE"}\NormalTok{)}
+\FunctionTok{colnames}\NormalTok{(tbl) }\OtherTok{\textless{}{-}}\NormalTok{ cols}
+\NormalTok{tbl }\OtherTok{\textless{}{-}}\NormalTok{ tbl }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{Group =} \StringTok{"Group 2"}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(Group, }\FunctionTok{everything}\NormalTok{())}
+\FunctionTok{apa\_table}\NormalTok{(tbl, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 

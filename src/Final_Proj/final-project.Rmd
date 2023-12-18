@@ -114,7 +114,11 @@ label_cols <- c("dbn", "school_name", "school_type")
 df <- cbind(df[, label_cols], as.data.frame(lapply(df[,!names(df) %in% label_cols], as.numeric)))
 
 df$college_rate <- df$val_persist3_4yr_all
+df <- df |>
+    select(-val_persist3_4yr_all)
 df$economic_need <- df$eni_hs_pct_912
+df <- df |>
+    select(-eni_hs_pct_912)
 ```
 
 We begin by taking a look at a summary of the dataset's completeness.
@@ -151,11 +155,22 @@ set.seed(42)
 # Adding a 20% holdout of our input data for model evaluation later
 train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
 train_svm <- train |> select(-all_of(c("dbn", "school_name", "school_type")))
+na_count <-sapply(train_svm, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+na_count <- na_count |>
+    filter(na_count == 0)
+incl <- rownames(na_count)
+train_svm <- train_svm |>
+    select(all_of(c("college_rate", incl))) |>
+    drop_na(college_rate)
 test  <- dplyr::anti_join(df, train, by = 'dbn')
 test_svm <- test |> select(-all_of(c("dbn", "school_name", "school_type")))
+test_svm <- test_svm |>
+    select(all_of(c("college_rate", incl))) |>
+    drop_na(college_rate)
 
 ```
-For ease of single-node computation, we'll select the variables of interest from our dataset. Notably, these are the survey ratings, enrollment levels, and our preferred proxy variables for each school.
+For ease of single-node computation, we reduce our primary datasets to our primary variables of interest. Notably, these are the survey ratings, enrollment levels, and our preferred proxy variables for each school. We retain secondary datasets, which contain all variables for which there are no missing values, for later use when developing certain models. 
 
 ```{r }
 cols <- c("survey_pp_CT", "survey_pp_RI",
@@ -400,30 +415,25 @@ wls_model <- lm(proxy_formula, data = train, weights=weights)
 summary(wls_model)
 ```
 
+
 ```{r plot-wls-model, fig.pos='H', out.width="\\textwidth"}
 par(mfrow=c(2,2))
 par(mai=c(.3,.3,.3,.3))
 plot(wls_model)
 ```
 
-From our diagnostic plots of the WLS model above, we see no general pattern in the *Residuals vs Fitted* plot. In addition, our QQ plot shows general normality behavior, with some behavior off the trendline near the tails of the distribution. Similar to above, we can run a Shapiro test on the residuals of the WLS model to assess normality of residuals, with the same alternative and null hypotheses as above:
+From our diagnostic plots of the WLS model above, we see no general pattern in the *Residuals vs Fitted* plot. In addition, our Q-Q plot shows general normality behavior, with some behavior off the trendline near the tails of the distribution. Similar to above, we can run a Shapiro test on the residuals of the WLS model to assess normality of residuals, with the same alternative and null hypotheses as above:
+
 
 ```{r wls-shapiro}
 shapiro.test(wls_model$residuals)
 ```
-Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed, 
 
+Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed.
 
-In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. (Predictors with `NA` values have been excluded from consideration due to the undesirably large amount of imputation required.)
+In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured so far, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. SVMs effectively find hyperplanes that divide classes within data well, and they are particularly useful for datasets with large numbers of features. (Predictors with `NA` values in the original dataset have been excluded from consideration due to the undesirably large amount of imputation that would have been required, as SVMs can't handle missing data.) Radial Basis is simply one of several kernel functions we could have chosen, and it effectively defines the shape of the classification boundaries the model makes.
 
 ```{r }
-na_count <-sapply(train_svm, function(y) sum(length(which(is.na(y)))))
-na_count <- data.frame(na_count)
-na_count <- na_count |>
-    filter(na_count == 0)
-incl <- rownames(na_count)
-train_svm <- train_svm |>
-    drop_na(college_rate)
 svmRBTuned <- train(train_svm |> select(all_of(incl)), train_svm$college_rate,
                     method = "svmRadial",
                     preProc = c("center", "scale"),
@@ -479,12 +489,53 @@ mgraph(copy, graph = "IMP", leg = names, col = "gray",
        PDF = "")
 
 ```
-We can see that the SVM:RB model includes two of our proxy variables in its top ten most important features list: `temp_housing_pct` and `economic_need`. However, the single most important feature to the SVM:RB model is `ethnicity_asian_pct`, and the model considers other race and gender percentages important in predicting `college_rate` as well. It is not surprising that race and gender play a role in the college persistence rate, and that could be another avenue of analysis. We will not evaluate the SVM:RB further, as our analysis is more focused on linear regression using our selected proxy variables. 
+We can see that the SVM:RB model includes two of our proxy variables in its top ten most important features list: `temp_housing_pct` and `economic_need`. However, the single most important feature to the SVM:RB model is `ethnicity_asian_pct`, and the model considers other race and gender percentages important in predicting `college_rate` as well. It is not surprising that the student body race and gender percentages play a role in college persistence rates, and that could be a fruitful alternative avenue of analysis.
 
-Alternatively, we will train a lasso model as a means of feature selection. The ridge-regression penalty $\lambda$ is fixed at 0, and we will tune over a number of lasso penalties. (Predictors with `NA` values have again been excluded from consideration due to the undesirably large amount of imputation required.)
+We build a multiple linear regression model using the ten most important features identified in the SVM:RB model, reduced via backward selection. 
+
+```{r }
+imp_feat_form <- college_rate ~ ethnicity_asian_pct + hs_overage_undercredit_hoi_pct + ethnicity_amerindian_pct + temp_housing_pct + cap_ctt_pct + economic_need + hra_elig_pct + gender_male_pct + gender_female_pct + ELL
+imp_feat_model <- lm(imp_feat_form, train_svm)
+imp_feat_model <- update(imp_feat_model, . ~ . - ethnicity_amerindian_pct - gender_female_pct - economic_need - temp_housing_pct)
+summary(imp_feat_model)
+
+```
+
+The only predictors that remain after backward selection are `ethnicity_asian_pct`, `hs_overage_undercredit_hoi_pct`, `cap_ctt_pct`, `hra_elig_pct`, `gender_male_pct`, and `ELL`. A higher percentage of Asian students has a positive impact on college persistence rates, while having a higher percentage of overage students who are undercredited, having a higher percentage of students recommended for integrated co-teaching, having a higher rate of HRA eligible students, having a higher percentage of male students, and having a higher percentage of students whose language spoken at home is not English all have a negative impact on college persistence rates. (Note that while `economic_need` was not significant to this model after backward selection, some variables that contribute to this composite variable were: `hra_elig_pct` and `ELL`.)
+
+We find our important features model produces an adjusted R-squared of $R^2_{adj} = 0.68$. We also check for multicollinearity within this model.
+
+```{r imp-feat-model-vif-check}
+vif_df <- as.data.frame(vif(imp_feat_model))
+colnames(vif_df) <- c("VIF Value")
+apa_table(vif_df, caption = "Variance Inflation Factors", placement = "H")
+
+```
+
+None of the variance inflation factors are greater than five, so there are no multicollinearity issues to address for this model.
+
+We produce diagnostic plots for the model below. 
+
+```{r plot-imp-feat-model, fig.pos='H', out.width="\\textwidth"}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
+plot(imp_feat_model)
+
+```
+
+There are some issues revealed by the diagnostic plots. The residuals vs. fitted values aren't evenly distributed around zero, and the Q-Q residuals deviate from the normal line at the low end. There are no high leverage points, but point 62 comes closest and is one of the problematic points in all the diagnostic plots. We run a Shapiro test on the residuals of the Important Features model to assess normality of residuals, with the same alternative and null hypotheses as above.
+
+```{r imp-feat-shapiro}
+shapiro.test(imp_feat_model$residuals)
+```
+
+The low p-value here suggests the residuals do not come from a normal distribution. This is not surprising after reviewing the diagnostic plots, and it makes sense that building a multiple linear regression model with variables selected by a nonlinear model could produce non-normal residuals. 
+
+Lastly, we train a lasso model as an alternative means of feature selection. The ridge-regression penalty $\lambda$ is fixed at 0, and we will tune over a number of lasso penalties. These lasso penalties penalize the model according to the sum of the absolute values of weights in it, and as such, we end up with a model where many less important variables are given zero weight. (Predictors with `NA` values in the original dataset have again been excluded from consideration due to the undesirably large amount of imputation that would have been required.)
 
 ```{r train_enet,echo=FALSE,message=FALSE}
 train_lasso <- train_svm
+test_lasso <- test_svm
 lassoGrid <- expand.grid(.lambda = c(0),
                          .fraction = seq(.05, 1, length = 20))
 ctrl <- trainControl(method = "cv", number = 10)
@@ -511,7 +562,7 @@ colnames(lasso_summ) <- cols
 apa_table(lasso_summ, placement = "H")
 
 ```
-A summary of the estimated feature importance for the twenty-five most important features in this lasso model is below:
+A summary of the estimated feature importance for the ten most important features in this lasso model is below:
 
 ```{r }
 lasso_imp <- varImp(lassoTune, scale = TRUE)
@@ -521,34 +572,71 @@ lasso_imp <- lasso_imp$importance |>
 colnames(lasso_imp) <- cols
 lasso_imp <- lasso_imp |>
     arrange(desc(Importance)) |>
-    top_n(25)
+    top_n(10)
 apa_table(lasso_imp, placement = "H")
 
 ```
 
-In the lasso model, `temp_housing_pct` and `economic_need` are more important than any race or gender percentage variables, unlike in the SVM:RB model.
+In the lasso model, `temp_housing_pct` and `economic_need` are relatively more important than any race or gender percentage variables, unlike in the SVM:RB model. The most important variable is `hs_overage_undercredit_hoi_pct`. 
+
+Here is a summary of the predicted coefficients in the lasso model, including those given zero weight:
+
+```{r }
+lasso_coefs <- as.data.frame(predict.enet(lassoTune$finalModel, s=lassoTune$bestTune[1, "fraction"], type="coef", mode="fraction")$coefficients)
+lasso_coefs <- lasso_coefs |>
+    rownames_to_column()
+cols <- c("Predcitor", "Coef")
+colnames(lasso_coefs) <- cols
+lasso_coefs <- lasso_coefs |>
+    arrange(desc(abs(Coef)))
+
+```
 
 # Experimentation and Results
 
 ### Model Evaluation
 
-We compute the Root mean-squared error (RMSE) for each model on our testing data. 
+To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has `NA` values imputed. The second group of models will be the SVM:RB, Important Features, and Lasso models. This group uses the full dataset (excluding predictors that had `NA` values, as well as observations that had `NA` values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense. 
 
-```{r RMSE}
-# Compute RMSE for each model on our testing data
-model_names <- c("Survey Ratings", "Proxy Variables", "Weighted Least-Squares")
-rmse_summ <- c(rmse(rating_model, test),
-               modelr::rmse(proxy_model, test),
-               modelr::rmse(wls_model, test))
-rmse_summ <- as.data.frame(cbind(model_names, rmse_summ))
-cols <- c("Model", "RMSE")
-colnames(rmse_summ) <- cols
-apa_table(rmse_summ, placement = "H")
+
+### Group 1 Models:
+
+```{r pred-rsquared-RMSE}
+test_pred1 <- predict(rating_model, test |> select(-college_rate))
+test_rsq1 <- as.numeric(R2(test_pred1, test$college_rate, form = "traditional"))
+test_rmse1 <- as.numeric(RMSE(test_pred1, test$college_rate))
+row1 <- cbind("Survey Ratings",
+              as.character(round(test_rsq1, 4)),
+              as.character(round(test_rmse1, 4)))
+test_pred2 <- predict(proxy_model, test |> select(-college_rate))
+test_rsq2 <- as.numeric(R2(test_pred2, test$college_rate, form = "traditional"))
+test_rmse2 <- as.numeric(RMSE(test_pred2, test$college_rate))
+row2 <- cbind("Proxy Variables",
+              as.character(round(test_rsq2, 4)),
+              as.character(round(test_rmse2, 4)))
+test_pred3 <- predict(wls_model, test |> select(-college_rate))
+test_rsq3 <- as.numeric(R2(test_pred3, test$college_rate, form = "traditional"))
+test_rmse3 <- as.numeric(RMSE(test_pred3, test$college_rate))
+row3 <- cbind("Weighted Least-Squares",
+              as.character(round(test_rsq3, 4)),
+              as.character(round(test_rmse3, 4)))
+tbl <- as.data.frame(rbind(row1, row2, row3))
+cols <- c("Model", "Predictive R-Squared", "RMSE")
+colnames(tbl) <- cols
+tbl <- tbl |>
+    mutate(Group = "Group 1") |>
+    select(Group, everything())
+apa_table(tbl, placement = "H")
 
 ```
-The Proxy Variables model has the lowest RMSE. We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of our models.
+
+In Group 1, the Proxy Variables model has the highest Predictive R-Squared and the lowest RMSE. 
+
+We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of the Group 1 models.
+
 
 ```{r aic-bic, warning=FALSE}
+model_names <- c("Survey Ratings", "Proxy Variables", "Weighted Least-Squares")
 model_list <- list(rating_model, proxy_model, wls_model)
 
 # Print AIC results
@@ -557,7 +645,42 @@ aictab(model_list, modnames=model_names)
 # Print BIC for each model
 bictab(model_list, modnames=model_names)
 ```
-From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models
+From our tables above, we can see smaller values of corrected AIC (which accounts for smaller sample sizes) from the proxy and WLS models than our base survey rating model. This implies better predictive performance for our WLS and proxy-variable models.
+
+### Group 2 Models:
+
+```{r }
+test_pred1 <- predict(svmRBTuned, test_svm |> select(-college_rate))
+test_rsq1 <- as.numeric(R2(test_pred1, test_svm$college_rate,
+                           form = "traditional"))
+test_rmse1 <- as.numeric(RMSE(test_pred1, test_svm$college_rate))
+row1 <- cbind("SVM:RB",
+              as.character(round(test_rsq1, 4)),
+              as.character(round(test_rmse1, 4)))
+test_pred2 <- predict(imp_feat_model, test_svm |> select(-college_rate))
+test_rsq2 <- as.numeric(R2(test_pred2, test_svm$college_rate,
+                           form = "traditional"))
+test_rmse2 <- as.numeric(RMSE(test_pred2, test_svm$college_rate))
+row2 <- cbind("Important Features (MLR)",
+              as.character(round(test_rsq2, 4)),
+              as.character(round(test_rmse2, 4)))
+test_pred3 <- predict(lassoTune, test_lasso |> select(-college_rate))
+test_rsq3 <- as.numeric(R2(test_pred3, test_lasso$college_rate,
+                           form = "traditional"))
+test_rmse3 <- as.numeric(RMSE(test_pred3, test_lasso$college_rate))
+row3 <- cbind("Lasso",
+              as.character(round(test_rsq3, 4)),
+              as.character(round(test_rmse3, 4)))
+tbl <- as.data.frame(rbind(row1, row2, row3))
+cols <- c("Model", "Predictive R-Squared", "RMSE")
+colnames(tbl) <- cols
+tbl <- tbl |>
+    mutate(Group = "Group 2") |>
+    select(Group, everything())
+apa_table(tbl, placement = "H")
+
+```
+In Group 2, the SVM:RB model has the highest Predictive R-Squared and the lowest RMSE, but it's a very close match between this model and the Lasso model. 
 
 # Conclusion
 Overall, our model to predict a high school's college persistence rate based on socioeconomic proxy variables outperformed the NYC Schools Open Survey Quality ratings of schools. This is not to say that school ratings based on teacher, student, and parent responses are not valuable inputs. However, they should not be the sole basis upon which educational policy decisions are made, considering the collective socioeconomic factors that most influence a school's performance.
