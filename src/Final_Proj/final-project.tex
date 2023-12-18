@@ -230,11 +230,7 @@
 \affiliation{\vspace{0.5cm}\textsuperscript{1} City University of New York}
 
 \abstract{%
-<<<<<<< HEAD
-We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model. Additionally, we create a lasso regression model in order to improve our model selection.
-=======
 We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model.
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 }
 
 
@@ -617,11 +613,7 @@ Running a Shapiro test for normality at a 95\% threshold, we receive a p-value o
 Plotting our proxy model's residuals, we can confirm normality as well visually:
 \includegraphics{final-project_files/figure-latex/proxy-residual-plot-1.pdf}
 
-<<<<<<< HEAD
 We also fit a weighted-least squares (WLS) model to our proxy variables to account for unqual variances among measurements' residuals. The approach can be used to mitigate the effects of heteroscedastic data when modeling.
-=======
-We produce a Weighted Least Squares (WLS) model using the same proxy variables and adding weights.
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 
 \begin{verbatim}
 ## 
@@ -646,7 +638,6 @@ We produce a Weighted Least Squares (WLS) model using the same proxy variables a
 ## F-statistic:   163 on 3 and 386 DF,  p-value: < 2.2e-16
 \end{verbatim}
 
-<<<<<<< HEAD
 \begin{figure}[H]
 \includegraphics[width=\textwidth]{final-project_files/figure-latex/plot-wls-model-1} \caption{ }\label{fig:plot-wls-model}
 \end{figure}
@@ -662,7 +653,7 @@ From our diagnostic plots of the WLS model above, we see no general pattern in t
 \end{verbatim}
 
 Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed,
-=======
+
 In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. (Predictors with \texttt{NA} values have been excluded from consideration due to the undesirably large amount of imputation required.)
 
 A summary of the ideal tuning parameters and R-Squared value for the SVM:RB model is below:
@@ -763,7 +754,6 @@ n\_chronic\_absent\_hs\_alleh & 9.39\\
 \end{table}
 
 In the lasso model, \texttt{temp\_housing\_pct} and \texttt{economic\_need} are more important than any race or gender percentage variables, unlike in the SVM:RB model.
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
@@ -771,7 +761,7 @@ In the lasso model, \texttt{temp\_housing\_pct} and \texttt{economic\_need} are 
 \hypertarget{model-evaluation}{%
 \subsubsection{Model Evaluation}\label{model-evaluation}}
 
-We compute the RMSE for each model on our testing data.
+We compute the Root mean-squared error (RMSE) for each model on our testing data.
 
 \begin{table}[H]
 
@@ -795,9 +785,7 @@ Weighted Least-Squares & 0.143462660716711\\
 
 \end{table}
 
-The Proxy Variables model has the lowest RMSE.
-
-We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models.
+The Proxy Variables model has the lowest RMSE. We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of our models.
 
 \begin{verbatim}
 ## 
@@ -826,11 +814,7 @@ From our tables above, we can see smaller values of corrected AIC (which account
 
 Overall, our model to predict a high school's college persistence rate based on socioeconomic proxy variables outperformed the NYC Schools Open Survey Quality ratings of schools. This is not to say that school ratings based on teacher, student, and parent responses are not valuable inputs. However, they should not be the sole basis upon which educational policy decisions are made, considering the collective socioeconomic factors that most influence a school's performance.
 
-<<<<<<< HEAD
-Some limitations of our approach would come from conflation between socioeconomic factors, as well as lacking a more robust imputation method. While our proxy variable model predicts college persistence better than one based off survey ratings, there could be error via omission of unseen variabels that are collinear with these inputs. This stems from the availability of data in our source data. We used a \href{https://stefvanbuuren.name/fimd/sec-pmm.html}{\emph{predictive mean matching} imputation method}, native to the \texttt{mice} R package (\emph{Buuren (2018)}). While this allows for realistic imputed values (no imputed value will fall outside the range of observed data), the underlying population distribution of those values could be non-normal.
-=======
 Some limitations of our approach would come from conflation between socioeconomic factors, as well as lacking a more robust imputation method. While our proxy variable model predicts college persistence better than one based off survey ratings, there could be error via omission of unseen variables that are collinear with these inputs. This stems from the availability of data in our source data. We used a \href{https://stefvanbuuren.name/fimd/sec-pmm.html}{\emph{predictive mean matching} imputation method}, native to the \texttt{mice} R package (\emph{Buuren (2018)}). While this allows for realistic imputed values (no imputed value will fall outside the range of observed data), the underlying population distribution of those values could be non-normal.
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 
 Future work could include joining in other academic performance metrics (average SAT/ACT scores, etc.) to see if our proxy variables also have predictive power. The dataset provided is indexed on a high school's \emph{district borough number} (DBN), which is present in several \href{https://opendata.cityofnewyork.us}{NYC Open Data} datasets on education in New York City. As mentioned above, joining in other data sources to augment this data could be a good way to address the omission of any variables that better correlate with college persistence rates.
 
@@ -975,10 +959,7 @@ Below is the code used to generate this report. It's also available on \href{htt
 \CommentTok{\# Create correlation plot between vars of interest}
 \NormalTok{corMatrix }\OtherTok{\textless{}{-}} \FunctionTok{cor}\NormalTok{(train\_renamed)}
 \FunctionTok{corrplot}\NormalTok{(corMatrix, }\AttributeTok{method=}\StringTok{"color"}\NormalTok{, }\AttributeTok{type=}\StringTok{"lower"}\NormalTok{, }\AttributeTok{tl.col=}\StringTok{"black"}\NormalTok{, }\AttributeTok{addCoef.col =} \StringTok{"black"}\NormalTok{, }\AttributeTok{tl.cex =} \FloatTok{0.7}\NormalTok{, }\AttributeTok{number.cex =} \FloatTok{0.6}\NormalTok{)}
-<<<<<<< HEAD
-=======
 
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 \CommentTok{\# Plot temp housing rates}
 \NormalTok{pa }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(train, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x=}\NormalTok{temp\_housing\_pct)) }\SpecialCharTok{+}
     \FunctionTok{geom\_density}\NormalTok{() }\SpecialCharTok{+}
@@ -1030,14 +1011,10 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{vif\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(}\FunctionTok{vif}\NormalTok{(rating\_model))}
 \FunctionTok{colnames}\NormalTok{(vif\_df) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"VIF Value"}\NormalTok{)}
 \FunctionTok{apa\_table}\NormalTok{(vif\_df, }\AttributeTok{caption =} \StringTok{"Variance Inflation Factors"}\NormalTok{, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
-<<<<<<< HEAD
-=======
-
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mai=}\FunctionTok{c}\NormalTok{(.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{))}
 \FunctionTok{plot}\NormalTok{(rating\_model)}
 
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 \CommentTok{\# Create OLS linear model based on our proxy variables: no transforms}
 \NormalTok{proxy\_formula }\OtherTok{\textless{}{-}}\NormalTok{ college\_rate }\SpecialCharTok{\textasciitilde{}}\NormalTok{ temp\_housing\_pct }\SpecialCharTok{+}\NormalTok{ economic\_need }\SpecialCharTok{+}\NormalTok{ val\_chronic\_absent\_hs\_all }\SpecialCharTok{+}\NormalTok{ enrollment}
 \NormalTok{proxy\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, train)}
@@ -1065,12 +1042,10 @@ Below is the code used to generate this report. It's also available on \href{htt
 \NormalTok{wls\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(proxy\_formula, }\AttributeTok{data =}\NormalTok{ train, }\AttributeTok{weights=}\NormalTok{weights)}
 
 \FunctionTok{summary}\NormalTok{(wls\_model)}
-<<<<<<< HEAD
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mai=}\FunctionTok{c}\NormalTok{(.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{,.}\DecValTok{3}\NormalTok{))}
 \FunctionTok{plot}\NormalTok{(wls\_model)}
 \FunctionTok{shapiro.test}\NormalTok{(wls\_model}\SpecialCharTok{$}\NormalTok{residuals)}
-=======
 \NormalTok{na\_count }\OtherTok{\textless{}{-}}\FunctionTok{sapply}\NormalTok{(train\_svm, }\ControlFlowTok{function}\NormalTok{(y) }\FunctionTok{sum}\NormalTok{(}\FunctionTok{length}\NormalTok{(}\FunctionTok{which}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(y)))))}
 \NormalTok{na\_count }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(na\_count)}
 \NormalTok{na\_count }\OtherTok{\textless{}{-}}\NormalTok{ na\_count }\SpecialCharTok{|\textgreater{}}
@@ -1156,7 +1131,6 @@ Below is the code used to generate this report. It's also available on \href{htt
     \FunctionTok{top\_n}\NormalTok{(}\DecValTok{25}\NormalTok{)}
 \FunctionTok{apa\_table}\NormalTok{(lasso\_imp, }\AttributeTok{placement =} \StringTok{"H"}\NormalTok{)}
 
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 \CommentTok{\# Compute RMSE for each model on our testing data}
 \NormalTok{model\_names }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Survey Ratings"}\NormalTok{, }\StringTok{"Proxy Variables"}\NormalTok{, }\StringTok{"Weighted Least{-}Squares"}\NormalTok{)}
 \NormalTok{rmse\_summ }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\FunctionTok{rmse}\NormalTok{(rating\_model, test),}

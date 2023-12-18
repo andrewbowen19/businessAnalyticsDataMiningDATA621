@@ -527,13 +527,12 @@ apa_table(lasso_imp, placement = "H")
 ```
 
 In the lasso model, `temp_housing_pct` and `economic_need` are more important than any race or gender percentage variables, unlike in the SVM:RB model.
->>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 
 # Experimentation and Results
 
 ### Model Evaluation
 
-We compute the RMSE for each model on our testing data. 
+We compute the Root mean-squared error (RMSE) for each model on our testing data. 
 
 ```{r RMSE}
 # Compute RMSE for each model on our testing data
@@ -547,9 +546,7 @@ colnames(rmse_summ) <- cols
 apa_table(rmse_summ, placement = "H")
 
 ```
-The Proxy Variables model has the lowest RMSE. 
-
-We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models.
+The Proxy Variables model has the lowest RMSE. We can also use the Akaike and Bayesian Information Criterion for evaluating the complexity of our models.
 
 ```{r aic-bic, warning=FALSE}
 model_list <- list(rating_model, proxy_model, wls_model)
