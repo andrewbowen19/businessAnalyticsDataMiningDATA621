@@ -21,8 +21,9 @@ affiliation:
     institution   : "City University of New York"
 
 
-abstract: |
+abstract: | 
   We present a study on the effectiveness of New York City School Quality Snapshot in predicting the 4-year college persistence rate for New York City high schools. These surveys are used in the deciding of educational policy across the United States. While input from educators and families can be invaluable, it often can not reflect the underlying factors that most influence academic performance. We also build a predictive model based on proxy socioeconomic factors (presence in temporary housing, economic need) that can also be used to predict the average college persistence of a high school in NYC. Our model based on socioeconomic indicators outperforms a model based solely on results of the school quality snapshot, which includes survey responses from students, parents, and educators within NYC public schools. This increased performance comes across several model diagnostic statistics, including root mean-squared error, Akaike and Bayesian Information Criteria, and adjusted R-squared. Additionally, a weighted least-squares model is created on the same set of proxy variables to compare modeling techniques. This model outperforms the ratings-based linear model, but introduces additional complexity for less explainability when compared with the direct proxy variable model.
+
   
   
 keywords          : "Educational Outcomes, School Quality, Education"
@@ -317,7 +318,6 @@ The adjusted R-squared is the same due to rounding. We check for suspected multi
 vif_df <- as.data.frame(vif(rating_model))
 colnames(vif_df) <- c("VIF Value")
 apa_table(vif_df, caption = "Variance Inflation Factors", placement = "H")
-
 ```
 
 Surprisingly, none of the variance inflation factors are greater than five, so there are no multicollinearity issues to address for this model.
@@ -386,7 +386,8 @@ Plotting our proxy model's residuals, we can confirm normality as well visually:
 hist(proxy_model$residuals, xlab="Proxy Model Residuals")
 ```
 
-We produce a Weighted Least Squares (WLS) model using the same proxy variables and adding weights. 
+
+We also fit a weighted-least squares (WLS) model to our proxy variables to account for unqual variances among measurements' residuals. The approach can be used to mitigate the effects of heteroscedastic data when modeling.
 
 ```{r weighted-least-squares}
 # Calculating weights for WLS
@@ -398,6 +399,21 @@ wls_model <- lm(proxy_formula, data = train, weights=weights)
 
 summary(wls_model)
 ```
+
+```{r plot-wls-model, fig.pos='H', out.width="\\textwidth"}
+par(mfrow=c(2,2))
+par(mai=c(.3,.3,.3,.3))
+plot(wls_model)
+```
+
+From our diagnostic plots of the WLS model above, we see no general pattern in the *Residuals vs Fitted* plot. In addition, our QQ plot shows general normality behavior, with some behavior off the trendline near the tails of the distribution. Similar to above, we can run a Shapiro test on the residuals of the WLS model to assess normality of residuals, with the same alternative and null hypotheses as above:
+
+```{r wls-shapiro}
+shapiro.test(wls_model$residuals)
+```
+Again, our p-value of 0.7594 indicates that the underlying distribution of residuals is normally distributed, 
+
+
 In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. (Predictors with `NA` values have been excluded from consideration due to the undesirably large amount of imputation required.)
 
 ```{r }
@@ -511,6 +527,7 @@ apa_table(lasso_imp, placement = "H")
 ```
 
 In the lasso model, `temp_housing_pct` and `economic_need` are more important than any race or gender percentage variables, unlike in the SVM:RB model.
+>>>>>>> 5e7a875c679a501b748d69dfabbcb1cf11f4c93d
 
 # Experimentation and Results
 
