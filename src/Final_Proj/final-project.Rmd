@@ -58,6 +58,8 @@ library(DataExplorer)
 library(cowplot)
 library(car)
 library(AICcmodavg)
+library(rminer)
+library(elasticnet)
 r_refs("r-references.bib")
 ```
 
@@ -147,7 +149,10 @@ set.seed(42)
 
 # Adding a 20% holdout of our input data for model evaluation later
 train <- subset(df[sample(1:nrow(df)), ]) %>% sample_frac(0.8)
+train_svm <- train |> select(-all_of(c("dbn", "school_name", "school_type")))
 test  <- dplyr::anti_join(df, train, by = 'dbn')
+test_svm <- test |> select(-all_of(c("dbn", "school_name", "school_type")))
+
 ```
 For ease of single-node computation, we'll select the variables of interest from our dataset. Notably, these are the survey ratings, enrollment levels, and our preferred proxy variables for each school.
 
@@ -381,6 +386,8 @@ Plotting our proxy model's residuals, we can confirm normality as well visually:
 hist(proxy_model$residuals, xlab="Proxy Model Residuals")
 ```
 
+We produce a Weighted Least Squares (WLS) model using the same proxy variables and adding weights. 
+
 ```{r weighted-least-squares}
 # Calculating weights for WLS
 weights <- 1 / lm(abs(proxy_model$residuals) ~ proxy_model$fitted.values)$fitted.values^2
@@ -391,21 +398,144 @@ wls_model <- lm(proxy_formula, data = train, weights=weights)
 
 summary(wls_model)
 ```
+In the interest of determining whether there are other important variables in the original data that we have not considered, or whether a nonlinear approach could reveal relationships in the data that our linear models have not captured, we train a Support Vector Machine (SVM): Radial Basis (RB) model on centered and scaled data. (Predictors with `NA` values have been excluded from consideration due to the undesirably large amount of imputation required.)
+
+```{r }
+na_count <-sapply(train_svm, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+na_count <- na_count |>
+    filter(na_count == 0)
+incl <- rownames(na_count)
+train_svm <- train_svm |>
+    drop_na(college_rate)
+svmRBTuned <- train(train_svm |> select(all_of(incl)), train_svm$college_rate,
+                    method = "svmRadial",
+                    preProc = c("center", "scale"),
+                    tuneLength = 14,
+                    trControl = trainControl(method = "cv"))
+
+```
+A summary of the ideal tuning parameters and R-Squared value for the SVM:RB model is below:
+
+```{r }
+svm_summ <- c("SVM:RB",
+             round(svmRBTuned$bestTune$sigma, 4),
+             svmRBTuned$bestTune$C,
+             round(svmRBTuned$results |>
+                 filter(C == svmRBTuned$bestTune$C) |>
+                 select(Rsquared) |> as.numeric(), 4))
+svm_summ <- as.data.frame(t(svm_summ))
+cols <- c("Model", "sigma", "C", "R-Squared")
+colnames(svm_summ) <- cols
+apa_table(svm_summ, placement = "H")
+
+```
+A summary of the estimated feature importance for the ten most important features in this SVM:RB model is below:
+
+```{r }
+y <- train_svm$college_rate
+names(y) <- "y"
+dat = cbind(train_svm |> select(all_of(incl)), y)
+svmRBFit <- fit(y~., data = dat, model = "svm",
+               kpar = list(sigma = 0.0244), C = 1)
+svmRB.imp <- Importance(svmRBFit, data = dat)
+L = list(runs = 1,sen = t(svmRB.imp$imp),
+         sresponses = svmRB.imp$sresponses)
+sen_vec <- as.numeric(L[["sen"]])
+copy <- L
+delete <- c()
+sort <- sort(sen_vec, decreasing = TRUE)
+for (i in 1:length(sen_vec)){
+    if (sen_vec[i] > sort[11]){
+        next
+    }else{
+        delete <- append(delete, i)
+    }
+}
+copy[["sen"]] <- t(as.matrix(copy[["sen"]][, -delete]))
+copy[["sresponses"]] <- copy[["sresponses"]][-delete]
+names <- c()
+for (i in 1:length(copy[["sresponses"]])){
+    n <- copy[["sresponses"]][[i]][["n"]]
+    names <- append(names, n)
+}
+mgraph(copy, graph = "IMP", leg = names, col = "gray",
+       PDF = "")
+
+```
+We can see that the SVM:RB model includes two of our proxy variables in its top ten most important features list: `temp_housing_pct` and `economic_need`. However, the single most important feature to the SVM:RB model is `ethnicity_asian_pct`, and the model considers other race and gender percentages important in predicting `college_rate` as well. It is not surprising that race and gender play a role in the college persistence rate, and that could be another avenue of analysis. We will not evaluate the SVM:RB further, as our analysis is more focused on linear regression using our selected proxy variables. 
+
+Alternatively, we will train a lasso model as a means of feature selection. The ridge-regression penalty $\lambda$ is fixed at 0, and we will tune over a number of lasso penalties. (Predictors with `NA` values have again been excluded from consideration due to the undesirably large amount of imputation required.)
+
+```{r train_enet,echo=FALSE,message=FALSE}
+train_lasso <- train_svm
+lassoGrid <- expand.grid(.lambda = c(0),
+                         .fraction = seq(.05, 1, length = 20))
+ctrl <- trainControl(method = "cv", number = 10)
+lassoTune <- train(train_lasso |> select(all_of(incl)),
+                   train_lasso$college_rate,
+                   method = "enet",
+                   tuneGrid = lassoGrid,
+                   trControl = ctrl,
+                   preProc = c("center", "scale"))
+
+```
+A summary of the ideal tuning parameters and R-Squared value for the lasso model is below:
+
+```{r }
+lasso_summ <- c("Lasso",
+             lassoTune$bestTune$lambda,
+             lassoTune$bestTune$fraction,
+             round(lassoTune$results |>
+                 filter(fraction == lassoTune$bestTune$fraction) |>
+                 select(Rsquared) |> as.numeric(), 4))
+lasso_summ <- as.data.frame(t(lasso_summ))
+cols <- c("Model", "lambda", "lasso penalty", "R-Squared")
+colnames(lasso_summ) <- cols
+apa_table(lasso_summ, placement = "H")
+
+```
+A summary of the estimated feature importance for the twenty-five most important features in this lasso model is below:
+
+```{r }
+lasso_imp <- varImp(lassoTune, scale = TRUE)
+cols <- c("Predictor", "Importance")
+lasso_imp <- lasso_imp$importance |>
+    rownames_to_column()
+colnames(lasso_imp) <- cols
+lasso_imp <- lasso_imp |>
+    arrange(desc(Importance)) |>
+    top_n(25)
+apa_table(lasso_imp, placement = "H")
+
+```
+
+In the lasso model, `temp_housing_pct` and `economic_need` are more important than any race or gender percentage variables, unlike in the SVM:RB model.
+
 # Experimentation and Results
 
 ### Model Evaluation
 
+We compute the RMSE for each model on our testing data. 
+
 ```{r RMSE}
 # Compute RMSE for each model on our testing data
-rmse(rating_model, test)
-modelr::rmse(proxy_model, test)
-modelr::rmse(wls_model, test)
+model_names <- c("Survey Ratings", "Proxy Variables", "Weighted Least-Squares")
+rmse_summ <- c(rmse(rating_model, test),
+               modelr::rmse(proxy_model, test),
+               modelr::rmse(wls_model, test))
+rmse_summ <- as.data.frame(cbind(model_names, rmse_summ))
+cols <- c("Model", "RMSE")
+colnames(rmse_summ) <- cols
+apa_table(rmse_summ, placement = "H")
+
 ```
+The Proxy Variables model has the lowest RMSE. 
+
 We can also use the Akaike and Bayesian Information Criterion for evaluatng the complexity of our models.
 
 ```{r aic-bic, warning=FALSE}
 model_list <- list(rating_model, proxy_model, wls_model)
-model_names <- c("Survey Ratings", "Proxy Variables", "Weighted Least-Squares")
 
 # Print AIC results
 aictab(model_list, modnames=model_names)
