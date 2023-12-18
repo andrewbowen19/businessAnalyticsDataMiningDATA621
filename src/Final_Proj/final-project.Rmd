@@ -599,6 +599,7 @@ lasso_coefs <- lasso_coefs |>
 To evaluate our models' quality and performance, we will separate the models into two groups and measure Predictive R-Squared and RMSE using the holdout test data. The first group of models will be the Survey Ratings, Proxy Variables, and Weighted Least-Squares models, which all use a reduced dataset that only includes features we selected based on our research question. This dataset has `NA` values imputed. The second group of models will be the SVM:RB, Important features, and Lasso models. This group uses the full dataset (excluding predictors that had `NA` values, as well as observations that had `NA` values in the response). It is important to compare them separately because of the differences in their underlying data. We will only measure AIC and BIC for the first group, which are all linear models for which these metrics make sense. 
 
 
+
 ### Group 1 Models:
 
 ```{r pred-rsquared-RMSE}
